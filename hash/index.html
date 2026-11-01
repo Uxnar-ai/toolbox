@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>哈希校验 · 下完文件对一下指纹</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{grid-template-columns:1fr}
+  @media (min-width:900px){ .panes{grid-template-columns:1fr 1.1fr} }
+  #drop{
+    border:2px dashed var(--line); border-radius:var(--radius); padding:26px 16px; text-align:center;
+    cursor:pointer; transition:border-color .15s, background .15s;
+  }
+  #drop.on{border-color:var(--accent); background:var(--soft)}
+  #drop b{font-size:15px}
+  #drop p{margin:6px 0 0; font-size:12.5px; color:var(--dim)}
+  .file{margin-top:10px; font-size:12.5px; color:var(--dim); line-height:1.7; word-break:break-all}
+  .file b{color:var(--fg)}
+  .sect{margin-top:16px}
+  .sect h2{font-size:12.5px; color:var(--dim); font-weight:600; margin:0 0 8px}
+  textarea{height:96px}
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:8px 12px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px}
+  .rows{padding:4px 12px 10px}
+  .row2{display:flex; gap:10px; align-items:flex-start; padding:9px 0; border-bottom:1px solid var(--line)}
+  .row2:last-child{border-bottom:0}
+  .algo{flex:0 0 66px; font-size:12px; color:var(--dim); padding-top:2px}
+  .val{flex:1 1 auto; min-width:0; font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; word-break:break-all}
+  .val.off{color:var(--dim)}
+  .cp{
+    flex:0 0 auto; font:12px/1 inherit; padding:4px 9px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  .cp:hover{border-color:var(--accent); color:var(--accent)}
+  .cmp{margin-top:12px}
+  .cmp input{
+    width:100%; font:12.5px ui-monospace,monospace; padding:9px 10px; border-radius:8px;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  .verdict{margin-top:8px; font-size:13px; min-height:20px}
+  .verdict .yes{color:var(--ok); font-weight:600}
+  .verdict .no{color:var(--err); font-weight:600}
+  .note{font-size:12.5px; color:var(--dim); margin:12px 0 0; line-height:1.7}
+  @media (max-width:560px){ .algo{flex-basis:52px; font-size:11.5px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>哈希校验</h1>
+      <p class="lede">下完文件对一下指纹：拖进来出 MD5 / SHA-1 / SHA-256 / SHA-512，把官网给的串粘进去，立刻告诉你对不对。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div>
+      <div id="drop">
+        <b>把文件拖进来</b>
+        <p>或者点这里选文件 · 大文件也就读一遍，不会上传</p>
+      </div>
+      <input type="file" id="pick" hidden>
+      <div class="file" id="fileInfo">还没选文件，下面算的是左边这段示例文字的指纹。</div>
+
+      <div class="sect">
+        <h2>或者直接算一段文字</h2>
+        <div class="box">
+          <textarea id="txt" spellcheck="false"></textarea>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="chip quick" id="bText" type="button">算这段文字</button>
+          <button class="chip quick" id="bSample" type="button">填示例</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="box">
+        <div class="hd"><span>指纹</span><span id="cost"></span></div>
+        <div class="rows" id="rows">
+          <div class="row2"><span class="algo">MD5</span><span class="val val off" data-k="md5">—</span></div>
+          <div class="row2"><span class="algo">SHA-1</span><span class="val val off" data-k="sha1">—</span></div>
+          <div class="row2"><span class="algo">SHA-256</span><span class="val val off" data-k="sha256">—</span></div>
+          <div class="row2"><span class="algo">SHA-512</span><span class="val val off" data-k="sha512">—</span></div>
+        </div>
+      </div>
+
+      <div class="cmp">
+        <input id="expect" type="text" spellcheck="false" placeholder="把官方给的校验值粘这里（自动认是哪一种）">
+        <div class="verdict" id="verdict"></div>
+      </div>
+
+      <p class="note">单位是常用的十六进制长度：32 位是 MD5，40 位 SHA-1，64 位 SHA-256，128 位 SHA-512。大小写、空格都不影响比对。<br>SHA-256 以上由浏览器自带的安全模块算，MD5 是页面里自己实现的；文件全程留在本机。</p>
+    </div>
+  </div>
+
+  <footer>所有计算都在你自己浏览器里完成，文件与文字都不会发到服务器。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  // ---------- MD5（浏览器自带没有，自己算） ----------
+  var SH = [7,12,17,22,7,12,17,22,7,12,17,22,7,12,17,22,
+            5,9,14,20,5,9,14,20,5,9,14,20,5,9,14,20,
+            4,11,16,23,4,11,16,23,4,11,16,23,4,11,16,23,
+            6,10,15,21,6,10,15,21,6,10,15,21,6,10,15,21];
+  var KK = [];
+  for (var i = 0; i < 64; i++) KK[i] = (Math.floor(Math.abs(Math.sin(i + 1)) * 4294967296)) | 0;
+
+  function md5(bytes){
+    var l = bytes.length;
+    var padLen = (((l + 8) >> 6) + 1) * 64;
+    var buf = new Uint8Array(padLen);
+    buf.set(bytes);
+    buf[l] = 0x80;
+    var dv = new DataView(buf.buffer);
+    var bitLen = l * 8;
+    dv.setUint32(padLen - 8, bitLen >>> 0, true);
+    dv.setUint32(padLen - 4, Math.floor(bitLen / 4294967296), true);
+
+    var a0 = 0x67452301 | 0, b0 = 0xefcdab89 | 0, c0 = 0x98badcfe | 0, d0 = 0x10325476 | 0;
+    var M = new Array(16);
+    for (var off = 0; off < padLen; off += 64){
+      for (var j = 0; j < 16; j++) M[j] = dv.getUint32(off + j * 4, true);
+      var A = a0, B = b0, C = c0, D = d0;
+      for (var k = 0; k < 64; k++){
+        var F, g;
+        if (k < 16){ F = (B & C) | (~B & D); g = k; }
+        else if (k < 32){ F = (D & B) | (~D & C); g = (5 * k + 1) % 16; }
+        else if (k < 48){ F = B ^ C ^ D; g = (3 * k + 5) % 16; }
+        else { F = C ^ (B | ~D); g = (7 * k) % 16; }
+        F = (F + A + KK[k] + M[g]) | 0;
+        A = D; D = C; C = B;
+        B = (B + ((F << SH[k]) | (F >>> (32 - SH[k])))) | 0;
+      }
+      a0 = (a0 + A) | 0; b0 = (b0 + B) | 0; c0 = (c0 + C) | 0; d0 = (d0 + D) | 0;
+    }
+    function hx(x){
+      var r = '';
+      for (var i2 = 0; i2 < 4; i2++) r += ('0' + ((x >>> (i2 * 8)) & 0xff).toString(16)).slice(-2);
+      return r;
+    }
+    return hx(a0) + hx(b0) + hx(c0) + hx(d0);
+  }
+
+  // ---------- 页面 ----------
+  var drop = document.getElementById('drop'), pick = document.getElementById('pick');
+  var fileInfo = document.getElementById('fileInfo'), rows = document.getElementById('rows');
+  var expect = document.getElementById('expect'), verdict = document.getElementById('verdict');
+  var cost = document.getElementById('cost'), txt = document.getElementById('txt');
+
+  var SAMPLE = 'hello auto-lab\n这一行是中文，用来一起算指纹。';
+  var hashes = { md5:'', sha1:'', sha256:'', sha512:'' };
+  var LABEL = { md5:'MD5', sha1:'SHA-1', sha256:'SHA-256', sha512:'SHA-512' };
+
+  function toHex(buf){
+    var b = new Uint8Array(buf), s = '';
+    for (var i = 0; i < b.length; i++) s += ('0' + b[i].toString(16)).slice(-2);
+    return s;
+  }
+
+  function paint(){
+    Object.keys(hashes).forEach(function(k){
+      var el = rows.querySelector('[data-k="' + k + '"]');
+      var box = el.parentNode;
+      var old = box.querySelector('.cp');
+      if (hashes[k]){
+        el.textContent = hashes[k];
+        el.classList.remove('off');
+        if (!old){
+          var b = document.createElement('button');
+          b.className = 'cp'; b.type = 'button'; b.textContent = '复制';
+          b.setAttribute('data-for', k);
+          box.appendChild(b);
+        }
+      } else {
+        el.textContent = '—';
+        el.classList.add('off');
+        if (old) old.remove();
+      }
+    });
+  }
+
+  function compare(){
+    var want = (expect.value || '').trim().toLowerCase().replace(/\s+/g, '');
+    verdict.innerHTML = '';
+    if (!want) return;
+    if (!/^[0-9a-f]+$/.test(want)){
+      verdict.innerHTML = '<span class="no">这串里有不是十六进制的字符</span>';
+      return;
+    }
+    var hit = null;
+    Object.keys(hashes).forEach(function(k){ if (hashes[k] && hashes[k] === want) hit = k; });
+    if (hit){
+      verdict.innerHTML = '<span class="yes">✓ 一致，这个是 ' + LABEL[hit] + '</span>';
+    } else {
+      var len = want.length;
+      var guess = len === 32 ? 'MD5' : len === 40 ? 'SHA-1' : len === 64 ? 'SHA-256' : len === 128 ? 'SHA-512' : '';
+      verdict.innerHTML = '<span class="no">✗ 对不上' + (guess ? '（按长度看像是 ' + guess + '）' : '') + '</span>';
+    }
+  }
+
+  function compute(bytes, label, extra){
+    cost.textContent = '正在算…';
+    hashes = { md5:'', sha1:'', sha256:'', sha512:'' };
+    paint();
+    var t0 = performance.now();
+
+    hashes.md5 = bytes.length <= 96 * 1024 * 1024 ? md5(bytes) : null;
+    paint();
+
+    var tasks = [['sha1', 'SHA-1'], ['sha256', 'SHA-256'], ['sha512', 'SHA-512']].map(function(p){
+      return crypto.subtle.digest(p[1], bytes).then(function(d){ hashes[p[0]] = toHex(d); });
+    });
+
+    Promise.all(tasks).then(function(){
+      paint();
+      var ms = Math.round(performance.now() - t0);
+      cost.textContent = '用时 ' + ms + ' ms';
+      if (hashes.md5 === null){
+        var el = rows.querySelector('[data-k="md5"]');
+        el.textContent = '文件超过 96 MB，跳过';
+        el.classList.add('off');
+      }
+      fileInfo.innerHTML = label + (extra || '');
+      compare();
+    }).catch(function(e){
+      cost.textContent = '算不了';
+      verdict.innerHTML = '<span class="no">这台浏览器算不了：' + (e.message || e) + '</span>';
+    });
+  }
+
+  function sizeText(n){
+    if (n < 1024) return n + ' 字节';
+    if (n < 1048576) return Math.round(n / 1024) + ' KB';
+    return (n / 1048576).toFixed(1) + ' MB';
+  }
+
+  function readFile(file){
+    if (!file) return;
+    var mb = file.size / 1048576;
+    if (mb > 400){
+      fileInfo.textContent = '文件 ' + mb.toFixed(0) + ' MB，太大了，浏览器里算会吃掉大量内存。';
+      return;
+    }
+    fileInfo.textContent = '正在读 ' + file.name + '（' + sizeText(file.size) + '）…';
+    var fr = new FileReader();
+    fr.onload = function(){
+      compute(new Uint8Array(fr.result), '<b>' + file.name + '</b> · ' + sizeText(file.size));
+    };
+    fr.onerror = function(){ fileInfo.textContent = '这个文件读不了，可能没权限。'; };
+    fr.readAsArrayBuffer(file);
+  }
+
+  pick.addEventListener('change', function(){ readFile(pick.files[0]); });
+  drop.addEventListener('click', function(){ pick.click(); });
+  ['dragenter', 'dragover'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add('on'); });
+  });
+  ['dragleave', 'drop'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove('on'); });
+  });
+  drop.addEventListener('drop', function(e){
+    if (e.dataTransfer && e.dataTransfer.files.length) readFile(e.dataTransfer.files[0]);
+  });
+
+  rows.addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('.cp') : null;
+    if (!b) return;
+    var k = b.getAttribute('data-for');
+    copyText(hashes[k], b, '复制');
+  });
+
+  expect.addEventListener('input', compare);
+
+  document.getElementById('bText').addEventListener('click', function(){
+    var s = txt.value;
+    if (!s){ txt.focus(); return; }
+    var bytes = new TextEncoder().encode(s);
+    compute(bytes, '<b>一段文字</b>', ' · ' + bytes.length + ' 字节');
+  });
+  document.getElementById('bSample').addEventListener('click', function(){
+    txt.value = SAMPLE;
+    var bytes = new TextEncoder().encode(SAMPLE);
+    compute(bytes, '<b>示例文字</b>', ' · ' + bytes.length + ' 字节');
+  });
+
+  // 打开就有东西看：先把示例文字的指纹算出来
+  txt.value = SAMPLE;
+  var b0 = new TextEncoder().encode(SAMPLE);
+  compute(b0, '<b>示例文字</b>', ' · ' + b0.length + ' 字节');
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

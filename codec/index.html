@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>编码解码 · Base64 / URL / HTML / JWT</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{grid-template-columns:1fr}
+  @media (min-width:860px){ .panes{grid-template-columns:1fr 1fr} }
+  textarea{height:260px}
+  pre.out{height:260px}
+  .chip.on .sub{opacity:.8}
+  .flag{font-size:12px; color:var(--dim)}
+  .stats .err-txt{color:var(--err); font-weight:600}
+  .note{font-size:12.5px; color:var(--dim); margin:10px 0 0}
+  @media (max-width:560px){ textarea, pre.out{height:200px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>编码解码</h1>
+      <p class="lede">Base64、网址转义、HTML 转义、\u 转义、JWT —— 粘进去选一下，右边出结果。中文不会乱码，全程本地算。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="row">
+    <button class="chip on" data-mode="b64e" type="button">Base64 编码</button>
+    <button class="chip" data-mode="b64d" type="button">Base64 解码</button>
+    <button class="chip" data-mode="urle" type="button">网址转义</button>
+    <button class="chip" data-mode="urld" type="button">网址还原</button>
+    <button class="chip" data-mode="htmle" type="button">HTML 转义</button>
+    <button class="chip" data-mode="htmld" type="button">HTML 还原</button>
+    <button class="chip" data-mode="unie" type="button">\u 转义</button>
+    <button class="chip" data-mode="unid" type="button">\u 还原</button>
+    <button class="chip" data-mode="jwt" type="button">拆 JWT</button>
+  </div>
+  <div class="row">
+    <button class="chip" id="flagUrl" type="button">Base64 用网址安全字符（-_）</button>
+    <span class="sep"></span>
+    <button class="chip quick" id="bSwap" type="button">结果倒回左边</button>
+    <button class="chip quick" id="bSample" type="button">示例</button>
+    <button class="chip quick" id="bClear" type="button">清空</button>
+  </div>
+
+  <div class="panes">
+    <div class="pane">
+      <h2><span>原文</span><span id="statIn">0 字</span></h2>
+      <textarea id="src" spellcheck="false" placeholder="粘要处理的文字"></textarea>
+    </div>
+    <div class="pane">
+      <h2><span id="outTitle">结果</span><button id="copy" type="button">复制</button></h2>
+      <pre class="out" id="out"></pre>
+    </div>
+  </div>
+
+  <div class="stats">
+    <span id="statOut">0 字符</span>
+    <span id="statMsg"></span>
+  </div>
+  <p class="note">JWT 只是拆开看，不验签 —— 签名对不对得由服务端说了算。<br>Base64 不是加密，看到一串乱码能直接解回来，别拿它藏东西。</p>
+
+  <footer>所有换算都在你自己浏览器里完成，内容不发到服务器。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var src = document.getElementById('src'), out = document.getElementById('out');
+  var statIn = document.getElementById('statIn'), statOut = document.getElementById('statOut'), statMsg = document.getElementById('statMsg');
+  var outTitle = document.getElementById('outTitle');
+  var flagUrl = document.getElementById('flagUrl');
+  var mode = 'b64e';
+
+  var SAMPLE = 'https://example.com/搜索?q=中文 关键词&page=2';
+
+  var TITLES = {
+    b64e: 'Base64', b64d: '解出来的原文',
+    urle: '转义后的网址', urld: '还原后的网址',
+    htmle: '转义后的 HTML', htmld: '还原后的文字',
+    unie: '\\u 转义结果', unid: '还原后的文字',
+    jwt: '拆开的内容'
+  };
+
+  function encB64(s){
+    var bytes = new TextEncoder().encode(s);
+    var bin = '';
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    var b = btoa(bin);
+    if (flagUrl.classList.contains('on')) b = b.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return b;
+  }
+
+  function decB64(s){
+    var t = s.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
+    while (t.length % 4) t += '=';
+    var bin = atob(t);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+
+  function escHtml(s){
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function unescHtml(s){
+    var t = document.createElement('textarea');
+    t.innerHTML = s;
+    return t.value;
+  }
+
+  function escUni(s){
+    var r = '';
+    for (var i = 0; i < s.length; i++){
+      var c = s.charCodeAt(i);
+      if (c > 126 || c < 32){
+        r += '\\u' + ('0000' + c.toString(16)).slice(-4);
+      } else {
+        r += s.charAt(i);
+      }
+    }
+    return r;
+  }
+
+  function unescUni(s){
+    return s.replace(/\\u\{([0-9a-fA-F]+)\}/g, function(_, h){ return String.fromCodePoint(parseInt(h, 16)); })
+            .replace(/\\u([0-9a-fA-F]{4})/g, function(_, h){ return String.fromCharCode(parseInt(h, 16)); })
+            .replace(/\\x([0-9a-fA-F]{2})/g, function(_, h){ return String.fromCharCode(parseInt(h, 16)); });
+  }
+
+  function b64urlJson(part){
+    var t = part.replace(/-/g, '+').replace(/_/g, '/');
+    while (t.length % 4) t += '=';
+    var bin = atob(t);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    var txt = new TextDecoder('utf-8').decode(bytes);
+    return JSON.stringify(JSON.parse(txt), null, 2);
+  }
+
+  function fmtTime(sec){
+    var d = new Date(sec * 1000);
+    function p(n){ return n < 10 ? '0' + n : '' + n; }
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+
+  function jwt(s){
+    var parts = s.trim().split('.');
+    if (parts.length < 2) throw new Error('不像 JWT：应该是用点分成三段的一串');
+    var head = b64urlJson(parts[0]);
+    var body = b64urlJson(parts[1]);
+    var lines = ['【头部】', head, '', '【内容】', body];
+    try {
+      var obj = JSON.parse(body);
+      var now = Math.floor(Date.now() / 1000);
+      if (obj.exp){
+        var left = obj.exp - now;
+        lines.push('');
+        if (left > 0){
+          var h = Math.floor(left / 3600), m = Math.floor(left % 3600 / 60);
+          lines.push('过期时间：' + fmtTime(obj.exp) + '（还有 ' + (h > 0 ? h + ' 小时 ' : '') + m + ' 分钟）');
+        } else {
+          lines.push('过期时间：' + fmtTime(obj.exp) + '（已经过了 ' + Math.floor(-left / 60) + ' 分钟）');
+        }
+      }
+      if (obj.iat) lines.push('签发时间：' + fmtTime(obj.iat));
+      if (obj.nbf) lines.push('生效时间：' + fmtTime(obj.nbf));
+    } catch (e) { /* 内容不是 JSON 就只给原文 */ }
+    if (parts.length > 2) lines.push('', '（签名段 ' + parts[2].length + ' 字符，这里不验签）');
+    return lines.join('\n');
+  }
+
+  function run(){
+    var s = src.value;
+    statIn.textContent = s.length + ' 字';
+    outTitle.textContent = TITLES[mode] || '结果';
+    statMsg.className = '';
+    statMsg.textContent = '';
+
+    if (!s){
+      out.textContent = '';
+      statOut.textContent = '0 字符';
+      return;
+    }
+
+    var r;
+    try {
+      if (mode === 'b64e') r = encB64(s);
+      else if (mode === 'b64d') r = decB64(s);
+      else if (mode === 'urle') r = encodeURIComponent(s);
+      else if (mode === 'urld') r = decodeURIComponent(s.replace(/\+/g, ' '));
+      else if (mode === 'htmle') r = escHtml(s);
+      else if (mode === 'htmld') r = unescHtml(s);
+      else if (mode === 'unie') r = escUni(s);
+      else if (mode === 'unid') r = unescUni(s);
+      else if (mode === 'jwt') r = jwt(s);
+    } catch (e) {
+      out.textContent = '';
+      statOut.textContent = '没转成功';
+      statMsg.className = 'err-txt';
+      statMsg.textContent = mode === 'b64d' ? '这串不是合法的 Base64（可能少了几位，或者本来就不是）'
+        : mode === 'urld' ? '这串里有坏掉的转义，% 后面得跟两位十六进制'
+        : '解不开：' + (e.message || e);
+      return;
+    }
+
+    out.textContent = r;
+    statOut.textContent = r.length + ' 字符 · ' + new TextEncoder().encode(r).length + ' 字节';
+    if (r === '') { statMsg.textContent = '结果是空的'; }
+  }
+
+  document.querySelectorAll('[data-mode]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      mode = btn.getAttribute('data-mode');
+      document.querySelectorAll('[data-mode]').forEach(function(b){ b.classList.toggle('on', b === btn); });
+      run();
+    });
+  });
+
+  var timer = null;
+  src.addEventListener('input', function(){
+    clearTimeout(timer);
+    timer = setTimeout(run, 130);
+  });
+  flagUrl.addEventListener('click', function(){ flagUrl.classList.toggle('on'); run(); });
+
+  document.getElementById('bSwap').addEventListener('click', function(){
+    var t = out.textContent;
+    if (!t) return;
+    src.value = t; run();
+  });
+  document.getElementById('bSample').addEventListener('click', function(){
+    src.value = SAMPLE; run();
+  });
+  document.getElementById('bClear').addEventListener('click', function(){
+    src.value = ''; run(); src.focus();
+  });
+  document.getElementById('copy').addEventListener('click', function(){
+    copyText(out.textContent, this, '复制');
+  });
+
+  src.value = SAMPLE;
+  run();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

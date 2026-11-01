@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文本整理 · 一堆行粘进来就整好</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<style>
+  :root{
+    --bg:#f6f6f4; --card:#fff; --fg:#1b1d21; --dim:#6b7076; --line:#e3e3df;
+    --accent:#2f6df6; --accent-fg:#fff; --soft:#eef1f8; --ok:#1f7a4d; --warn:#b45309;
+  }
+  @media (prefers-color-scheme: dark){
+    :root[data-theme="auto"]{
+      --bg:#14161a; --card:#1c1f24; --fg:#eceef1; --dim:#9aa1a9; --line:#2c3138;
+      --accent:#5b8cff; --accent-fg:#0b1020; --soft:#232830; --ok:#5fe3a1; --warn:#ffc978;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14161a; --card:#1c1f24; --fg:#eceef1; --dim:#9aa1a9; --line:#2c3138;
+    --accent:#5b8cff; --accent-fg:#0b1020; --soft:#232830; --ok:#5fe3a1; --warn:#ffc978;
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f6f4; --card:#fff; --fg:#1b1d21; --dim:#6b7076; --line:#e3e3df;
+    --accent:#2f6df6; --accent-fg:#fff; --soft:#eef1f8; --ok:#1f7a4d; --warn:#b45309;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1100px; margin:0 auto; padding:24px 16px 48px}
+  header{display:flex; align-items:flex-start; justify-content:space-between; gap:12px}
+  h1{font-size:20px; margin:0 0 3px}
+  .lede{color:var(--dim); font-size:13.5px; margin:0 0 14px}
+  .toggle{
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+    border-radius:999px; padding:5px 11px; font-size:12.5px; cursor:pointer; white-space:nowrap;
+  }
+  .row{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:9px}
+  .row.presets{gap:6px; margin-bottom:14px}
+  .chip{
+    font:inherit; font-size:13px; padding:6px 12px; border-radius:999px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--dim);
+    max-width:100%; white-space:nowrap; flex:0 0 auto;
+  }
+  @media (max-width:560px){
+    .row{gap:6px}
+    .chip{font-size:12.5px; padding:5px 10px}
+    select, input[type=text]{font-size:13px; padding:6px 8px}
+    .sep{display:none}
+  }
+  .chip.on{background:var(--accent); color:var(--accent-fg); border-color:transparent; font-weight:600}
+  .chip.quick{color:var(--fg); border-style:dashed}
+  .chip.quick:hover{border-color:var(--accent); color:var(--accent)}
+  .lbl{font-size:12.5px; color:var(--dim); margin-right:2px}
+  select, input[type=text]{
+    font:inherit; font-size:13.5px; padding:7px 10px; border-radius:8px;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  input[type=text]{width:120px}
+  .sep{width:1px; height:20px; background:var(--line); margin:0 3px}
+  .grow{flex:1 1 auto}
+  .panes{display:grid; gap:12px}
+  @media (min-width:900px){ .panes{grid-template-columns:1fr 1fr} }
+  .pane{background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; display:flex; flex-direction:column}
+  .pane h2{
+    margin:0; padding:8px 12px; font-size:12.5px; font-weight:600; letter-spacing:.3px;
+    color:var(--dim); border-bottom:1px solid var(--line); background:var(--soft);
+    display:flex; justify-content:space-between; gap:8px; align-items:center;
+  }
+  .pane h2 button{
+    font:inherit; font-size:12px; padding:3px 9px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  textarea{
+    border:0; width:100%; height:330px; resize:vertical; padding:12px; background:transparent; color:var(--fg);
+    font:13.5px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  textarea:focus{outline:2px solid var(--accent); outline-offset:-2px}
+  pre.out{
+    margin:0; height:330px; overflow:auto; padding:12px;
+    font:13.5px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; white-space:pre-wrap; word-break:break-all;
+  }
+  .stats{font-size:12.5px; color:var(--dim); display:flex; gap:16px; flex-wrap:wrap; margin-top:9px}
+  .stats b{color:var(--fg); font-weight:600}
+  .stats .ok{color:var(--ok)}
+  .stats .warn{color:var(--warn)}
+  footer{margin-top:20px; font-size:12.5px; color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>文本整理</h1>
+      <p class="lede">一堆行粘进来：去重、排序、去空行，再变成逗号串 / JSON 数组 / Markdown 列表。浏览器本地算，不上传。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="row">
+    <button class="chip on" id="cTrim" type="button">去首尾空格</button>
+    <button class="chip on" id="cBlank" type="button">去空行</button>
+    <button class="chip on" id="cDedupe" type="button">去重</button>
+    <span class="sep"></span>
+    <select id="sort" aria-label="排序">
+      <option value="asc" selected>排序 A→Z</option>
+      <option value="desc">排序 Z→A</option>
+      <option value="len">按长度</option>
+      <option value="shuffle">随机打乱</option>
+      <option value="keep">保持原顺序</option>
+    </select>
+    <select id="casing" aria-label="大小写">
+      <option value="keep" selected>大小写原样</option>
+      <option value="lower">全小写</option>
+      <option value="upper">全大写</option>
+    </select>
+    <span class="sep"></span>
+    <select id="fmt" aria-label="输出格式">
+      <option value="plain" selected>输出：一行一条</option>
+      <option value="comma">输出：逗号串</option>
+      <option value="json">输出：JSON 数组</option>
+      <option value="md">输出：Markdown 列表</option>
+      <option value="sql">输出：SQL IN (...)</option>
+      <option value="quote">输出：每行加引号</option>
+    </select>
+  </div>
+
+  <div class="row presets">
+    <span class="lbl">一键</span>
+    <button class="chip quick" data-preset="dedupe" type="button">去重排序</button>
+    <button class="chip quick" data-preset="comma" type="button">逗号串</button>
+    <button class="chip quick" data-preset="json" type="button">JSON 数组</button>
+    <button class="chip quick" data-preset="md" type="button">Markdown</button>
+    <button class="chip quick" data-preset="sample" type="button">示例</button>
+  </div>
+
+  <div class="panes">
+    <div class="pane">
+      <h2><span>原文</span><span id="srcStat">空</span></h2>
+      <textarea id="src" spellcheck="false" placeholder="一行一条，粘进来就行"></textarea>
+    </div>
+    <div class="pane">
+      <h2><span>结果</span><button id="copy" type="button">复制</button></h2>
+      <pre class="out" id="out"></pre>
+    </div>
+  </div>
+
+  <div class="stats">
+    <span>原 <b id="nIn">0</b> 行</span>
+    <span>结果 <b id="nOut">0</b> 行</span>
+    <span id="nDrop">没有重复</span>
+    <span id="nChar"></span>
+  </div>
+
+  <footer>所有处理都在你自己浏览器里完成，内容不发到服务器。</footer>
+</div>
+
+<script>
+(function(){
+  var root = document.documentElement;
+  var saved = localStorage.getItem('txt-theme');
+  if (saved) root.setAttribute('data-theme', saved);
+  document.getElementById('theme').addEventListener('click', function(){
+    var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('txt-theme', next);
+  });
+
+  var SAMPLE = [
+    'api.example.com',
+    '  api.example.com  ',
+    '',
+    'db.internal',
+    'cache.internal',
+    '   db.internal',
+    'web.example.com',
+    'Cache.Internal',
+    ''
+  ].join('\n');
+
+  var src = document.getElementById('src'), out = document.getElementById('out');
+  var cTrim = document.getElementById('cTrim'), cBlank = document.getElementById('cBlank'), cDedupe = document.getElementById('cDedupe');
+  var sortEl = document.getElementById('sort'), caseEl = document.getElementById('casing'), fmtEl = document.getElementById('fmt');
+  var nIn = document.getElementById('nIn'), nOut = document.getElementById('nOut'), nDrop = document.getElementById('nDrop');
+  var nChar = document.getElementById('nChar'), srcStat = document.getElementById('srcStat');
+
+  function shuffle(a){
+    for (var i = a.length - 1; i > 0; i--){
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function run(){
+    var raw = src.value;
+    var lines = raw.split(/\r?\n/);
+    // 末尾那个换行不算一条
+    if (lines.length && lines[lines.length - 1] === '') lines.pop();
+    var countIn = lines.length;
+
+    if (cTrim.classList.contains('on')) lines = lines.map(function(s){ return s.trim(); });
+    if (cBlank.classList.contains('on')) lines = lines.filter(function(s){ return s !== ''; });
+
+    var dropped = 0;
+    if (cDedupe.classList.contains('on')){
+      var seen = Object.create(null), kept = [];
+      lines.forEach(function(s){
+        if (seen[s]) { dropped++; } else { seen[s] = 1; kept.push(s); }
+      });
+      lines = kept;
+    }
+
+    var mode = caseEl.value;
+    if (mode === 'lower') lines = lines.map(function(s){ return s.toLowerCase(); });
+    else if (mode === 'upper') lines = lines.map(function(s){ return s.toUpperCase(); });
+
+    var s = sortEl.value;
+    if (s === 'asc') lines.sort(function(a, b){ return a.localeCompare(b, 'zh'); });
+    else if (s === 'desc') lines.sort(function(a, b){ return b.localeCompare(a, 'zh'); });
+    else if (s === 'len') lines.sort(function(a, b){ return a.length - b.length; });
+    else if (s === 'shuffle') shuffle(lines);
+
+    var f = fmtEl.value, text;
+    if (!lines.length){ text = ''; }
+    else if (f === 'comma') text = lines.join(', ');
+    else if (f === 'json') text = JSON.stringify(lines, null, 2);
+    else if (f === 'md') text = lines.map(function(x){ return '- ' + x; }).join('\n');
+    else if (f === 'sql') text = '(' + lines.map(function(x){ return "'" + x.replace(/'/g, "''") + "'"; }).join(', ') + ')';
+    else if (f === 'quote') text = lines.map(function(x){ return '"' + x.replace(/"/g, '\\"') + '"'; }).join('\n');
+    else text = lines.join('\n');
+
+    out.textContent = text;
+
+    nIn.textContent = countIn;
+    nOut.textContent = lines.length;
+    nDrop.textContent = dropped ? ('去掉 ' + dropped + ' 行重复') : '没有重复';
+    nDrop.className = dropped ? 'warn' : '';
+    nChar.textContent = text ? (new Blob([text]).size + ' 字节') : '';
+    srcStat.textContent = countIn ? countIn + ' 行' : '空';
+  }
+
+  var timer = null;
+  src.addEventListener('input', function(){
+    clearTimeout(timer);
+    timer = setTimeout(run, 150);
+  });
+
+  [cTrim, cBlank, cDedupe].forEach(function(el){
+    el.addEventListener('click', function(){ el.classList.toggle('on'); run(); });
+  });
+  sortEl.addEventListener('change', run);
+  caseEl.addEventListener('change', run);
+  fmtEl.addEventListener('change', run);
+
+  function set(on){ [cTrim, cBlank, cDedupe].forEach(function(el, i){ el.classList.toggle('on', on[i]); }); }
+
+  document.querySelectorAll('[data-preset]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var p = btn.getAttribute('data-preset');
+      if (p === 'dedupe'){
+        set([true, true, true]); sortEl.value = 'asc'; caseEl.value = 'keep'; fmtEl.value = 'plain'; run();
+      } else if (p === 'comma'){
+        set([true, true, true]); sortEl.value = 'asc'; fmtEl.value = 'comma'; run();
+      } else if (p === 'json'){
+        set([true, true, false]); sortEl.value = 'keep'; fmtEl.value = 'json'; run();
+      } else if (p === 'md'){
+        set([true, true, false]); sortEl.value = 'keep'; fmtEl.value = 'md'; run();
+      } else if (p === 'sample'){
+        src.value = SAMPLE; set([true, true, true]); sortEl.value = 'asc'; fmtEl.value = 'plain'; run();
+      }
+    });
+  });
+
+  document.getElementById('copy').addEventListener('click', function(){
+    var btn = this, t = out.textContent;
+    if (!t) return;
+    var done = function(){ btn.textContent = '已复制'; setTimeout(function(){ btn.textContent = '复制'; }, 1200); };
+    if (navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(t).then(done, fb);
+    } else { fb(); }
+    function fb(){
+      var ta = document.createElement('textarea');
+      ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch(e){ alert('复制失败，手动选中'); }
+      document.body.removeChild(ta);
+    }
+  });
+
+  // 打开就有东西看
+  src.value = SAMPLE;
+  run();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

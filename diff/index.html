@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文本对比 · 粘两段，看改了什么</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  :root{ --add-bg:#e7f6ec; --del-bg:#fdeceb; --add-in:#b9e6c8; --del-in:#f7c9c4; --gut:#f0f1ee; }
+  @media (prefers-color-scheme: dark){
+    :root[data-theme="auto"]{ --add-bg:#16281f; --del-bg:#2b1a1a; --add-in:#285740; --del-in:#5c2b28; --gut:#191c21; }
+  }
+  :root[data-theme="dark"]{ --add-bg:#16281f; --del-bg:#2b1a1a; --add-in:#285740; --del-in:#5c2b28; --gut:#191c21; }
+  :root[data-theme="light"]{ --add-bg:#e7f6ec; --del-bg:#fdeceb; --add-in:#b9e6c8; --del-in:#f7c9c4; --gut:#f0f1ee; }
+
+  .panes{grid-template-columns:1fr}
+  @media (min-width:860px){ .panes{grid-template-columns:1fr 1fr} }
+  textarea{height:200px}
+  .pane h2 .mini{font:inherit; font-size:11.5px; color:var(--dim); font-weight:400}
+  .outbox{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); margin-top:12px; overflow:hidden}
+  .outbox h2{
+    margin:0; padding:8px 12px; font-size:12.5px; font-weight:600; color:var(--dim);
+    border-bottom:1px solid var(--line); background:var(--soft);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .outbox h2 button{font:inherit; font-size:12px; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--fg)}
+  #view{max-height:60vh; overflow:auto; font:12.8px/1.62 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .ln{display:flex; align-items:flex-start}
+  .ln .no{
+    flex:0 0 34px; text-align:right; padding:0 6px; color:var(--dim); background:var(--gut);
+    user-select:none; font-size:11.5px; line-height:1.75;
+  }
+  .ln .mk{flex:0 0 16px; text-align:center; color:var(--dim); user-select:none}
+  .ln .tx{flex:1 1 auto; padding:0 10px 0 4px; white-space:pre-wrap; word-break:break-word; min-width:0}
+  .ln.add{background:var(--add-bg)} .ln.add .mk{color:var(--ok); font-weight:700}
+  .ln.del{background:var(--del-bg)} .ln.del .mk{color:var(--err); font-weight:700}
+  .ln.add .tx ins, .ln ins{background:var(--add-in); text-decoration:none; border-radius:2px}
+  .ln.del .tx del, .ln del{background:var(--del-in); text-decoration:none; border-radius:2px}
+  .ln.gap{background:var(--soft); color:var(--dim); font-size:11.5px; padding:2px 10px 2px 88px; user-select:none}
+  .blank{color:var(--dim); background:var(--soft); font-size:11px; border-radius:3px; padding:0 4px; opacity:.8}
+  .stats .add{color:var(--ok); font-weight:600}
+  .stats .del{color:var(--err); font-weight:600}
+  .hint{font-size:12.5px; color:var(--dim); margin:10px 0 0}
+  @media (max-width:560px){
+    .ln .no{flex-basis:26px; font-size:10.5px}
+    .ln .mk{flex-basis:14px}
+    .ln.gap{padding-left:66px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>文本对比</h1>
+      <p class="lede">改前改后各粘一遍，马上看到哪几行删了、哪几行加了、改的是什么字。全在本地算，不上传。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="row">
+    <button class="chip on" id="cFold" type="button">折叠相同段落</button>
+    <button class="chip" id="cCase" type="button">忽略大小写</button>
+    <button class="chip" id="cSpace" type="button">忽略行首尾空格</button>
+    <span class="sep"></span>
+    <button class="chip quick" id="bSwap" type="button">交换左右</button>
+    <button class="chip quick" id="bClear" type="button">清空</button>
+    <button class="chip quick" id="bSample" type="button">示例</button>
+  </div>
+
+  <div class="panes">
+    <div class="pane">
+      <h2><span>改之前</span><span class="mini" id="statA">0 行</span></h2>
+      <textarea id="a" spellcheck="false" placeholder="原来那段，粘这里"></textarea>
+    </div>
+    <div class="pane">
+      <h2><span>改之后</span><span class="mini" id="statB">0 行</span></h2>
+      <textarea id="b" spellcheck="false" placeholder="改完那段，粘这里"></textarea>
+    </div>
+  </div>
+
+  <div class="outbox">
+    <h2><span>差异</span><button id="copy" type="button">复制差异</button></h2>
+    <div id="view"></div>
+  </div>
+
+  <div class="stats">
+    <span class="add" id="nAdd">新增 0 行</span>
+    <span class="del" id="nDel">删除 0 行</span>
+    <span id="nChg">改动 0 处</span>
+    <span id="nSame"></span>
+  </div>
+  <p class="hint">红线是删掉的，绿线是新加的；同一行里的深色小块是具体变了的字。「折叠相同段落」只留下变化前后各两行。</p>
+
+  <footer>浏览器本地比较，内容不会发到任何服务器。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var A = document.getElementById('a'), B = document.getElementById('b');
+  var view = document.getElementById('view');
+  var nAdd = document.getElementById('nAdd'), nDel = document.getElementById('nDel');
+  var nChg = document.getElementById('nChg'), nSame = document.getElementById('nSame');
+  var statA = document.getElementById('statA'), statB = document.getElementById('statB');
+  var cFold = document.getElementById('cFold'), cCase = document.getElementById('cCase'), cSpace = document.getElementById('cSpace');
+
+  var SAMPLE_A = [
+    '# 部署配置',
+    'name: toolbox',
+    'port: 8880',
+    'workers: 4',
+    'timeout: 30',
+    'log_level: info',
+    '',
+    'cache:',
+    '  driver: memory',
+    '  ttl: 300',
+    'flags:',
+    '  - beta'
+  ].join('\n');
+
+  var SAMPLE_B = [
+    '# 部署配置（上线前调过）',
+    'name: toolbox',
+    'port: 8890',
+    'workers: 6',
+    'timeout: 30',
+    '',
+    'cache:',
+    '  driver: redis',
+    '  ttl: 600',
+    '  size: 512',
+    'flags:',
+    '  - beta',
+    '  - fast-start'
+  ].join('\n');
+
+  function lines(s){
+    if (!s) return [];
+    var a = s.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+    if (a.length && a[a.length - 1] === '') a.pop();
+    return a;
+  }
+
+  function norm(line){
+    var t = line;
+    if (cSpace.classList.contains('on')) t = t.trim();
+    if (cCase.classList.contains('on')) t = t.toLowerCase();
+    return t;
+  }
+
+  // 行级差异（先掐掉相同首尾，再算最长公共子序列）
+  function diffOps(la, lb){
+    var na = la.map(norm), nb = lb.map(norm);
+    var ops = [];
+    var p = 0;
+    while (p < na.length && p < nb.length && na[p] === nb[p]){ ops.push({t:'s', a:p, b:p}); p++; }
+    var ea = na.length, eb = nb.length;
+    while (ea > p && eb > p && na[ea - 1] === nb[eb - 1]){ ea--; eb--; }
+
+    var tail = [];
+    for (var k = 0; ea + k < na.length; k++){ tail.push({t:'s', a:ea + k, b:eb + k}); }
+
+    var n = ea - p, m = eb - p;
+    if (n === 0){
+      for (var j = 0; j < m; j++) ops.push({t:'+', a:-1, b:p + j});
+      return ops.concat(tail);
+    }
+    if (m === 0){
+      for (var i = 0; i < n; i++) ops.push({t:'-', a:p + i, b:-1});
+      return ops.concat(tail);
+    }
+    // 大文件兜底：不做逐行对齐，整段标成改过
+    if ((n + 1) * (m + 1) > 6000000){
+      for (var i1 = 0; i1 < n; i1++) ops.push({t:'-', a:p + i1, b:-1});
+      for (var j1 = 0; j1 < m; j1++) ops.push({t:'+', a:-1, b:p + j1});
+      return ops.concat(tail);
+    }
+
+    var W = m + 1;
+    var dp = new Int32Array((n + 1) * W);
+    for (var i2 = n - 1; i2 >= 0; i2--){
+      for (var j2 = m - 1; j2 >= 0; j2--){
+        dp[i2 * W + j2] = (na[p + i2] === nb[p + j2])
+          ? dp[(i2 + 1) * W + j2 + 1] + 1
+          : Math.max(dp[(i2 + 1) * W + j2], dp[i2 * W + j2 + 1]);
+      }
+    }
+    var x = 0, y = 0;
+    while (x < n && y < m){
+      if (na[p + x] === nb[p + y]){ ops.push({t:'s', a:p + x, b:p + y}); x++; y++; }
+      else if (dp[(x + 1) * W + y] >= dp[x * W + y + 1]){ ops.push({t:'-', a:p + x, b:-1}); x++; }
+      else { ops.push({t:'+', a:-1, b:p + y}); y++; }
+    }
+    while (x < n){ ops.push({t:'-', a:p + x, b:-1}); x++; }
+    while (y < m){ ops.push({t:'+', a:-1, b:p + y}); y++; }
+    return ops.concat(tail);
+  }
+
+  // 同一行里具体变了的字：公共前缀 + 公共后缀，中间就是改动块
+  function inline(oldS, newS){
+    var p = 0;
+    var max = Math.min(oldS.length, newS.length);
+    while (p < max && oldS.charAt(p) === newS.charAt(p)) p++;
+    var s = 0;
+    while (s < max - p && oldS.charAt(oldS.length - 1 - s) === newS.charAt(newS.length - 1 - s)) s++;
+    var pre = oldS.slice(0, p), sufOld = oldS.slice(oldS.length - s), sufNew = newS.slice(newS.length - s);
+    var midOld = oldS.slice(p, oldS.length - s), midNew = newS.slice(p, newS.length - s);
+    if (!midOld && !midNew) return null;
+    // 改的只是一两个字、旁边还有更长的相同部分时，说明是逐字改的，直接整段标出
+    return { pre: pre, midOld: midOld, midNew: midNew, sufOld: sufOld, sufNew: sufNew };
+  }
+
+  function esc(s){ return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function blankBadge(){ return '<span class="blank">空行</span>'; }
+  function body(s){
+    if (s === '') return blankBadge();
+    return esc(s);
+  }
+
+  // 一行之内的改动，分别给出「删的那版」和「加的那版」
+  function inlinePair(oldS, newS){
+    var d = inline(oldS, newS);
+    if (!d) return null;
+    var delHtml = esc(d.pre) + (d.midOld ? '<del>' + esc(d.midOld) + '</del>' : '') + esc(d.sufOld);
+    var addHtml = esc(d.pre) + (d.midNew ? '<ins>' + esc(d.midNew) + '</ins>' : '') + esc(d.sufNew);
+    return { delHtml: delHtml || blankBadge(), addHtml: addHtml || blankBadge() };
+  }
+
+  function collect(ops, la, lb){
+    var rows = [];
+    var add = 0, del = 0, chg = 0, same = 0;
+    for (var i = 0; i < ops.length; i++){
+      var op = ops[i];
+      if (op.t === 's'){
+        rows.push({k:'s', no:a2(op.a), nb:b2(op.b), html:body(la[op.a])});
+        same++;
+        continue;
+      }
+      // 把连续的删除和新增配成对，做字级高亮
+      var dels = [], adds = [];
+      while (i < ops.length && ops[i].t === '-'){
+        dels.push(ops[i].a); del++; i++;
+      }
+      while (i < ops.length && ops[i].t === '+'){
+        adds.push(ops[i].b); add++; i++;
+      }
+      i--;
+      var pairs = Math.min(dels.length, adds.length);
+      for (var k = 0; k < pairs; k++){
+        var oldS = la[dels[k]], newS = lb[adds[k]];
+        var d = inlinePair(oldS, newS);
+        if (d){
+          chg++;
+          rows.push({k:'d', no:a2(dels[k]), nb:'', html:d.delHtml});
+          rows.push({k:'a', no:'', nb:b2(adds[k]), html:d.addHtml});
+        } else {
+          same++;
+          rows.push({k:'s', no:a2(dels[k]), nb:b2(adds[k]), html:body(oldS)});
+        }
+      }
+      for (var d2 = pairs; d2 < dels.length; d2++){
+        rows.push({k:'d', no:a2(dels[d2]), nb:'', html:body(la[dels[d2]])});
+      }
+      for (var a3 = pairs; a3 < adds.length; a3++){
+        rows.push({k:'a', no:'', nb:b2(adds[a3]), html:body(lb[adds[a3]])});
+      }
+    }
+    return { rows: rows, add: add, del: del, chg: chg, same: same };
+  }
+
+  function a2(i){ return i < 0 ? '' : (i + 1); }
+  function b2(i){ return i < 0 ? '' : (i + 1); }
+
+  // 折叠长段相同行：只留首尾各两行
+  function fold(rows){
+    var out = [], i = 0;
+    while (i < rows.length){
+      if (rows[i].k !== 's'){ out.push(rows[i]); i++; continue; }
+      var j = i;
+      while (j < rows.length && rows[j].k === 's') j++;
+      var run = j - i;
+      if (run > 5 && i > 0 && j < rows.length){
+        out.push(rows[i]);
+        out.push(rows[i + 1]);
+        out.push({k:'gap', html:'… 中间 ' + (run - 4) + ' 行相同 …'});
+        out.push(rows[j - 2]);
+        out.push(rows[j - 1]);
+      } else {
+        for (var k = i; k < j; k++) out.push(rows[k]);
+      }
+      i = j;
+    }
+    return out;
+  }
+
+  var lastText = '';
+
+  function run(){
+    var la = lines(A.value), lb = lines(B.value);
+    statA.textContent = la.length + ' 行';
+    statB.textContent = lb.length + ' 行';
+
+    var res = collect(diffOps(la, lb), la, lb);
+    var rows = cFold.classList.contains('on') ? fold(res.rows) : res.rows;
+
+    var buf = [];
+    for (var i = 0; i < rows.length; i++){
+      var r = rows[i];
+      if (r.k === 'gap'){ buf.push('<div class="ln gap">' + esc(r.html) + '</div>'); continue; }
+      buf.push(
+        '<div class="ln ' + (r.k === 'a' ? 'add' : r.k === 'd' ? 'del' : '') + '">' +
+        '<span class="no">' + r.no + '</span>' +
+        '<span class="no">' + r.nb + '</span>' +
+        '<span class="mk">' + (r.k === 'a' ? '+' : r.k === 'd' ? '−' : '') + '</span>' +
+        '<span class="tx">' + r.html + '</span>' +
+        '</div>'
+      );
+    }
+    view.innerHTML = buf.join('') || '<div class="empty">两边都空着，粘点东西进来</div>';
+
+    nAdd.textContent = '新增 ' + res.add + ' 行';
+    nDel.textContent = '删除 ' + res.del + ' 行';
+    nChg.textContent = '改动 ' + res.chg + ' 处';
+    nSame.textContent = res.same ? ('相同 ' + res.same + ' 行') : '';
+
+    // 复制用的纯文本
+    var t = [];
+    for (var q = 0; q < res.rows.length; q++){
+      var rr = res.rows[q];
+      if (rr.k === 's') t.push('  ' + htmlToText(la[rr.no - 1]));
+      else if (rr.k === 'd') t.push('- ' + htmlToText(la[rr.no - 1]));
+      else if (rr.k === 'a') t.push('+ ' + htmlToText(lb[rr.nb - 1]));
+    }
+    lastText = t.join('\n');
+  }
+
+  function htmlToText(s){ return s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'); }
+
+  var timer = null;
+  function later(){ clearTimeout(timer); timer = setTimeout(run, 140); }
+  A.addEventListener('input', later);
+  B.addEventListener('input', later);
+  [cFold, cCase, cSpace].forEach(function(el){
+    el.addEventListener('click', function(){ el.classList.toggle('on'); run(); });
+  });
+
+  document.getElementById('bSwap').addEventListener('click', function(){
+    var t = A.value; A.value = B.value; B.value = t; run();
+  });
+  document.getElementById('bClear').addEventListener('click', function(){
+    A.value = ''; B.value = ''; run(); A.focus();
+  });
+  document.getElementById('bSample').addEventListener('click', function(){
+    A.value = SAMPLE_A; B.value = SAMPLE_B; run();
+  });
+  document.getElementById('copy').addEventListener('click', function(){
+    copyText(lastText, this, '复制差异');
+  });
+
+  A.value = SAMPLE_A;
+  B.value = SAMPLE_B;
+  run();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

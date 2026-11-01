@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>二维码生成 · 贴一段字或链接，出码</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{grid-template-columns:1fr}
+  @media (min-width:820px){ .panes{grid-template-columns:1fr 380px} }
+  textarea{height:170px}
+  .qrbox{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px; display:flex; flex-direction:column; gap:12px; align-items:center;
+  }
+  .qrpad{
+    background:#fff; border-radius:10px; padding:10px; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 1px 3px rgba(0,0,0,.06); min-height:220px; min-width:220px;
+  }
+  .qrpad canvas{display:block; max-width:100%; height:auto; image-rendering:pixelated}
+  .qrbox .meta{font-size:12.5px; color:var(--dim); text-align:center; line-height:1.7}
+  .qrbox .meta b{color:var(--fg); font-weight:600}
+  .btn{
+    display:block; width:100%; padding:11px; border-radius:10px; border:0; cursor:pointer;
+    background:var(--accent); color:var(--accent-fg); font:600 15px/1 inherit; text-align:center; text-decoration:none;
+  }
+  .btn[aria-disabled="true"]{opacity:.45; cursor:not-allowed; pointer-events:none}
+  .opts{display:grid; gap:10px; margin-top:12px}
+  .opt{display:flex; align-items:center; gap:10px; font-size:13px}
+  .opt label{flex:0 0 62px; color:var(--dim)}
+  .opt input[type=range]{flex:1 1 auto; accent-color:var(--accent); min-width:60px}
+  .opt select{flex:1 1 auto}
+  .opt .num{flex:0 0 62px; text-align:right; font:13px ui-monospace,monospace; color:var(--dim)}
+  .tip{font-size:12.5px; color:var(--warn); margin:10px 0 0; display:none}
+  .tip.on{display:block}
+  .hint{font-size:12.5px; color:var(--dim); margin:12px 0 0}
+  @media (max-width:560px){ .qrpad{min-height:0} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>二维码生成</h1>
+      <p class="lede">贴一段字或一条链接，右边立刻出码，下载就是 PNG。中文、长链接都认，全程本地算。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div>
+      <div class="pane">
+        <h2><span>要放进码里的内容</span><span id="stat">0 字节</span></h2>
+        <textarea id="txt" spellcheck="false" placeholder="链接、一段话、Wi-Fi 信息都行"></textarea>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <span class="lbl">一键</span>
+        <button class="chip quick" id="bSample" type="button">示例链接</button>
+        <button class="chip quick" id="bWifi" type="button">Wi-Fi 码</button>
+        <button class="chip quick" id="bClear" type="button">清空</button>
+      </div>
+
+      <div class="opts">
+        <div class="opt">
+          <label for="size">尺寸</label>
+          <input type="range" id="size" min="200" max="900" step="20" value="420">
+          <span class="num" id="sizeN">420 px</span>
+        </div>
+        <div class="opt">
+          <label for="ecc">容错</label>
+          <select id="ecc">
+            <option value="L">低（字最多）</option>
+            <option value="M" selected>中（默认）</option>
+            <option value="Q">较高</option>
+            <option value="H">最高（脏了也能扫）</option>
+          </select>
+        </div>
+      </div>
+      <p class="tip" id="tip"></p>
+      <p class="hint">容错越高，码里的点越多、同样的字能放的越少。贴在户外或易磨损的地方选「较高」以上。</p>
+    </div>
+
+    <div class="qrbox">
+      <div class="qrpad"><canvas id="cv" width="420" height="420"></canvas></div>
+      <div class="meta" id="meta">—</div>
+      <a class="btn" id="dl" href="#" download="qrcode.png">下载 PNG</a>
+    </div>
+  </div>
+
+  <footer>二维码在你自己浏览器里算出来的，内容不发到服务器；关掉页面什么都不留。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script src="../assets/qr/qrcode.js"></script>
+<script>
+(function(){
+  // 中文按 UTF-8 编码进码里，扫码端才能还原
+  qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+
+  var txt = document.getElementById('txt');
+  var cv = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
+  var sizeEl = document.getElementById('size'), sizeN = document.getElementById('sizeN');
+  var eccEl = document.getElementById('ecc');
+  var meta = document.getElementById('meta'), stat = document.getElementById('stat');
+  var dl = document.getElementById('dl'), tip = document.getElementById('tip');
+
+  var SAMPLE = 'https://toolbox.824109091.xyz/';
+  var WIFI = 'WIFI:T:WPA;S:我的WiFi;P:12345678;;';
+
+  var lastErr = '';
+
+  function bytes(s){ return new TextEncoder().encode(s).length; }
+
+  function draw(){
+    var text = txt.value;
+    var want = parseInt(sizeEl.value, 10);
+    sizeN.textContent = want + ' px';
+    stat.textContent = bytes(text) + ' 字节';
+    tip.classList.remove('on');
+    lastErr = '';
+
+    if (!text){
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      cv.width = cv.height = Math.max(160, Math.min(want, 260));
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.fillStyle = '#c9ccd2';
+      ctx.font = '13px -apple-system,"PingFang SC",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('左边贴点内容', cv.width / 2, cv.height / 2);
+      meta.textContent = '还没内容';
+      dl.setAttribute('aria-disabled', 'true');
+      return;
+    }
+
+    var qr;
+    try {
+      qr = qrcode(0, eccEl.value);
+      qr.addData(text, 'Byte');
+      qr.make();
+    } catch (e) {
+      // 放不下：提示降容错，码先留空
+      lastErr = e.message || String(e);
+      tip.textContent = '这段字太长了，放不进一个码。把容错调低一档，或者把内容拆成两段。';
+      tip.classList.add('on');
+      meta.textContent = '内容太长';
+      dl.setAttribute('aria-disabled', 'true');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, cv.width, cv.height);
+      return;
+    }
+
+    var count = qr.getModuleCount();
+    var margin = 4;                       // 四周留白，标准要求 4 个点宽
+    var total = count + margin * 2;
+    var scale = Math.max(1, Math.floor(want / total));
+    var px = total * scale;
+
+    cv.width = cv.height = px;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, px, px);
+    ctx.fillStyle = '#111';
+    for (var r = 0; r < count; r++){
+      for (var c = 0; c < count; c++){
+        if (qr.isDark(r, c)) ctx.fillRect((c + margin) * scale, (r + margin) * scale, scale, scale);
+      }
+    }
+
+    var ver = Math.round((count - 17) / 4);
+    meta.innerHTML = '版本 <b>' + ver + '</b> · <b>' + count + '×' + count + '</b> 点 · 容错 <b>' + eccEl.value + '</b><br>' + bytes(text) + ' 字节，实际 ' + px + ' px';
+    dl.setAttribute('aria-disabled', 'false');
+    dl.setAttribute('href', cv.toDataURL('image/png'));
+  }
+
+  var timer = null;
+  function later(){ clearTimeout(timer); timer = setTimeout(draw, 130); }
+
+  txt.addEventListener('input', later);
+  eccEl.addEventListener('change', draw);
+  sizeEl.addEventListener('input', draw);
+
+  document.getElementById('bSample').addEventListener('click', function(){
+    txt.value = SAMPLE; draw();
+  });
+  document.getElementById('bWifi').addEventListener('click', function(){
+    txt.value = WIFI; draw();
+  });
+  document.getElementById('bClear').addEventListener('click', function(){
+    txt.value = ''; draw(); txt.focus();
+  });
+
+  txt.value = SAMPLE;
+  draw();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

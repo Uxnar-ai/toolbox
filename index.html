@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工具台 toolbox</title>
+<meta name="description" content="一堆打开就能用的小工具：JSON、文本、时间戳、对比、金额大写、单位、颜色、图片压缩、正则。全在浏览器里算，不上传服务器。">
+<link rel="stylesheet" href="assets/theme.css">
+<style>
+  .grid{display:grid; gap:12px; grid-template-columns:1fr}
+  @media (min-width:620px){ .grid{grid-template-columns:1fr 1fr} }
+  @media (min-width:940px){ .grid{grid-template-columns:1fr 1fr 1fr} }
+
+  a.card{
+    display:flex; flex-direction:column; gap:0; min-width:0;
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px; text-decoration:none; color:inherit;
+    transition:border-color .15s, transform .15s, box-shadow .15s;
+  }
+  a.card:hover{ border-color:var(--accent); transform:translateY(-1px); box-shadow:0 4px 16px rgba(0,0,0,.07) }
+  .top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px }
+  .ico{
+    font:600 15px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    color:var(--accent); background:var(--soft); border-radius:8px;
+    padding:7px 9px; min-width:34px; text-align:center;
+  }
+  .arrow{ color:var(--dim); opacity:.45; font-size:13px; transition:all .15s }
+  a.card:hover .arrow{ opacity:1; transform:translate(1px,-1px) }
+  a.card:hover .arrow{ color:var(--accent) }
+  a.card h2{ margin:0 0 5px; font-size:15.5px; font-weight:600 }
+  a.card p{ margin:0; font-size:13px; color:var(--dim); line-height:1.6 }
+  .tags{ display:flex; gap:6px; flex-wrap:wrap; margin-top:12px }
+  .tags span{
+    font-size:11.5px; color:var(--dim); background:var(--soft);
+    border-radius:999px; padding:2px 9px;
+  }
+  .group{ margin:26px 0 10px; font-size:12.5px; font-weight:600; color:var(--dim); letter-spacing:.4px }
+  .group:first-of-type{ margin-top:6px }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>工具台 <span style="color:var(--dim);font-weight:400;font-size:14px">toolbox</span></h1>
+      <p class="lede">一堆打开就能用的小工具。全在浏览器里算，不上传服务器，关掉页面什么都不留。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+  <div class="group">文本与数据</div>
+  <div class="grid">
+    <a class="card" href="json/">
+      <div class="top"><span class="ico">{}</span><span class="arrow">↗</span></div>
+      <h2>JSON 排版</h2>
+      <p>粘进去就排好：缩进、压缩、查错定位到行列、键排序，全在浏览器里算。</p>
+      <div class="tags"><span>排错定位</span><span>键排序</span><span>压缩</span></div>
+    </a>
+    <a class="card" href="txt/">
+      <div class="top"><span class="ico">≡</span><span class="arrow">↗</span></div>
+      <h2>文本整理</h2>
+      <p>一堆行粘进去：去重、排序、去空行，再变成逗号串 / JSON 数组 / Markdown / SQL IN。</p>
+      <div class="tags"><span>去重</span><span>去空行</span><span>格式转换</span></div>
+    </a>
+    <a class="card" href="ts/">
+      <div class="top"><span class="ico">⏱</span><span class="arrow">↗</span></div>
+      <h2>时间戳</h2>
+      <p>日志里的时间戳一行一个粘进来，变成本地时间、UTC 和相对时间；反过来也能转。</p>
+      <div class="tags"><span>秒 / 毫秒</span><span>批量</span><span>双向</span></div>
+    </a>
+    <a class="card" href="regex/">
+      <div class="top"><span class="ico">.*</span><span class="arrow">↗</span></div>
+      <h2>正则解剖台</h2>
+      <p>一条正则拆成语法树、编译成 NFA 画出来，三种引擎跑同一输入串对比步数与耗时。</p>
+      <div class="tags"><span>语法树</span><span>NFA / DFA</span><span>三引擎</span></div>
+    </a>
+    <a class="card" href="diff/">
+      <div class="top"><span class="ico">±</span><span class="arrow">↗</span></div>
+      <h2>文本对比</h2>
+      <p>改前改后各粘一遍，哪行删了、哪行加了、哪几个字变了，一眼看出来。</p>
+      <div class="tags"><span>逐行对比</span><span>字级高亮</span><span>可折叠</span></div>
+    </a>
+    <a class="card" href="codec/">
+      <div class="top"><span class="ico">⇄</span><span class="arrow">↗</span></div>
+      <h2>编码解码</h2>
+      <p>Base64、网址转义、HTML 转义、\u 转义、拆 JWT，粘进去选一下就好，中文不乱码。</p>
+      <div class="tags"><span>Base64</span><span>JWT</span><span>中文安全</span></div>
+    </a>
+    <a class="card" href="hash/">
+      <div class="top"><span class="ico">#</span><span class="arrow">↗</span></div>
+      <h2>哈希校验</h2>
+      <p>文件拖进来出 MD5 / SHA-256 指纹，官方给的校验值粘进去立刻告诉你对不对。</p>
+      <div class="tags"><span>不上传</span><span>四种算法</span><span>自动比对</span></div>
+    </a>
+  </div>
+  <div class="group">数字与金额</div>
+  <div class="grid">
+    <a class="card" href="rmb/">
+      <div class="top"><span class="ico">¥</span><span class="arrow">↗</span></div>
+      <h2>金额大写</h2>
+      <p>填金额出人民币大写，元角分整零按票据规范写；日期也能写成大写。</p>
+      <div class="tags"><span>票据规范</span><span>日期大写</span></div>
+    </a>
+    <a class="card" href="unit/">
+      <div class="top"><span class="ico">↔</span><span class="arrow">↗</span></div>
+      <h2>单位换算</h2>
+      <p>一个数换出同一类量的全部单位，带市尺、斤两、亩，点一行就复制。</p>
+      <div class="tags"><span>市制</span><span>批量</span><span>一键复制</span></div>
+    </a>
+    <a class="card" href="color/">
+      <div class="top"><span class="ico">◐</span><span class="arrow">↗</span></div>
+      <h2>颜色工具箱</h2>
+      <p>色值四种写法互转、9 档色阶、搭配色与对比度；拖张截图进来能点取色。</p>
+      <div class="tags"><span>取色</span><span>色阶</span><span>对比度</span></div>
+    </a>
+  </div>
+  <div class="group">图片</div>
+  <div class="grid">
+    <a class="card" href="pic/">
+      <div class="top"><span class="ico">▣</span><span class="arrow">↗</span></div>
+      <h2>图片压缩</h2>
+      <p>图太大发不出去？拖进来定个长边和质量，直接下压缩好的，省了多少实时摆着。</p>
+      <div class="tags"><span>本地压缩</span><span>不上传</span><span>质量可调</span></div>
+    </a>
+    <a class="card" href="qr/">
+      <div class="top"><span class="ico">▦</span><span class="arrow">↗</span></div>
+      <h2>二维码生成</h2>
+      <p>贴一段字或链接，右边立刻出码，下载就是 PNG。中文长链接都认，本地算。</p>
+      <div class="tags"><span>中文</span><span>下载 PNG</span><span>容错可调</span></div>
+    </a>
+  </div>
+
+  <footer>
+    同一个仓库里长出来的东西：新工具加个目录、挂进这张表就行。需要后端的（短码暂存、天气、主机指标、资讯聚合）各自独立跑，不塞进这里。
+    <br>更新于 2026-11-02
+  </footer>
+</div>
+<script src="assets/base.js"></script>
+</body>
+</html>

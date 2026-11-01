@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>图片压缩 pic</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); min-width:0}
+  .box h2{
+    margin:0; padding:8px 12px; font-size:12.5px; font-weight:600; letter-spacing:.3px;
+    color:var(--dim); border-bottom:1px solid var(--line); background:var(--soft);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .box .pad{padding:12px}
+  #drop{
+    border:2px dashed var(--line); border-radius:var(--radius); padding:26px 16px; text-align:center;
+    cursor:pointer; transition:border-color .15s, background .15s;
+  }
+  #drop.on{border-color:var(--accent); background:var(--soft)}
+  #drop b{font-size:15px}
+  #drop p{margin:6px 0 0; font-size:12.5px; color:var(--dim)}
+  .opts{display:grid; gap:10px; margin-top:12px}
+  @media (min-width:560px){ .opts{grid-template-columns:1fr 1fr} }
+  .opt{display:flex; align-items:center; gap:10px; font-size:13px}
+  .opt label{flex:0 0 66px; color:var(--dim)}
+  .opt input[type=range]{flex:1 1 auto; accent-color:var(--accent); min-width:60px}
+  .opt .num{flex:0 0 62px; text-align:right; font:13px ui-monospace,monospace}
+  .picks{display:flex; gap:6px; flex-wrap:wrap}
+  .picks .chip{padding:4px 10px; font-size:12.5px}
+  .panes2{display:grid; gap:12px}
+  @media (min-width:860px){ .panes2{grid-template-columns:1fr 1fr} }
+  .shot{background:var(--soft); border-radius:9px; padding:8px; text-align:center; min-height:180px; display:flex; align-items:center; justify-content:center}
+  .shot img{max-width:100%; max-height:320px; border-radius:6px; display:block}
+  .meta{font-size:12.5px; color:var(--dim); margin-top:8px; line-height:1.6; word-break:break-all}
+  .meta b{color:var(--fg)}
+  .save{color:var(--ok); font-weight:600}
+  .grow{color:var(--err); font-weight:600}
+  #dl{
+    display:block; width:100%; margin-top:10px; padding:11px; border-radius:10px; border:0; cursor:pointer;
+    background:var(--accent); color:var(--accent-fg); font:600 15px/1 inherit; text-align:center;
+  }
+  #dl[aria-disabled="true"]{opacity:.45; cursor:not-allowed; pointer-events:none}
+  a#dl{text-decoration:none; box-sizing:border-box}
+  .note{font-size:12px; color:var(--dim); margin:8px 0 0; line-height:1.6}
+  @media (max-width:560px){ .shot img{max-height:220px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>图片压缩 pic</h1>
+      <p class="lede">图太大发不出去？拖进来，定个长边和质量，直接下压缩好的，画质自己看着调。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="box">
+    <h2><span>放图片</span><span id="fname">还没选</span></h2>
+    <div class="pad">
+      <div id="drop">
+        <b>把图片拖到这里，或点一下选</b>
+        <p>支持 JPG / PNG / WebP；HEIC 先转成 JPG 再来。图片不离开你的电脑。</p>
+      </div>
+      <input type="file" id="file" accept="image/*" style="display:none">
+
+      <div class="opts">
+        <div class="opt">
+          <label for="width">长边</label>
+          <input type="range" id="width" min="400" max="4000" step="100" value="1600">
+          <span class="num" id="widthN">1600px</span>
+        </div>
+        <div class="opt">
+          <label for="quality">质量</label>
+          <input type="range" id="quality" min="40" max="95" step="5" value="80">
+          <span class="num" id="qualityN">80</span>
+        </div>
+      </div>
+      <div class="opt" style="margin-top:8px">
+        <label>格式</label>
+        <div class="picks" id="fmts">
+          <button class="chip on" data-f="image/jpeg" type="button">JPG</button>
+          <button class="chip" data-f="image/webp" type="button">WebP</button>
+          <button class="chip" data-f="image/png" type="button">PNG</button>
+          <span class="sep"></span>
+          <button class="chip quick" id="demo" type="button">用示例图试试</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panes2" style="margin-top:12px">
+    <div class="box">
+      <h2><span>压缩后</span><span id="ratio"></span></h2>
+      <div class="pad">
+        <div class="shot" id="shotOut"><span style="color:var(--dim); font-size:13px">选图后这里出预览</span></div>
+        <div class="meta" id="metaOut">—</div>
+        <a id="dl" href="#" download="compressed.jpg" aria-disabled="true">下载压缩后的图</a>
+      </div>
+    </div>
+    <div class="box">
+      <h2><span>原图</span><span id="origSize"></span></h2>
+      <div class="pad">
+        <div class="shot" id="shotIn"><span style="color:var(--dim); font-size:13px">原图预览</span></div>
+        <div class="meta" id="metaIn">—</div>
+        <p class="note">长边按比例缩，不会拉伸变形；小于长边设定的图不会被放大。</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>全部在你自己浏览器里算，图片不上传，刷新就没了。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var drop=document.getElementById('drop'), fileIn=document.getElementById('file'),
+      shotIn=document.getElementById('shotIn'), shotOut=document.getElementById('shotOut'),
+      metaIn=document.getElementById('metaIn'), metaOut=document.getElementById('metaOut'),
+      wRange=document.getElementById('width'), qRange=document.getElementById('quality'),
+      wN=document.getElementById('widthN'), qN=document.getElementById('qualityN'),
+      fname=document.getElementById('fname'), ratio=document.getElementById('ratio'),
+      dl=document.getElementById('dl'), origSize=document.getElementById('origSize'),
+      fmts=document.getElementById('fmts');
+
+  var img = null;          // 当前位图
+  var srcName = 'image';
+  var origBytes = 0;
+  var mime = 'image/jpeg';
+  var outURL = null;
+  var timer = null;
+
+  function kb(n){
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n/1024).toFixed(1) + ' KB';
+    return (n/1048576).toFixed(2) + ' MB';
+  }
+
+  function fmtName(m){
+    return m === 'image/png' ? 'png' : (m === 'image/webp' ? 'webp' : 'jpg');
+  }
+
+  function baseName(name){
+    return String(name || 'image').replace(/\.[^.]+$/, '') || 'image';
+  }
+
+  // 用 canvas 现画一张示例图，打开就有东西可玩
+  function demoBlob(){
+    var c = document.createElement('canvas');
+    c.width = 2400; c.height = 1600;
+    var x = c.getContext('2d');
+    var g = x.createLinearGradient(0, 0, 2400, 1600);
+    g.addColorStop(0, '#2f6df6'); g.addColorStop(0.5, '#7aa7ff'); g.addColorStop(1, '#1f7a4d');
+    x.fillStyle = g; x.fillRect(0, 0, 2400, 1600);
+    x.globalAlpha = 0.18; x.fillStyle = '#fff';
+    for (var i=0;i<70;i++){
+      x.beginPath();
+      x.arc(Math.random()*2400, Math.random()*1600, 30 + Math.random()*180, 0, 6.3);
+      x.fill();
+    }
+    x.globalAlpha = 1;
+    x.fillStyle = '#fff';
+    x.font = '700 130px -apple-system,"PingFang SC","Microsoft YaHei",sans-serif';
+    x.fillText('示例大图 2400×1600', 140, 840);
+    x.font = '400 64px -apple-system,sans-serif';
+    x.fillText('拖你自己的照片进来替换掉这张', 146, 950);
+    return new Promise(function(res){
+      c.toBlob(function(b){ res(b); }, 'image/jpeg', 0.95);
+    });
+  }
+
+  function useDemo(){
+    demoBlob().then(function(b){
+      var f = new File([b], 'sample-2400x1600.jpg', {type:'image/jpeg'});
+      load(f);
+    });
+  }
+
+  function load(file){
+    if (!file) return;
+    if (!/^image\//.test(file.type)){ alert('这个不是图片'); return; }
+    srcName = baseName(file.name);
+    fname.textContent = file.name.length > 28 ? file.name.slice(0,26) + '…' : file.name;
+    origBytes = file.size;
+    metaOut.textContent = '正在压…';
+    shotOut.innerHTML = '<span style="color:var(--dim); font-size:13px">正在压…</span>';
+
+    // 原图预览用 objectURL，压缩数据用 canvas
+    var url = URL.createObjectURL(file);
+    shotIn.innerHTML = '';
+    var im = new Image();
+    im.onload = function(){
+      shotIn.appendChild(im);
+      metaIn.innerHTML = '<b>' + im.naturalWidth + ' × ' + im.naturalHeight + '</b> 像素 · ' +
+        kb(file.size) + ' · ' + (file.type || '未知格式').replace('image/','').toUpperCase();
+      origSize.textContent = kb(file.size);
+    };
+    im.src = url;
+
+    if (window.createImageBitmap){
+      createImageBitmap(file, {imageOrientation:'from-image'}).then(function(bmp){
+        img = bmp;
+        render();
+      }).catch(function(){
+        img = im; render();
+      });
+    } else {
+      img = im; render();
+    }
+  }
+
+  function render(){
+    if (!img) return;
+    var maxSide = +wRange.value;
+    var w0 = img.width, h0 = img.height;
+    var k = Math.min(1, maxSide / Math.max(w0, h0));
+    var w = Math.max(1, Math.round(w0 * k)), h = Math.max(1, Math.round(h0 * k));
+
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    var x = c.getContext('2d');
+    if (mime === 'image/jpeg'){
+      x.fillStyle = '#fff'; x.fillRect(0, 0, w, h);   // PNG 透明底转 JPG 会变黑，先铺白
+    }
+    x.imageSmoothingQuality = 'high';
+    x.drawImage(img, 0, 0, w, h);
+
+    var q = (+qRange.value) / 100;
+    c.toBlob(function(b){
+      if (!b) return;
+      if (outURL) URL.revokeObjectURL(outURL);
+      outURL = URL.createObjectURL(b);
+      shotOut.innerHTML = '';
+      var im2 = new Image();
+      im2.src = outURL;
+      shotOut.appendChild(im2);
+
+      var delta = origBytes ? (1 - b.size/origBytes) * 100 : 0;
+      metaOut.innerHTML = '<b>' + w + ' × ' + h + '</b> 像素 · ' + kb(b.size) +
+        ' · ' + fmtName(mime).toUpperCase() +
+        (mime === 'image/png' ? '（PNG 不压质量）' : ' · 质量 ' + qRange.value);
+      ratio.innerHTML = origBytes
+        ? (delta > 0 ? '<span class="save">省下 ' + delta.toFixed(0) + '%</span>'
+                     : '<span class="grow">反而大了 ' + Math.abs(delta).toFixed(0) + '%</span>')
+        : '';
+      dl.href = outURL;
+      dl.download = srcName + '-compressed.' + fmtName(mime);
+      dl.removeAttribute('aria-disabled');
+      dl.textContent = '下载 ' + kb(b.size) + ' 的图';
+    }, mime, mime === 'image/png' ? undefined : q);
+  }
+
+  function later(){ clearTimeout(timer); timer = setTimeout(render, 120); }
+
+  // ---------- 交互 ----------
+  drop.addEventListener('click', function(){ fileIn.click(); });
+  fileIn.addEventListener('change', function(){
+    if (this.files && this.files[0]) load(this.files[0]);
+  });
+  ['dragenter','dragover'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.className = 'on'; });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.className = ''; });
+  });
+  drop.addEventListener('drop', function(e){
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) load(f);
+  });
+
+  wRange.addEventListener('input', function(){ wN.textContent = wRange.value + 'px'; later(); });
+  qRange.addEventListener('input', function(){ qN.textContent = qRange.value; later(); });
+
+  Array.prototype.forEach.call(fmts.querySelectorAll('[data-f]'), function(b){
+    b.addEventListener('click', function(){
+      Array.prototype.forEach.call(fmts.querySelectorAll('[data-f]'), function(o){ o.className = 'chip'; });
+      b.className = 'chip on';
+      mime = b.getAttribute('data-f');
+      later();
+    });
+  });
+  document.getElementById('demo').addEventListener('click', useDemo);
+
+  dl.addEventListener('click', function(e){
+    if (dl.getAttribute('aria-disabled') === 'true') e.preventDefault();
+  });
+
+  // 打开就给一张示例，免得空着
+  useDemo();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

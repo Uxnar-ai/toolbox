@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JSON 排版 · 粘进去就好</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<style>
+  :root{
+    --bg:#f6f6f4; --card:#fff; --fg:#1b1d21; --dim:#6b7076; --line:#e3e3df;
+    --accent:#2f6df6; --accent-fg:#fff; --soft:#eef1f8; --err:#c0392b; --ok:#1f7a4d;
+    --k:#7c3aed; --s:#0f766e; --n:#b45309; --b:#2563eb;
+  }
+  @media (prefers-color-scheme: dark){
+    :root[data-theme="auto"]{
+      --bg:#14161a; --card:#1c1f24; --fg:#eceef1; --dim:#9aa1a9; --line:#2c3138;
+      --accent:#5b8cff; --accent-fg:#0b1020; --soft:#232830; --err:#ff8f7a; --ok:#5fe3a1;
+      --k:#c4a4ff; --s:#7ee0d0; --n:#ffc978; --b:#8fb4ff;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14161a; --card:#1c1f24; --fg:#eceef1; --dim:#9aa1a9; --line:#2c3138;
+    --accent:#5b8cff; --accent-fg:#0b1020; --soft:#232830; --err:#ff8f7a; --ok:#5fe3a1;
+    --k:#c4a4ff; --s:#7ee0d0; --n:#ffc978; --b:#8fb4ff;
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f6f4; --card:#fff; --fg:#1b1d21; --dim:#6b7076; --line:#e3e3df;
+    --accent:#2f6df6; --accent-fg:#fff; --soft:#eef1f8; --err:#c0392b; --ok:#1f7a4d;
+    --k:#7c3aed; --s:#0f766e; --n:#b45309; --b:#2563eb;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--fg);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1100px; margin:0 auto; padding:24px 16px 48px}
+  header{display:flex; align-items:flex-start; justify-content:space-between; gap:12px}
+  h1{font-size:20px; margin:0 0 3px}
+  .lede{color:var(--dim); font-size:13.5px; margin:0 0 16px}
+  .toggle{
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+    border-radius:999px; padding:5px 11px; font-size:12.5px; cursor:pointer; white-space:nowrap;
+  }
+  .bar{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:10px}
+  button{
+    font:inherit; font-size:14px; padding:8px 14px; border-radius:8px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  button.primary{background:var(--accent); color:var(--accent-fg); border-color:transparent; font-weight:600}
+  select{padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); font-size:14px}
+  label.chk{display:flex; align-items:center; gap:6px; font-size:13.5px; color:var(--dim); cursor:pointer}
+  .grow{flex:1 1 auto}
+  .panes{display:grid; gap:12px}
+  @media (min-width:900px){ .panes{grid-template-columns:1fr 1fr} }
+  .pane{background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; display:flex; flex-direction:column}
+  .pane h2{
+    margin:0; padding:8px 12px; font-size:12.5px; font-weight:600; letter-spacing:.3px;
+    color:var(--dim); border-bottom:1px solid var(--line); background:var(--soft);
+    display:flex; justify-content:space-between; gap:8px;
+  }
+  textarea{
+    border:0; width:100%; height:340px; resize:vertical; padding:12px; background:transparent; color:var(--fg);
+    font:13.5px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  textarea:focus{outline:2px solid var(--accent); outline-offset:-2px}
+  pre.out{
+    margin:0; height:340px; overflow:auto; padding:12px;
+    font:13.5px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; white-space:pre;
+  }
+  .k{color:var(--k)} .s{color:var(--s)} .n{color:var(--n)} .b{color:var(--b)}
+  .err{
+    display:none; margin-bottom:10px; padding:9px 12px; border-radius:9px; font-size:13.5px;
+    background:rgba(192,57,43,.1); color:var(--err); border:1px solid rgba(192,57,43,.25);
+  }
+  .err.on{display:block}
+  .err b{font-family:ui-monospace,Menlo,monospace}
+  .stats{font-size:12.5px; color:var(--dim); display:flex; gap:14px; flex-wrap:wrap; margin-top:8px}
+  .stats .ok{color:var(--ok)}
+  footer{margin-top:22px; font-size:12.5px; color:var(--dim)}
+  mark{background:rgba(47,109,246,.18); color:inherit}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>JSON 排版</h1>
+      <p class="lede">粘进去就排好。缩进、压缩、查错定位、排序键一键搞定，数据不出浏览器。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="bar">
+    <button class="primary" id="fmt">排版</button>
+    <button id="min">压成一行</button>
+    <button id="copy">复制结果</button>
+    <button id="clear">清空</button>
+    <select id="indent" aria-label="缩进">
+      <option value="2" selected>缩进 2 空格</option>
+      <option value="4">缩进 4 空格</option>
+      <option value="tab">缩进 Tab</option>
+    </select>
+    <label class="chk"><input type="checkbox" id="sort"> 键按字母排序</label>
+  </div>
+
+  <div class="err" id="err"></div>
+
+  <div class="panes">
+    <div class="pane">
+      <h2><span>原文</span><span id="srcStat">空</span></h2>
+      <textarea id="src" spellcheck="false" placeholder='{"hello":"world"}'></textarea>
+    </div>
+    <div class="pane">
+      <h2><span>结果</span><span id="outStat">等待输入</span></h2>
+      <pre class="out" id="out"></pre>
+    </div>
+  </div>
+
+  <div class="stats">
+    <span>快捷键 <b>Ctrl/⌘ + Enter</b> 排版</span>
+    <span id="valid" class="ok"></span>
+  </div>
+
+  <footer>全部在你自己浏览器里算，内容不会发到服务器。数组和对象结构不变，只调格式。</footer>
+</div>
+
+<script>
+(function(){
+  var root = document.documentElement;
+  var saved = localStorage.getItem('jsonfmt-theme');
+  if (saved) root.setAttribute('data-theme', saved);
+  document.getElementById('theme').addEventListener('click', function(){
+    var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('jsonfmt-theme', next);
+  });
+
+  var SAMPLE = '{"name":"文字快递","version":2,"tags":["工具","跨设备"],"limits":{"max_kb":64,"days":[1,7,30]},"enabled":true,"note":null,"owner":{"id":10086,"name":"<USER>"}}';
+
+  var src = document.getElementById('src'), out = document.getElementById('out'),
+      err = document.getElementById('err'), indentEl = document.getElementById('indent'),
+      sortEl = document.getElementById('sort'), srcStat = document.getElementById('srcStat'),
+      outStat = document.getElementById('outStat'), valid = document.getElementById('valid');
+
+  function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // 语法着色：单遍扫描 token，避免字符串里的数字被误上色
+  function paint(text){
+    var re = /("(?:\\.|[^"\\])*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|\b(true|false|null)\b/g;
+    var html = '', last = 0, m;
+    while ((m = re.exec(text)) !== null){
+      html += esc(text.slice(last, m.index));
+      if (m[1] !== undefined){
+        html += '<span class="' + (m[2] ? 'k' : 's') + '">' + esc(m[1]) + '</span>';
+        if (m[2]) html += m[2];
+      } else if (m[3] !== undefined){
+        html += '<span class="n">' + m[3] + '</span>';
+      } else {
+        html += '<span class="b">' + m[4] + '</span>';
+      }
+      last = re.lastIndex;
+    }
+    return html + esc(text.slice(last));
+  }
+
+  function bytes(n){
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+    return (n / 1048576).toFixed(1) + ' MB';
+  }
+
+  function locate(text, pos){
+    var lines = text.slice(0, pos).split('\n');
+    return { line: lines.length, col: lines[lines.length - 1].length + 1 };
+  }
+
+  function sortDeep(v){
+    if (Array.isArray(v)) return v.map(sortDeep);
+    if (v && typeof v === 'object'){
+      var o = {};
+      Object.keys(v).sort(function(a, b){ return a.localeCompare(b); }).forEach(function(k){ o[k] = sortDeep(v[k]); });
+      return o;
+    }
+    return v;
+  }
+
+  function gap(n){
+    if (indentEl.value === 'tab') return '\t'.repeat(n);
+    return ' '.repeat(Number(indentEl.value) * n);
+  }
+
+  function run(minify){
+    var raw = src.value;
+    srcStat.textContent = raw.trim() ? bytes(new Blob([raw]).size) + ' · ' + raw.split('\n').length + ' 行' : '空';
+    if (!raw.trim()){ out.innerHTML = ''; outStat.textContent = '等待输入'; err.className = 'err'; valid.textContent = ''; return; }
+
+    var data;
+    try {
+      data = JSON.parse(raw);
+    } catch (e) {
+      var m = /position (\d+)/.exec(e.message);
+      var where = m ? locate(raw, Number(m[1])) : null;
+      err.innerHTML = '解析失败：' + esc(e.message.replace(/^JSON\.parse: /, '')) +
+        (where ? ' —— 大约在第 <b>' + where.line + '</b> 行第 <b>' + where.col + '</b> 列' : '');
+      err.className = 'err on';
+      out.innerHTML = ''; outStat.textContent = '有错误';
+      valid.textContent = '';
+      return;
+    }
+
+    err.className = 'err';
+    if (sortEl.checked) data = sortDeep(data);
+
+    var text = minify ? JSON.stringify(data) : JSON.stringify(data, null, gap(1));
+    out.innerHTML = minify ? esc(text) : paint(text);
+    outStat.textContent = bytes(new Blob([text]).size) + ' · ' + text.split('\n').length + ' 行';
+    valid.textContent = '✓ 格式正确';
+  }
+
+  var timer = null;
+  src.addEventListener('input', function(){
+    clearTimeout(timer);
+    timer = setTimeout(function(){ run(false); }, 220);
+  });
+  indentEl.addEventListener('change', function(){ run(false); });
+  sortEl.addEventListener('change', function(){ run(false); });
+
+  document.getElementById('fmt').addEventListener('click', function(){ run(false); });
+  document.getElementById('min').addEventListener('click', function(){ run(true); });
+  document.getElementById('clear').addEventListener('click', function(){
+    src.value = ''; out.innerHTML = ''; run(false); src.focus();
+  });
+  document.getElementById('copy').addEventListener('click', function(){
+    var btn = this, t = out.innerText;
+    if (!t) return;
+    var done = function(){ btn.textContent = '已复制'; setTimeout(function(){ btn.textContent = '复制结果'; }, 1200); };
+    if (navigator.clipboard && window.isSecureContext){
+      navigator.clipboard.writeText(t).then(done, fb);
+    } else { fb(); }
+    function fb(){
+      var ta = document.createElement('textarea');
+      ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done(); } catch(e){ alert('复制失败，手动选中'); }
+      document.body.removeChild(ta);
+    }
+  });
+
+  document.addEventListener('keydown', function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); run(false); }
+  });
+
+  // 打开就有东西看：默认填入示例
+  src.value = SAMPLE;
+  run(false);
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

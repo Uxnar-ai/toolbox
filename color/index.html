@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>颜色工具箱 color</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); min-width:0}
+  .box h2{
+    margin:0; padding:8px 12px; font-size:12.5px; font-weight:600; letter-spacing:.3px;
+    color:var(--dim); border-bottom:1px solid var(--line); background:var(--soft);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .box .pad{padding:12px}
+  .top{display:grid; gap:12px; margin-bottom:12px}
+  @media (min-width:820px){ .top{grid-template-columns:1fr 340px} }
+  #swatch{
+    height:132px; border-radius:var(--radius); border:1px solid var(--line);
+    display:flex; align-items:flex-end; padding:12px;
+    font:600 30px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    letter-spacing:.5px; cursor:pointer; transition:background .12s;
+  }
+  .hexrow{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px}
+  #hexIn{
+    flex:1 1 160px; min-width:120px; font:600 16px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    padding:8px 10px; border-radius:9px; border:1px solid var(--line); background:var(--bg); color:var(--fg);
+    text-transform:uppercase;
+  }
+  #hexIn:focus{outline:2px solid var(--accent); outline-offset:-2px}
+  ul.vals{list-style:none; margin:0; padding:6px}
+  ul.vals li{display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:8px; cursor:pointer}
+  ul.vals li:hover{background:var(--soft)}
+  ul.vals .k{flex:0 0 74px; font-size:12.5px; color:var(--dim)}
+  ul.vals .v{flex:1 1 auto; font:13.5px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; word-break:break-all}
+  ul.vals .s{flex:0 0 auto; font-size:11.5px; color:var(--dim); width:44px; text-align:right}
+  .scale{display:grid; grid-template-columns:repeat(9,1fr); gap:6px}
+  .scale div{height:56px; border-radius:8px; border:1px solid rgba(0,0,0,.06); display:flex; align-items:flex-end; justify-content:center; padding:4px 2px; font-size:10.5px; cursor:pointer; font-family:ui-monospace,monospace}
+  .scale div span{opacity:.85}
+  .scale-lbl{display:grid; grid-template-columns:repeat(9,1fr); gap:6px; margin-top:5px; font-size:11px; color:var(--dim); text-align:center}
+  .grid2{display:grid; gap:12px; margin-top:12px}
+  @media (min-width:820px){ .grid2{grid-template-columns:1fr 1fr} }
+  .cbox{border:1px solid var(--line); border-radius:9px; overflow:hidden}
+  .cbox .head{padding:5px 8px; font-size:11.5px; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line)}
+  .cbox .body{padding:12px 10px; font-size:16px; font-weight:600; text-align:center}
+  .cbox .foot{padding:5px 8px; font-size:11.5px; border-top:1px solid var(--line); color:var(--dim); display:flex; justify-content:space-between; gap:8px}
+  .pass{color:var(--ok); font-weight:600}
+  .fail{color:var(--err)}
+  .harm{display:grid; grid-template-columns:repeat(3,1fr); gap:8px}
+  .harm div{height:56px; border-radius:8px; border:1px solid rgba(0,0,0,.06); cursor:pointer; display:flex; align-items:flex-end; justify-content:center; padding-bottom:4px; font:10.5px ui-monospace,monospace; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.55)}
+  #canvasWrap{margin-top:10px; border:1px dashed var(--line); border-radius:9px; padding:8px; text-align:center; color:var(--dim); font-size:12.5px; position:relative}
+  #canvasWrap.has{border-style:solid; padding:0; overflow:hidden}
+  #cv{max-width:100%; display:block; margin:0 auto; cursor:crosshair}
+  #drop{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; font-size:12.5px}
+  label.file{
+    display:inline-block; margin-top:8px; font-size:12.5px; padding:5px 10px; border-radius:7px;
+    border:1px solid var(--line); cursor:pointer; color:var(--fg); background:var(--card);
+  }
+  label.file input{display:none}
+  .note{font-size:12px; color:var(--dim); margin:8px 0 0; line-height:1.55}
+  @media (max-width:560px){ .scale div{height:44px} #swatch{height:104px; font-size:24px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>颜色工具箱 color</h1>
+      <p class="lede">填一个色值：所有写法、深浅色阶、对比度一次给全；也能从截图里直接取色。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="row">
+    <input id="hexIn" type="text" spellcheck="false" autocomplete="off" aria-label="色值">
+    <button class="chip" id="rand" type="button">随机一个</button>
+    <span class="sep"></span>
+    <button class="chip quick" data-seed="#2f6df6" type="button">蓝</button>
+    <button class="chip quick" data-seed="#1f7a4d" type="button">绿</button>
+    <button class="chip quick" data-seed="#b45309" type="button">橙</button>
+    <button class="chip quick" data-seed="#c0392b" type="button">红</button>
+    <button class="chip quick" data-seed="#6b7076" type="button">灰</button>
+  </div>
+
+  <div class="top">
+    <div id="swatch" title="点一下复制色值">#2F6DF6</div>
+    <div class="box">
+      <h2><span>所有写法</span><span>点一行复制</span></h2>
+      <ul class="vals" id="vals"></ul>
+    </div>
+  </div>
+
+  <div class="box">
+    <h2><span>深浅色阶</span><span>点色块复制</span></h2>
+    <div class="pad">
+      <div class="scale" id="scale"></div>
+      <div class="scale-lbl" id="scaleLbl"></div>
+      <p class="note">按同一色相与饱和度调明度：左边最浅（当背景），右边最深（当正文）。</p>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="box">
+      <h2><span>配几个搭得上的色</span><span>点色块复制</span></h2>
+      <div class="pad">
+        <div class="harm" id="harm"></div>
+        <p class="note">相邻是同类色，对面是互补色，成三角是三角配色。</p>
+      </div>
+    </div>
+    <div class="box">
+      <h2><span>放在白底 / 黑底上</span><span></span></h2>
+      <div class="pad">
+        <div class="cbox" style="margin-bottom:10px">
+          <div class="head">这个色当文字，白底上</div>
+          <div class="body" id="onWhite" style="background:#fff">示例文字 Aa 123</div>
+          <div class="foot"><span id="cW"></span><span id="jW"></span></div>
+        </div>
+        <div class="cbox">
+          <div class="head">这个色当背景，黑字 / 白字</div>
+          <div class="body" id="onDark" style="color:#000">示例文字 Aa 123</div>
+          <div class="foot"><span id="cB"></span><span id="jB"></span></div>
+        </div>
+        <p class="note">对比度 ≥ 4.5 是正文可读的底线，≥ 3 只够大号字。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="box" style="margin-top:12px">
+    <h2><span>从截图 / 图片取色</span><span id="pickInfo"></span></h2>
+    <div class="pad">
+      <div id="canvasWrap"><span id="drop">选一张图，点图上任意位置取色</span><canvas id="cv" width="0" height="0" style="display:none"></canvas></div>
+      <label class="file">选图片<input type="file" id="file" accept="image/*"></label>
+      <span style="font-size:12px;color:var(--dim)"> 也可以直接把图片拖进上面的框。图片不会上传。</span>
+      <p class="note">手机拍的截图也能用；取完色会同时更新上面所有换算。</p>
+    </div>
+  </div>
+
+  <footer>全部在你自己浏览器里算，图片和色值都不上传。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var hexIn=document.getElementById('hexIn'), swatch=document.getElementById('swatch'),
+      vals=document.getElementById('vals'), scale=document.getElementById('scale'),
+      scaleLbl=document.getElementById('scaleLbl'), harm=document.getElementById('harm'),
+      onWhite=document.getElementById('onWhite'), onDark=document.getElementById('onDark'),
+      cW=document.getElementById('cW'), cB=document.getElementById('cB'),
+      jW=document.getElementById('jW'), jB=document.getElementById('jB'),
+      cv=document.getElementById('cv'), wrap=document.getElementById('canvasWrap'),
+      dropEl=document.getElementById('drop'), pickInfo=document.getElementById('pickInfo');
+
+  var cur = {r:47,g:109,b:246};
+
+  // ---------- 颜色换算 ----------
+  function clamp(n,a,b){ return Math.min(b, Math.max(a, n)); }
+  function hex2rgb(s){
+    s = String(s).trim().replace(/^#/, '');
+    if (/^[0-9a-f]{3}$/i.test(s)) s = s[0]+s[0]+s[1]+s[1]+s[2]+s[2];
+    if (!/^[0-9a-f]{6}$/i.test(s)) return null;
+    return {r:parseInt(s.slice(0,2),16), g:parseInt(s.slice(2,4),16), b:parseInt(s.slice(4,6),16)};
+  }
+  function p2(n){ return (n<16?'0':'')+n.toString(16); }
+  function rgb2hex(c){ return '#' + p2(c.r) + p2(c.g) + p2(c.b); }
+  function rgb2hsl(c){
+    var r=c.r/255,g=c.g/255,b=c.b/255;
+    var mx=Math.max(r,g,b), mn=Math.min(r,g,b), l=(mx+mn)/2, h=0, s=0, d=mx-mn;
+    if (d){
+      s = l>0.5 ? d/(2-mx-mn) : d/(mx+mn);
+      if (mx===r) h=(g-b)/d + (g<b?6:0);
+      else if (mx===g) h=(b-r)/d + 2;
+      else h=(r-g)/d + 4;
+      h*=60;
+    }
+    return {h:Math.round(h), s:Math.round(s*100), l:Math.round(l*100)};
+  }
+  function hsl2rgb(h,s,l){
+    h=((h%360)+360)%360; s=clamp(s,0,100)/100; l=clamp(l,0,100)/100;
+    var c=(1-Math.abs(2*l-1))*s, x=c*(1-Math.abs((h/60)%2-1)), m=l-c/2, r=0,g=0,b=0;
+    if (h<60){r=c;g=x;} else if (h<120){r=x;g=c;} else if (h<180){g=c;b=x;}
+    else if (h<240){g=x;b=c;} else if (h<300){r=x;b=c;} else {r=c;b=x;}
+    return {r:Math.round((r+m)*255), g:Math.round((g+m)*255), b:Math.round((b+m)*255)};
+  }
+  function rgb2hsv(c){
+    var r=c.r/255,g=c.g/255,b=c.b/255;
+    var mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn, h=0;
+    if (d){
+      if (mx===r) h=((g-b)/d + (g<b?6:0))*60;
+      else if (mx===g) h=((b-r)/d + 2)*60;
+      else h=((r-g)/d + 4)*60;
+    }
+    return {h:Math.round(h), s:Math.round((mx?d/mx:0)*100), v:Math.round(mx*100)};
+  }
+  function lum(c){
+    function f(v){ v/=255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); }
+    return 0.2126*f(c.r) + 0.7152*f(c.g) + 0.0722*f(c.b);
+  }
+  function ratio(a,b){
+    var la=lum(a), lb=lum(b);
+    var hi=Math.max(la,lb), lo=Math.min(la,lb);
+    return (hi+0.05)/(lo+0.05);
+  }
+  function textOn(c){ return lum(c) > 0.45 ? '#111' : '#fff'; }
+
+  // ---------- 渲染 ----------
+  function setColor(rgb, silent){
+    cur = rgb;
+    var hex = rgb2hex(rgb).toUpperCase();
+    var hsl = rgb2hsl(rgb), hsv = rgb2hsv(rgb);
+    swatch.style.background = hex;
+    swatch.style.color = textOn(rgb);
+    swatch.textContent = hex;
+    if (!silent) hexIn.value = hex;
+
+    var rows = [
+      ['十六进制', hex],
+      ['RGB', 'rgb(' + rgb.r + ', ' + rgb.g + ', ' + rgb.b + ')'],
+      ['HSL', 'hsl(' + hsl.h + ', ' + hsl.s + '%, ' + hsl.l + '%)'],
+      ['HSV', 'hsv(' + hsv.h + ', ' + hsv.s + '%, ' + hsv.v + '%)'],
+      ['三个分量', rgb.r + ' / ' + rgb.g + ' / ' + rgb.b]
+    ];
+    vals.innerHTML = '';
+    rows.forEach(function(row){
+      var li = document.createElement('li');
+      var k=document.createElement('span'); k.className='k'; k.textContent=row[0];
+      var v=document.createElement('span'); v.className='v'; v.textContent=row[1];
+      var s=document.createElement('span'); s.className='s'; s.textContent='复制';
+      li.appendChild(k); li.appendChild(v); li.appendChild(s);
+      li.addEventListener('click', function(){
+        copyText(row[1], null, '');
+        s.textContent='已复制'; setTimeout(function(){ s.textContent='复制'; }, 900);
+      });
+      vals.appendChild(li);
+    });
+
+    // 色阶
+    var steps = [95,88,78,66,54,44,34,24,14];
+    scale.innerHTML = ''; scaleLbl.innerHTML = '';
+    steps.forEach(function(L, i){
+      var c = hsl2rgb(hsl.h, hsl.s, L);
+      var d = document.createElement('div');
+      d.style.background = rgb2hex(c);
+      d.style.color = textOn(c);
+      d.title = rgb2hex(c).toUpperCase();
+      var sp = document.createElement('span');
+      sp.textContent = '';
+      d.appendChild(sp);
+      d.addEventListener('click', function(){
+        copyText(rgb2hex(c).toUpperCase(), null, '');
+        d.style.outline = '2px solid ' + (textOn(c) === '#fff' ? '#fff' : '#111');
+        setTimeout(function(){ d.style.outline = 'none'; }, 600);
+      });
+      scale.appendChild(d);
+      var lb = document.createElement('span');
+      lb.textContent = L + '%';
+      scaleLbl.appendChild(lb);
+    });
+
+    // 配色：同类深浅、互补、三角，共 6 个
+    var hs = [
+      {h:hsl.h + 28, l:clamp(hsl.l + 14, 20, 88), n:'同类浅'},
+      {h:hsl.h - 28, l:clamp(hsl.l - 12, 14, 80), n:'同类深'},
+      {h:hsl.h + 180, l:clamp(hsl.l, 22, 70), n:'互补'},
+      {h:hsl.h + 120, l:clamp(hsl.l, 22, 70), n:'三角 1'},
+      {h:hsl.h + 240, l:clamp(hsl.l, 22, 70), n:'三角 2'},
+      {h:hsl.h + 60, l:clamp(hsl.l + 8, 20, 80), n:'斜邻'}
+    ];
+    harm.innerHTML = '';
+    hs.forEach(function(o){
+      var c = hsl2rgb(o.h, hsl.s, o.l);
+      var d = document.createElement('div');
+      d.style.background = rgb2hex(c);
+      d.textContent = o.n;
+      d.title = rgb2hex(c).toUpperCase();
+      d.addEventListener('click', function(){ setColor(c); });
+      harm.appendChild(d);
+    });
+
+    // 对比度
+    var white = {r:255,g:255,b:255}, black = {r:0,g:0,b:0};
+    var rw = ratio(rgb, white), rb = ratio(rgb, black);
+    onWhite.style.color = hex;
+    onDark.style.background = hex;
+    onDark.style.color = textOn(rgb);
+    cW.textContent = '对比度 ' + rw.toFixed(2) + ' : 1';
+    cB.textContent = '对比度 ' + rb.toFixed(2) + ' : 1';
+    jW.innerHTML = rw >= 4.5 ? '<span class="pass">正文可读</span>' : (rw >= 3 ? '<span style="color:var(--warn)">仅大号字</span>' : '<span class="fail">太淡</span>');
+    jB.innerHTML = rb >= 4.5 ? '<span class="pass">正文可读</span>' : (rb >= 3 ? '<span style="color:var(--warn)">仅大号字</span>' : '<span class="fail">太淡</span>');
+  }
+
+  function fromInput(){
+    var v = hexIn.value.trim();
+    if (!/^#/.test(v)) v = '#' + v;
+    var c = hex2rgb(v);
+    if (!c){ hexIn.style.borderColor = 'var(--err)'; return; }
+    hexIn.style.borderColor = '';
+    setColor(c, true);
+  }
+
+  hexIn.addEventListener('input', fromInput);
+  hexIn.addEventListener('blur', function(){
+    var c = hex2rgb(hexIn.value);
+    if (c) hexIn.value = rgb2hex(c).toUpperCase();
+  });
+  document.getElementById('rand').addEventListener('click', function(){
+    setColor({r:Math.floor(Math.random()*256), g:Math.floor(Math.random()*256), b:Math.floor(Math.random()*256)});
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-seed]'), function(b){
+    b.addEventListener('click', function(){ setColor(hex2rgb(b.getAttribute('data-seed'))); });
+  });
+  swatch.addEventListener('click', function(){
+    copyText(rgb2hex(cur).toUpperCase(), null, '');
+  });
+
+  // ---------- 图片取色 ----------
+  var ctx = cv.getContext('2d', {willReadFrequently:true});
+
+  function loadImage(file){
+    if (!file || !/^image\//.test(file.type)) return;
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function(){
+      var w = img.naturalWidth, h = img.naturalHeight;
+      var maxW = Math.min(1000, wrap.clientWidth || 900);
+      var k = Math.min(1, maxW / w, 520 / h);
+      cv.width = Math.max(1, Math.round(w * k));
+      cv.height = Math.max(1, Math.round(h * k));
+      ctx.drawImage(img, 0, 0, cv.width, cv.height);
+      cv.style.display = 'block';
+      wrap.className = 'has';
+      dropEl.style.display = 'none';
+      pickInfo.textContent = cv.width + ' × ' + cv.height;
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  }
+
+  document.getElementById('file').addEventListener('change', function(){
+    if (this.files && this.files[0]) loadImage(this.files[0]);
+  });
+
+  cv.addEventListener('click', function(e){
+    var rect = cv.getBoundingClientRect();
+    var x = Math.round((e.clientX - rect.left) * cv.width / rect.width);
+    var y = Math.round((e.clientY - rect.top) * cv.height / rect.height);
+    var d = ctx.getImageData(clamp(x,0,cv.width-1), clamp(y,0,cv.height-1), 1, 1).data;
+    setColor({r:d[0], g:d[1], b:d[2]});
+    pickInfo.textContent = '取到 ' + rgb2hex({r:d[0],g:d[1],b:d[2]}).toUpperCase();
+  });
+
+  ['dragenter','dragover'].forEach(function(ev){
+    wrap.addEventListener(ev, function(e){ e.preventDefault(); wrap.style.borderColor='var(--accent)'; });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    wrap.addEventListener(ev, function(e){ e.preventDefault(); wrap.style.borderColor=''; });
+  });
+  wrap.addEventListener('drop', function(e){
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) loadImage(e.dataTransfer.files[0]);
+  });
+
+  // 打开就是品牌蓝 #2F6DF6
+  setColor({r:47, g:109, b:246});
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

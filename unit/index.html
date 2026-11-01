@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>单位换算 unit</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .conv{display:grid; gap:12px}
+  @media (min-width:820px){ .conv{grid-template-columns:320px 1fr} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); min-width:0}
+  .box h2{
+    margin:0; padding:8px 12px; font-size:12.5px; font-weight:600; letter-spacing:.3px;
+    color:var(--dim); border-bottom:1px solid var(--line); background:var(--soft);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .inbox{padding:12px}
+  .inbox label{display:block; font-size:12.5px; color:var(--dim); margin:0 0 4px}
+  #val{
+    width:100%; font:600 22px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    padding:8px 10px; border-radius:9px; border:1px solid var(--line); background:var(--bg); color:var(--fg);
+  }
+  #val:focus{outline:2px solid var(--accent); outline-offset:-2px}
+  #from{width:100%; margin-top:8px; font-size:14px; padding:8px 10px}
+  .hint{font-size:12.5px; color:var(--dim); margin-top:10px; line-height:1.5; min-height:20px}
+  ul.res{list-style:none; margin:0; padding:6px; max-height:62vh; overflow:auto}
+  ul.res li{display:flex; align-items:baseline; gap:10px; padding:7px 8px; border-radius:8px; cursor:pointer}
+  ul.res li:hover{background:var(--soft)}
+  ul.res .u{flex:0 0 96px; font-size:13px; color:var(--dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  ul.res .v{font:600 15px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; flex:1 1 auto; text-align:right; word-break:break-all; color:var(--fg)}
+  ul.res .s{flex:0 0 auto; font-size:11.5px; color:var(--dim); width:52px; text-align:right}
+  ul.res li.me .u, ul.res li.me .v, ul.res li.me .s{color:var(--accent)}
+  .copy-tip{font-size:12px; color:var(--dim); padding:8px 12px 0; margin:0}
+  @media (max-width:820px){ ul.res{max-height:none} ul.res .u{flex-basis:86px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>单位换算 unit</h1>
+      <p class="lede">输一个数，同一个量的所有单位一次换算好，点一行就复制。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="row" id="cats"></div>
+
+  <div class="conv">
+    <div class="box">
+      <h2><span>输入</span><span id="baseName"></span></h2>
+      <div class="inbox">
+        <label for="val">数值</label>
+        <input id="val" type="text" inputmode="decimal" spellcheck="false" autocomplete="off">
+        <label for="from" style="margin-top:10px">这个数的单位</label>
+        <select id="from"></select>
+        <p class="hint" id="hint"></p>
+      </div>
+    </div>
+
+    <div class="box">
+      <h2><span>换成了</span><span id="count"></span></h2>
+      <p class="copy-tip">点任意一行，复制那个数值</p>
+      <ul class="res" id="res"></ul>
+    </div>
+  </div>
+
+  <div class="err" id="err"></div>
+  <footer>全部在你自己浏览器里算，内容不上传。斤按 500 克、两按 50 克、亩按 2000/3 平方米、月按 30 天、年按 365 天算。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  // 每个单位：[中文名, 符号, 相对基准的倍率]。温度没有倍率，单独算。
+  var CATS = [
+    {id:'length', name:'长度', base:'米', units:[
+      ['毫米','mm',0.001],['厘米','cm',0.01],['米','m',1],['千米','km',1000],
+      ['英寸','in',0.0254],['英尺','ft',0.3048],['码','yd',0.9144],['英里','mi',1609.344],
+      ['市尺','尺',1/3],['市寸','寸',1/30],['里','里',500]
+    ]},
+    {id:'weight', name:'重量', base:'千克', units:[
+      ['毫克','mg',1e-6],['克','g',0.001],['千克','kg',1],['吨','t',1000],
+      ['市斤','斤',0.5],['市两','两',0.05],['磅','lb',0.45359237],['盎司','oz',0.028349523125]
+    ]},
+    {id:'temp', name:'温度', base:'摄氏度', temp:true, units:[
+      ['摄氏度','°C',0],['华氏度','°F',0],['开尔文','K',0]
+    ]},
+    {id:'area', name:'面积', base:'平方米', units:[
+      ['平方厘米','cm²',1e-4],['平方米','m²',1],['平方千米','km²',1e6],['公顷','ha',1e4],
+      ['亩','亩',2000/3],['平方英尺','ft²',0.09290304],['平方英寸','in²',0.00064516],['英亩','ac',4046.8564224]
+    ]},
+    {id:'volume', name:'体积', base:'升', units:[
+      ['毫升','ml',0.001],['升','L',1],['立方米','m³',1000],
+      ['加仑(美)','gal',3.785411784],['品脱(美)','pt',0.473176473],['液量盎司(美)','fl oz',0.0295735295625]
+    ]},
+    {id:'speed', name:'速度', base:'米每秒', units:[
+      ['米每秒','m/s',1],['公里每小时','km/h',1/3.6],['英里每小时','mph',0.44704],
+      ['节','kn',0.514444444],['英尺每秒','ft/s',0.3048]
+    ]},
+    {id:'data', name:'存储', base:'字节', units:[
+      ['比特','bit',0.125],['字节','B',1],['千字节','KB',1024],['兆字节','MB',1048576],
+      ['吉字节','GB',1073741824],['太字节','TB',1099511627776]
+    ]},
+    {id:'time', name:'时间', base:'秒', units:[
+      ['毫秒','ms',0.001],['秒','s',1],['分钟','min',60],['小时','h',3600],
+      ['天','d',86400],['周','w',604800],['月(30天)','月',2592000],['年(365天)','年',31536000]
+    ]},
+    {id:'press', name:'压力', base:'千帕', units:[
+      ['帕','Pa',0.001],['千帕','kPa',1],['巴','bar',100],['标准大气压','atm',101.325],
+      ['毫米汞柱','mmHg',0.1333224],['磅每平方英寸','psi',6.89475729]
+    ]}
+  ];
+
+  var SEED_VAL = {length:'1', weight:'1', temp:'25', area:'100', volume:'1', speed:'60', data:'1', time:'90', press:'220'};
+  var SEED_UNIT = {length:2, weight:2, temp:0, area:1, volume:1, speed:1, data:3, time:2, press:5};
+
+  var elCats=document.getElementById('cats'), elVal=document.getElementById('val'),
+      elFrom=document.getElementById('from'), elRes=document.getElementById('res'),
+      elBase=document.getElementById('baseName'), elCount=document.getElementById('count'),
+      elHint=document.getElementById('hint'), elErr=document.getElementById('err');
+
+  var cur = CATS[0];
+
+  function fmt(v){
+    if (!isFinite(v)) return '—';
+    if (v === 0) return '0';
+    var a = Math.abs(v), s;
+    if (a >= 1e13 || a < 1e-6){
+      s = v.toExponential(6);
+      s = s.replace(/(\.\d*?)0+e/, '$1e').replace(/\.e/, 'e');
+      return s;
+    }
+    s = v.toPrecision(a >= 1 ? 8 : 6);
+    if (s.indexOf('e') >= 0) return s;
+    if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+    return s;
+  }
+
+  function toBase(n, u){
+    if (cur.temp){
+      if (u[1] === '°F') return (n - 32) * 5 / 9;
+      if (u[1] === 'K') return n - 273.15;
+      return n;
+    }
+    return n * u[2];
+  }
+  function fromBase(b, u){
+    if (cur.temp){
+      if (u[1] === '°F') return b * 9 / 5 + 32;
+      if (u[1] === 'K') return b + 273.15;
+      return b;
+    }
+    return b / u[2];
+  }
+
+  function fillUnits(){
+    elFrom.innerHTML = '';
+    cur.units.forEach(function(u, i){
+      var o = document.createElement('option');
+      o.value = i;
+      o.textContent = u[0] + ' (' + u[1] + ')';
+      elFrom.appendChild(o);
+    });
+  }
+
+  function renderCats(){
+    elCats.innerHTML = '';
+    CATS.forEach(function(c){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip' + (c.id === cur.id ? ' on' : '');
+      b.textContent = c.name;
+      b.addEventListener('click', function(){ pickCat(c.id); });
+      elCats.appendChild(b);
+    });
+  }
+
+  function pickCat(id){
+    cur = CATS.filter(function(c){ return c.id === id; })[0] || CATS[0];
+    renderCats();
+    fillUnits();
+    elBase.textContent = '基准：' + cur.base;
+    elVal.value = SEED_VAL[cur.id] || '1';
+    elFrom.value = String(SEED_UNIT[cur.id] || 0);
+    run();
+  }
+
+  function run(){
+    var raw = elVal.value.replace(/\s+/g, '').replace(/,/g, '');
+    elErr.className = 'err';
+    var n = Number(raw);
+    if (raw === '' || !isFinite(n)){
+      elRes.innerHTML = '<li><span class="u">—</span><span class="v">先输一个数</span><span class="s"></span></li>';
+      elCount.textContent = '';
+      elHint.textContent = '';
+      return;
+    }
+    var ui = Number(elFrom.value) || 0;
+    var base = toBase(n, cur.units[ui]);
+
+    var rows = cur.units.map(function(x, i){
+      return {u:x, v:fromBase(base, x), me:i === ui};
+    }).sort(function(a, b){ return Math.abs(b.v) - Math.abs(a.v); });
+
+    elRes.innerHTML = '';
+    rows.forEach(function(r){
+      var li = document.createElement('li');
+      if (r.me) li.className = 'me';
+      var txt = fmt(r.v);
+      var su = document.createElement('span'); su.className = 'u'; su.textContent = r.u[0];
+      var sv = document.createElement('span'); sv.className = 'v'; sv.textContent = txt + ' ' + r.u[1];
+      var ss = document.createElement('span'); ss.className = 's'; ss.textContent = r.me ? '输入' : '复制';
+      li.title = '复制 ' + txt;
+      li.appendChild(su); li.appendChild(sv); li.appendChild(ss);
+      li.addEventListener('click', function(){
+        copyText(txt, null, '');
+        ss.textContent = '已复制';
+        setTimeout(function(){ ss.textContent = r.me ? '输入' : '复制'; }, 900);
+      });
+      elRes.appendChild(li);
+    });
+
+    elCount.textContent = cur.units.length + ' 个单位';
+    var other = cur.units.filter(function(x, i){ return i !== ui; })[0];
+    elHint.textContent = other
+      ? '同样这个量，等于 ' + fmt(fromBase(base, other)) + ' ' + other[0] + '。'
+      : '';
+  }
+
+  elVal.addEventListener('input', run);
+  elFrom.addEventListener('change', run);
+  elVal.addEventListener('focus', function(){ elVal.select(); });
+
+  renderCats();
+  fillUnits();
+  elBase.textContent = '基准：' + cur.base;
+  elVal.value = SEED_VAL[cur.id];
+  elFrom.value = String(SEED_UNIT[cur.id]);
+  run();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
