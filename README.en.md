@@ -1,6 +1,6 @@
-# toolbox — fifteen small tools that open and work
+# toolbox — sixteen small tools that open and work
 
-> Fifteen tiny tools in one static site: JSON formatter, text tidier, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming-convention converter, RMB uppercase, unit converter, colour toolbox, QR codes and image compressor. No backend, no ports.
+> Sixteen tiny tools in one static site: JSON formatter, text tidier, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming-convention converter, random generator, RMB uppercase, unit converter, colour toolbox, QR codes and image compressor. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -23,9 +23,11 @@ Third round (twelve to fifteen), all of it the everyday stuff you hit while writ
 - **Naming converter**: one field name per line, eight casings at once (camel, Pascal, snake, CONSTANT, kebab, dot, spaced, title). Tokenising understands separators, camel boundaries and acronym runs, so `HTTPServer` becomes http + server rather than h-t-t-p. Batch friendly, one-click copy per style.
 - **Date calculator**: days and working days between two dates, plus the calendar reading; or step forward N days / working days / months from any date. Month arithmetic clamps the day-of-month (Jan 31 + 1 month = Feb 28), and everything runs in UTC so daylight-saving transitions can't shift the answer by a day.
 
+- **Random generator**: passwords, UUID v4, hex and plain digits, a batch at a time. Values come from the browser's CSPRNG through rejection sampling rather than a plain modulo (which would favour the leading characters), and passwords can exclude the look-alikes `0 O o 1 l I`. A meter estimates `length × log2(pool)` and says whether that is enough.
+
 ## Features
 
-- Fifteen tools in one static site, no backend and no ports
+- Sixteen tools in one static site, no backend and no ports
 - One build script generates every page from its template
 - Text diff: line alignment, in-line character highlighting, foldable unchanged runs, copyable patch
 - QR: UTF-8 Chinese, L/M/Q/H correction, adjustable size, PNG download, fixed quiet zone
@@ -36,6 +38,7 @@ Third round (twelve to fifteen), all of it the everyday stuff you hit while writ
 - Cron explainer: plain-language meaning, next ten runs, full five-field syntax, aliases, per-field errors
 - Naming converter: eight casings at once, acronym-aware tokenising, batch input, per-style copy
 - Date calculator: day and working-day gaps, calendar breakdown, add days/workdays/months/years
+- Random generator: passwords/UUID/hex/digits, CSPRNG with a strength estimate
 
 ## Stack
 

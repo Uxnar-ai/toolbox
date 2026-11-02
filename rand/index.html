@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>随机生成 · 密码、UUID、随机串，一次出一批</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:880px){ .panes{grid-template-columns:340px 1fr; align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:13px}
+  .lbl{font-size:11.5px; color:var(--dim); margin:0 0 6px; display:block}
+  .seg{display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:14px}
+  .seg button{
+    padding:9px 6px; border-radius:8px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); font-size:13px;
+  }
+  .seg button[aria-pressed="true"]{ border-color:var(--accent); color:var(--accent); background:var(--soft); font-weight:600 }
+  .num{display:flex; align-items:center; gap:8px}
+  .num input[type=range]{flex:1 1 auto}
+  .num input[type=number]{
+    width:66px; font:13.5px/1.4 inherit; padding:7px 8px; border-radius:8px;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); text-align:center;
+  }
+  .opts{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px}
+  .opts label{display:flex; align-items:center; gap:7px; font-size:13px; color:var(--fg); cursor:pointer}
+  .opts input{width:15px; height:15px; accent-color:var(--accent)}
+  .meter{margin-top:16px}
+  .bar{height:6px; border-radius:99px; background:var(--soft); overflow:hidden}
+  .bar i{display:block; height:100%; width:0; border-radius:99px; background:var(--ok); transition:width .18s, background .18s}
+  .meter p{margin:7px 0 0; font-size:12px; color:var(--dim); display:flex; justify-content:space-between; gap:8px}
+  ol.out{margin:0; padding:0; list-style:none}
+  ol.out li{
+    display:flex; align-items:center; gap:10px; padding:9px 13px; border-bottom:1px solid var(--line);
+  }
+  ol.out li:last-child{border-bottom:0}
+  ol.out code{
+    flex:1 1 auto; min-width:0; font:13.5px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    word-break:break-all; cursor:pointer;
+  }
+  .cp{
+    flex:0 0 auto; font:12px/1 inherit; padding:4px 9px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--dim);
+  }
+  .cp:hover{border-color:var(--accent); color:var(--accent)}
+  .empty{padding:26px 13px; text-align:center; color:var(--dim); font-size:13px}
+  .note{font-size:12px; color:var(--dim); margin:12px 0 0; line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>随机生成</h1>
+      <p class="lede">选好要什么，右边立刻出一批：密码、UUID、随机串、随机数字。生成完点一下就能复制走。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <div class="hd">生成什么</div>
+      <div class="bd">
+        <div class="seg" id="kind">
+          <button type="button" data-k="pwd" aria-pressed="true">密码</button>
+          <button type="button" data-k="uuid" aria-pressed="false">UUID</button>
+          <button type="button" data-k="hex" aria-pressed="false">十六进制</button>
+          <button type="button" data-k="num" aria-pressed="false">数字</button>
+        </div>
+
+        <span class="lbl" id="lenLbl">长度</span>
+        <div class="num">
+          <input type="range" id="lenR" min="4" max="64" value="16">
+          <input type="number" id="lenN" min="4" max="64" value="16">
+        </div>
+
+        <div class="opts" id="charset">
+          <label><input type="checkbox" id="cUpper" checked>大写 A–Z</label>
+          <label><input type="checkbox" id="cLower" checked>小写 a–z</label>
+          <label><input type="checkbox" id="cDigit" checked>数字 0–9</label>
+          <label><input type="checkbox" id="cSym">符号 !@#$</label>
+          <label><input type="checkbox" id="cNoAmb">避开容易看错</label>
+        </div>
+
+        <div class="meter">
+          <div class="bar"><i id="bar"></i></div>
+          <p><span id="entropy">—</span><span id="pool"></span></p>
+        </div>
+        <p class="note">「避开容易看错」会去掉 0 O o 1 l I 这些；密钥场景建议长度 20 以上。</p>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="hd"><span>结果</span><span id="cnt">—</span></div>
+      <ol class="out" id="out"><li class="empty">左边选一下，这里就出结果。</li></ol>
+      <div class="bd" style="border-top:1px solid var(--line); display:flex; gap:8px; flex-wrap:wrap">
+        <button class="chip" id="bGo" type="button">再生成一批</button>
+        <button class="chip" id="bAll" type="button">全部复制</button>
+        <button class="chip" id="bCount" type="button">改成 20 个</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>随机数来自浏览器自带的安全随机源，生成的东西不会发到服务器，也不留记录。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var out = document.getElementById('out'), cnt = document.getElementById('cnt');
+  var lenR = document.getElementById('lenR'), lenN = document.getElementById('lenN');
+  var kindBox = document.getElementById('kind'), charset = document.getElementById('charset');
+  var lenLbl = document.getElementById('lenLbl');
+  var bar = document.getElementById('bar'), entropy = document.getElementById('entropy'), poolEl = document.getElementById('pool');
+  var kind = 'pwd', count = 6, last = [];
+
+  var SETS = {
+    upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    lower: 'abcdefghijklmnopqrstuvwxyz',
+    digit: '0123456789',
+    sym: '!@#$%^&*-_=+?'
+  };
+  var AMB = '0Oo1lI';
+
+  // 无偏随机：拒绝采样，避免 % 带来的偏向
+  function randInt(n){
+    var buf = new Uint32Array(1);
+    var limit = Math.floor(4294967296 / n) * n;
+    for (;;){
+      crypto.getRandomValues(buf);
+      if (buf[0] < limit) return buf[0] % n;
+    }
+  }
+
+  function pool(noAmb){
+    var keys = [];
+    if (document.getElementById('cUpper').checked) keys.push('upper');
+    if (document.getElementById('cLower').checked) keys.push('lower');
+    if (document.getElementById('cDigit').checked) keys.push('digit');
+    if (document.getElementById('cSym').checked) keys.push('sym');
+    if (!keys.length) keys = ['lower'];
+    var chars = '';
+    keys.forEach(function(k){
+      var s = SETS[k];
+      for (var i = 0; i < s.length; i++){
+        if (noAmb && AMB.indexOf(s.charAt(i)) > -1) continue;
+        chars += s.charAt(i);
+      }
+    });
+    if (!chars) chars = 'abcdefghijklmnopqrstuvwxyz';
+    return chars;
+  }
+
+  function makePwd(len, chars){
+    var s = '';
+    for (var i = 0; i < len; i++) s += chars.charAt(randInt(chars.length));
+    return s;
+  }
+
+  function uuid(){
+    var b = new Uint8Array(16);
+    crypto.getRandomValues(b);
+    b[6] = (b[6] & 0x0f) | 0x40;   // 版本 4
+    b[8] = (b[8] & 0x3f) | 0x80;   // 变体
+    var h = [];
+    for (var i = 0; i < 16; i++) h.push(('0' + b[i].toString(16)).slice(-2));
+    var s = h.join('');
+    return s.slice(0, 8) + '-' + s.slice(8, 12) + '-' + s.slice(12, 16) + '-' + s.slice(16, 20) + '-' + s.slice(20);
+  }
+
+  function generate(){
+    var len = clamp(parseInt(lenN.value, 10) || 16);
+    var chars = pool(document.getElementById('cNoAmb').checked);
+    last = [];
+    if (kind === 'uuid'){
+      for (var i = 0; i < count; i++) last.push(uuid());
+    } else if (kind === 'hex'){
+      for (var j = 0; j < count; j++) last.push(makePwd(len, '0123456789abcdef'));
+    } else if (kind === 'num'){
+      for (var k = 0; k < count; k++) last.push(makePwd(len, '0123456789'));
+    } else {
+      for (var m = 0; m < count; m++) last.push(makePwd(len, chars));
+    }
+    paint();
+    meter(len, chars);
+  }
+
+  function clamp(n){
+    if (isNaN(n)) return 16;
+    return Math.max(4, Math.min(64, n));
+  }
+
+  function paint(){
+    cnt.textContent = last.length + ' 条';
+    var html = '';
+    for (var i = 0; i < last.length; i++){
+      html += '<li><code data-i="' + i + '">' + esc(last[i]) + '</code>'
+            + '<button class="cp" data-i="' + i + '" type="button">复制</button></li>';
+    }
+    out.innerHTML = html || '<li class="empty">长度或字符集选一下。</li>';
+  }
+
+  function meter(len, chars){
+    var bits = 0, note = '';
+    if (kind === 'uuid'){
+      bits = 122; note = 'UUID v4 固定 122 位随机';
+    } else if (kind === 'hex'){
+      bits = len * 4;
+    } else if (kind === 'num'){
+      bits = len * Math.log(10) / Math.LN2;
+    } else {
+      bits = len * Math.log(chars.length) / Math.LN2;
+    }
+    var pct = Math.min(100, Math.round(bits / 1.6));
+    bar.style.width = pct + '%';
+    var color = bits < 50 ? 'var(--err)' : bits < 80 ? 'var(--warn)' : 'var(--ok)';
+    bar.style.background = color;
+    var word = bits < 40 ? '太短，别用在正经地方' : bits < 60 ? '一般，应付临时密码够' : bits < 90 ? '够用' : '很稳';
+    entropy.textContent = '约 ' + Math.round(bits) + ' 位随机 · ' + word;
+    poolEl.textContent = kind === 'pwd' ? chars.length + ' 种字符' : '';
+  }
+
+  function esc(s){
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function syncLen(show){
+    if (show === 'r'){ lenN.value = lenR.value; }
+    else { lenR.value = clamp(parseInt(lenN.value, 10)); }
+  }
+
+  kindBox.addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('[data-k]') : null;
+    if (!b) return;
+    kind = b.getAttribute('data-k');
+    [].forEach.call(kindBox.children, function(x){
+      x.setAttribute('aria-pressed', x === b ? 'true' : 'false');
+    });
+    var fixedLen = (kind === 'uuid');
+    lenR.disabled = fixedLen; lenN.disabled = fixedLen;
+    lenLbl.textContent = fixedLen ? '长度（UUID 固定 36 位）' : (kind === 'pwd' ? '长度' : '每一条的位数');
+    lenR.min = kind === 'pwd' ? 4 : 2;
+    lenR.max = kind === 'pwd' ? 64 : 64;
+    if (kind !== 'pwd'){ charset.style.opacity = '.35'; charset.style.pointerEvents = 'none'; }
+    else { charset.style.opacity = '1'; charset.style.pointerEvents = 'auto'; }
+    generate();
+  });
+
+  lenR.addEventListener('input', function(){ syncLen('r'); generate(); });
+  lenN.addEventListener('change', function(){ syncLen('n'); generate(); });
+  charset.addEventListener('change', function(){ generate(); });
+
+  out.addEventListener('click', function(e){
+    var t = e.target;
+    if (!t.getAttribute) return;
+    var i = t.getAttribute('data-i');
+    if (i === null) return;
+    copyText(last[+i], t.classList.contains('cp') ? t : null, '复制');
+  });
+
+  document.getElementById('bGo').addEventListener('click', generate);
+  document.getElementById('bAll').addEventListener('click', function(e){
+    if (!last.length) return;
+    copyText(last.join('\n'), e.currentTarget, '全部复制');
+  });
+  document.getElementById('bCount').addEventListener('click', function(e){
+    count = count === 6 ? 20 : 6;
+    e.currentTarget.textContent = count === 6 ? '改成 20 个' : '改回 6 个';
+    generate();
+  });
+
+  generate();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
