@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cron 表达式 · 看懂它，算出下次什么时候跑</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  #cron{
+    width:100%; font:600 17px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    padding:13px 14px; border-radius:10px; border:1px solid var(--line);
+    background:var(--card); color:var(--fg); letter-spacing:.05em;
+  }
+  #cron:focus{outline:none; border-color:var(--accent)}
+  #cron.bad{border-color:var(--err)}
+  .msg{margin-top:8px; font-size:12.5px; min-height:18px; color:var(--dim)}
+  .msg .no{color:var(--err); font-weight:600}
+  .panes{display:grid; gap:14px; grid-template-columns:1fr; margin-top:14px}
+  @media (min-width:880px){ .panes{grid-template-columns:1.05fr 1fr} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{
+    padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim);
+    background:var(--soft); border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; gap:8px; align-items:center;
+  }
+  .bd{padding:12px 13px}
+  .say{font-size:15px; line-height:1.75; margin:0 0 4px}
+  .say b{color:var(--accent)}
+  .say .n{font-weight:600}
+  table.f{width:100%; border-collapse:collapse; margin-top:12px; font-size:13px}
+  table.f th{text-align:left; font-weight:600; font-size:11.5px; color:var(--dim); padding:0 0 6px; border-bottom:1px solid var(--line)}
+  table.f td{padding:7px 0; border-bottom:1px solid var(--line); vertical-align:top}
+  table.f tr:last-child td{border-bottom:0}
+  table.f td.k{width:52px; color:var(--dim); font-size:12px}
+  table.f td.v{width:78px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; word-break:break-all}
+  table.f td.d{color:var(--fg); line-height:1.6}
+  ol.runs{margin:0; padding:0; list-style:none; counter-reset:r}
+  ol.runs li{
+    display:flex; gap:10px; align-items:baseline; padding:8px 0;
+    border-bottom:1px solid var(--line); font-size:13.5px;
+  }
+  ol.runs li:last-child{border-bottom:0}
+  ol.runs .i{
+    flex:0 0 20px; color:var(--dim); font-size:11.5px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  ol.runs .t{flex:1 1 auto; font-variant-numeric:tabular-nums}
+  ol.runs .t em{font-style:normal; color:var(--dim); font-size:12px; margin-left:8px}
+  ol.runs .when{flex:0 0 auto; color:var(--accent); font-size:12px}
+  .foot-note{font-size:12.5px; color:var(--dim); margin:14px 0 0; line-height:1.75}
+  .chip[aria-pressed="true"]{border-color:var(--accent); color:var(--accent); background:var(--soft)}
+  .lbl{font-size:12.5px; color:var(--dim); margin:0 0 7px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Cron 表达式</h1>
+      <p class="lede">粘一条 crontab 进去：先用中文说清它什么时候跑，再列出接下来 10 次的确切时间。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <p class="lbl">表达式（五段：分 时 日 月 周）</p>
+  <input id="cron" type="text" spellcheck="false" autocomplete="off" value="0 4 * * *">
+  <div class="msg" id="msg"></div>
+
+  <div class="row" id="presets">
+    <button class="chip" data-c="*/5 * * * *" type="button">每 5 分钟</button>
+    <button class="chip" data-c="0 * * * *" type="button">每小时整点</button>
+    <button class="chip" data-c="0 4 * * *" type="button">每天 4:00</button>
+    <button class="chip" data-c="0 8,20 * * *" type="button">每天 8 点和 20 点</button>
+    <button class="chip" data-c="0 9 * * 1-5" type="button">工作日 9:00</button>
+    <button class="chip" data-c="30 2 * * 0" type="button">每周日 2:30</button>
+    <button class="chip" data-c="0 3 1 * *" type="button">每月 1 号 3:00</button>
+    <button class="chip" data-c="0 0 1 1 *" type="button">每年元旦</button>
+  </div>
+
+  <div class="panes">
+    <div class="box">
+      <div class="hd"><span>它说的是</span><span id="tz"></span></div>
+      <div class="bd">
+        <p class="say" id="say">—</p>
+        <table class="f">
+          <thead><tr><th>段</th><th>写的</th><th>含义</th></tr></thead>
+          <tbody id="fields"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="hd"><span>接下来 10 次</span><span id="span"></span></div>
+      <div class="bd">
+        <ol class="runs" id="runs"></ol>
+      </div>
+    </div>
+  </div>
+
+  <p class="foot-note">
+    星期用 0–6 表示周日到周六，写 7 也当周日；月份和星期也可以用 jan–dec、sun–sat。<br>
+    <code>*</code> 任意 · <code>a-b</code> 范围 · <code>*/n</code> 每隔 n · <code>1,15</code> 几个点，都能组合。<br>
+    日和星期两段同时限定的时候，满足其中一条就会跑（crontab 的老规矩）。时间按你这台电脑的时区算。
+  </p>
+
+  <footer>全部在浏览器里算，表达式不会发到服务器。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var input = document.getElementById('cron');
+  var msg = document.getElementById('msg');
+  var say = document.getElementById('say');
+  var fields = document.getElementById('fields');
+  var runs = document.getElementById('runs');
+  var spanEl = document.getElementById('span');
+
+  var MON = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  var DOW = ['sun','mon','tue','wed','thu','fri','sat'];
+  var DOW_CN = ['周日','周一','周二','周三','周四','周五','周六'];
+  var MON_CN = ['1 月','2 月','3 月','4 月','5 月','6 月','7 月','8 月','9 月','10 月','11 月','12 月'];
+
+  // 把一段拆成允许的数值集合
+  function parseField(raw, lo, hi, names, label){
+    var text = raw.trim();
+    if (!text) throw label + '这块是空的';
+    var set = {};
+    var parts = text.split(',');
+    for (var i = 0; i < parts.length; i++){
+      var p = parts[i].trim();
+      if (!p) throw label + '里有空的项（多打了个逗号？）';
+      var step = 1, range = p;
+      var slash = p.indexOf('/');
+      if (slash > -1){
+        step = parseInt(p.slice(slash + 1), 10);
+        range = p.slice(0, slash).trim();
+        if (!(step > 0)) throw label + '的 /' + p.slice(slash + 1) + ' 步长得是正整数';
+      }
+      var a, b;
+      if (range === '*' || range === ''){
+        a = lo; b = hi;
+      } else if (range.indexOf('-') > -1){
+        var seg = range.split('-');
+        if (seg.length !== 2) throw label + '的「' + p + '」范围写错了';
+        a = toNum(seg[0], lo, hi, names, label);
+        b = toNum(seg[1], lo, hi, names, label);
+        if (a > b) throw label + '的「' + p + '」前面比后面大';
+      } else {
+        a = toNum(range, lo, hi, names, label);
+        b = slash > -1 ? hi : a;   // 5/15 这种：从 5 开始每 15
+      }
+      for (var v = a; v <= b; v += step) set[v] = true;
+    }
+    return set;
+  }
+
+  function toNum(s, lo, hi, names, label){
+    var t = String(s).trim().toLowerCase();
+    var n = NaN;
+    if (/^\d+$/.test(t)) n = parseInt(t, 10);
+    else if (names && names.indexOf(t) > -1) n = names.indexOf(t) + (names === MON ? 1 : 0);
+    if (isNaN(n)) throw label + '的「' + s + '」看不懂，要数字或 ' + (names === MON ? 'jan–dec' : 'sun–sat');
+    if (n < lo || n > hi) throw label + '的「' + s + '」超出范围（' + lo + '–' + hi + '）';
+    return n;
+  }
+
+  function parse(expr){
+    var s = expr.trim().replace(/\s+/g, ' ');
+    if (!s) throw '还没写表达式';
+    var macro = {'@yearly':'0 0 1 1 *','@annually':'0 0 1 1 *','@monthly':'0 0 1 * *','@weekly':'0 0 * * 0','@daily':'0 0 * * *','@midnight':'0 0 * * *','@hourly':'0 * * * *'};
+    if (s.charAt(0) === '@'){
+      var low = s.toLowerCase();
+      if (!macro[low]) throw '不认识 ' + s + '，只支持 @daily @hourly @weekly @monthly @yearly';
+      s = macro[low];
+      input.value = s;
+    }
+    var f = s.split(' ');
+    if (f.length !== 5) throw '要五段（分 时 日 月 周），你写了 ' + f.length + ' 段';
+    var min = parseField(f[0], 0, 59, null, '分钟');
+    var hour = parseField(f[1], 0, 23, null, '小时');
+    var dom = parseField(f[2], 1, 31, null, '日');
+    var mon = parseField(f[3], 1, 12, MON, '月');
+    var dowRaw = parseField(f[4], 0, 7, DOW, '星期');
+    var dow = {};
+    for (var k in dowRaw){ var v = +k; dow[v === 7 ? 0 : v] = true; }
+    return {
+      raw: s, f: f,
+      min: min, hour: hour, dom: dom, mon: mon, dow: dow,
+      domAny: f[2].trim() === '*' || f[2].trim() === '?',
+      dowAny: f[4].trim() === '*' || f[4].trim() === '?'
+    };
+  }
+
+  function dayOk(c, d){
+    if (!c.mon[d.getMonth() + 1]) return false;
+    var domHit = !!c.dom[d.getDate()];
+    var dowHit = !!c.dow[d.getDay()];
+    if (c.domAny && c.dowAny) return true;
+    if (c.domAny) return dowHit;
+    if (c.dowAny) return domHit;
+    return domHit || dowHit;   // 老规矩：两条都限定，满足一个就跑
+  }
+
+  function nextTimes(c, n){
+    var out = [];
+    var now = new Date();
+    now.setSeconds(0, 0);
+    var day = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var guard = 0;
+    while (out.length < n && guard++ < 366 * 8){
+      if (dayOk(c, day)){
+        for (var h = 0; h < 24 && out.length < n; h++){
+          if (!c.hour[h]) continue;
+          for (var m = 0; m < 60 && out.length < n; m++){
+            if (!c.min[m]) continue;
+            var t = new Date(day.getFullYear(), day.getMonth(), day.getDate(), h, m, 0, 0);
+            if (t.getTime() > now.getTime()) out.push(t);
+          }
+        }
+      }
+      day = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1);
+    }
+    return out;
+  }
+
+  // 数值集合 -> 人话
+  function vals(set, lo, hi){
+    var a = [];
+    for (var i = lo; i <= hi; i++) if (set[i]) a.push(i);
+    return a;
+  }
+  function compact(nums, unit){
+    if (!nums.length) return '—';
+    // 连续 >=3 个的合成区间
+    var out = [], i = 0;
+    while (i < nums.length){
+      var j = i;
+      while (j + 1 < nums.length && nums[j + 1] === nums[j] + 1) j++;
+      if (j - i >= 2) out.push(nums[i] + '–' + nums[j] + unit);
+      else for (var k = i; k <= j; k++) out.push(nums[k] + unit);
+      i = j + 1;
+    }
+    return out.join('、');
+  }
+  function stepOf(raw){
+    var m = /^(?:\*|\d+-\d+|\d+)\/(\d+)$/.exec(raw.trim());
+    return m ? +m[1] : 0;
+  }
+  function pad2(n){ return (n < 10 ? '0' : '') + n; }
+
+  function human(c){
+    var mins = vals(c.min, 0, 59), hours = vals(c.hour, 0, 23);
+    var stepM = stepOf(c.f[0]), stepH = stepOf(c.f[1]);
+    var timeTxt, freq = false;
+
+    if (mins.length === 1 && hours.length <= 6){
+      timeTxt = hours.map(function(h){ return pad2(h) + ':' + pad2(mins[0]); }).join('、');
+    } else if (stepM && (c.f[0].trim().charAt(0) === '*' || mins.length > 6)){
+      timeTxt = '每 ' + stepM + ' 分钟'; freq = true;
+    } else if (stepH && hours.length > 6){
+      timeTxt = '每 ' + stepH + ' 小时的第 ' + compact(mins, ' 分'); freq = true;
+    } else if (hours.length === 24){
+      timeTxt = '每小时的 ' + compact(mins, ' 分'); freq = true;
+    } else {
+      timeTxt = compact(hours, ' 点') + ' 的 ' + compact(mins, ' 分');
+    }
+
+    var doms = vals(c.dom, 1, 31), mons = vals(c.mon, 1, 12), dows = vals(c.dow, 0, 6);
+    var monTxt = mons.length !== 12 ? compact(mons, ' 月') : '';
+    var domTxt = c.domAny ? '' : compact(doms, ' 号');
+    var dowTxt = '';
+    if (!c.dowAny){
+      if (dows.length === 7) dowTxt = '每天';
+      else if (dows.length === 5 && dows.join() === '1,2,3,4,5') dowTxt = '工作日';
+      else dowTxt = '每' + dows.map(function(d){ return DOW_CN[d]; }).join('、');
+    }
+
+    var head;
+    if (monTxt) head = '每年 ' + monTxt + (domTxt ? ' ' + domTxt : (dowTxt ? ' 的' + dowTxt : ''));
+    else if (domTxt) head = '每月 ' + domTxt + (dowTxt ? ' 或' + dowTxt : '');
+    else if (dowTxt) head = dowTxt;
+    else head = '每天';
+
+    if (freq && (head === '每天' || head === '每小时的')) return '<b>' + timeTxt + '</b>';
+    return head + ' <b>' + timeTxt + '</b>';
+  }
+
+  function fieldRow(name, raw, desc){
+    return '<tr><td class="k">' + name + '</td><td class="v">' + esc(raw) + '</td><td class="d">' + desc + '</td></tr>';
+  }
+  function esc(s){
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function rel(ms){
+    var m = Math.round(ms / 60000);
+    if (m < 1) return '马上';
+    if (m < 60) return m + ' 分钟后';
+    var h = Math.round(m / 60);
+    if (h < 24) return h + ' 小时后';
+    var d = Math.round(h / 24);
+    if (d < 45) return d + ' 天后';
+    return Math.round(d / 30) + ' 个月后';
+  }
+
+  function render(){
+    var c;
+    try {
+      c = parse(input.value);
+      input.classList.remove('bad');
+      msg.innerHTML = '认出来了：' + '<code>' + esc(c.raw) + '</code>';
+    } catch (e){
+      input.classList.add('bad');
+      msg.innerHTML = '<span class="no">看着不对：' + esc(e) + '</span>';
+      say.textContent = '—';
+      fields.innerHTML = '';
+      runs.innerHTML = '';
+      spanEl.textContent = '';
+      return;
+    }
+
+    var h = human(c);
+    say.innerHTML = h;
+
+    var mins = vals(c.min, 0, 59), hours = vals(c.hour, 0, 23);
+    var doms = vals(c.dom, 1, 31), mons = vals(c.mon, 1, 12), dows = vals(c.dow, 0, 6);
+    var rows = '';
+    rows += fieldRow('分', c.f[0], mins.length === 60 ? '每分钟' : '第 ' + compact(mins, ' 分'));
+    rows += fieldRow('时', c.f[1], c.f[1].trim() === '*' ? '每小时' : (hours.length === 24 ? '每小时' : compact(hours, ' 点')));
+    rows += fieldRow('日', c.f[2], c.domAny ? '每天' : '每月 ' + compact(doms, ' 号'));
+    rows += fieldRow('月', c.f[3], mons.length === 12 ? '每个月' : compact(mons, ' 月'));
+    rows += fieldRow('周', c.f[4], c.dowAny ? '每天' : '每' + dows.map(function(d){ return DOW_CN[d]; }).join('、'));
+    fields.innerHTML = rows;
+
+    var list = nextTimes(c, 10);
+    if (!list.length){
+      runs.innerHTML = '<li>未来 8 年内都不会触发，这条大概写错了。</li>';
+      spanEl.textContent = '';
+      return;
+    }
+    var nowT = Date.now();
+    var html = '';
+    list.forEach(function(t, i){
+      html += '<li><span class="i">' + pad2(i + 1) + '</span>'
+        + '<span class="t">' + t.getFullYear() + '-' + pad2(t.getMonth() + 1) + '-' + pad2(t.getDate())
+        + ' ' + pad2(t.getHours()) + ':' + pad2(t.getMinutes())
+        + '<em>' + DOW_CN[t.getDay()] + '</em></span>'
+        + '<span class="when">' + rel(t.getTime() - nowT) + '</span></li>';
+    });
+    runs.innerHTML = html;
+
+    var a = list[0], b = list[list.length - 1];
+    var days = (b - a) / 86400000;
+    spanEl.textContent = list.length > 1 ? '约每 ' + (days / (list.length - 1)).toFixed(1) + ' 天一次' : '';
+  }
+
+  // 时区标签
+  try {
+    var off = -new Date().getTimezoneOffset() / 60;
+    document.getElementById('tz').textContent = 'UTC' + (off >= 0 ? '+' : '') + off;
+  } catch (e){}
+
+  input.addEventListener('input', render);
+  input.addEventListener('keydown', function(e){
+    if (e.key === 'Enter'){ input.blur(); }
+  });
+  document.getElementById('presets').addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('[data-c]') : null;
+    if (!b) return;
+    input.value = b.getAttribute('data-c');
+    render();
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  });
+
+  render();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

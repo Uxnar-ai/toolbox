@@ -1,6 +1,6 @@
-# toolbox — twelve small tools that open and work
+# toolbox — fifteen small tools that open and work
 
-> Twelve tiny tools in one static site: JSON formatter, text tidier, timestamp converter, regex lab, text diff, encoders, hash checker, RMB uppercase, unit converter, colour toolbox, QR codes and image compressor. No backend, no ports.
+> Fifteen tiny tools in one static site: JSON formatter, text tidier, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming-convention converter, RMB uppercase, unit converter, colour toolbox, QR codes and image compressor. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -17,9 +17,15 @@ This round grew the toolbox from eight tools to twelve, all of them things you a
 
 Two long-standing bugs got fixed on the way: the favicon template reference was never rewritten by the build (so every tool page had a 404 tab icon), and the landing page restarted a group heading whenever a newly appended tool belonged to a group already rendered. Grouping now follows `GROUP_ORDER`, and every page points at the same `assets/icon.svg`.
 
+Third round (twelve to fifteen), all of it the everyday stuff you hit while writing server code:
+
+- **Cron explainer**: paste a crontab line, get a plain-Chinese description plus the next ten exact run times. Supports `*`, ranges, steps, lists and combos, English month/weekday names, `7` for Sunday, and the `@daily` style aliases. Finding the next run does not brute-force minutes: it matches whole days first, then scans that day's hours and minutes, so leap years and month ends stay instant. When both day-of-month and day-of-week are restricted it follows cron's old rule — either one matching is enough.
+- **Naming converter**: one field name per line, eight casings at once (camel, Pascal, snake, CONSTANT, kebab, dot, spaced, title). Tokenising understands separators, camel boundaries and acronym runs, so `HTTPServer` becomes http + server rather than h-t-t-p. Batch friendly, one-click copy per style.
+- **Date calculator**: days and working days between two dates, plus the calendar reading; or step forward N days / working days / months from any date. Month arithmetic clamps the day-of-month (Jan 31 + 1 month = Feb 28), and everything runs in UTC so daylight-saving transitions can't shift the answer by a day.
+
 ## Features
 
-- Twelve tools in one static site, no backend and no ports
+- Fifteen tools in one static site, no backend and no ports
 - One build script generates every page from its template
 - Text diff: line alignment, in-line character highlighting, foldable unchanged runs, copyable patch
 - QR: UTF-8 Chinese, L/M/Q/H correction, adjustable size, PNG download, fixed quiet zone
@@ -27,6 +33,9 @@ Two long-standing bugs got fixed on the way: the favicon template reference was 
 - Hashing: MD5/SHA-1/SHA-256/SHA-512 with checksum paste-and-compare
 - Shared theme with twelve variables, three-state light/dark/system toggle, one site icon
 - Single column on narrow screens, no horizontal overflow at 390px
+- Cron explainer: plain-language meaning, next ten runs, full five-field syntax, aliases, per-field errors
+- Naming converter: eight casings at once, acronym-aware tokenising, batch input, per-style copy
+- Date calculator: day and working-day gaps, calendar breakdown, add days/workdays/months/years
 
 ## Stack
 

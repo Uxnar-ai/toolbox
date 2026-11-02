@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>工具台 toolbox</title>
-<meta name="description" content="一堆打开就能用的小工具：JSON、文本、时间戳、对比、金额大写、单位、颜色、图片压缩、正则。全在浏览器里算，不上传服务器。">
+<meta name="description" content="一堆打开就能用的小工具：JSON、文本、时间戳、对比、Cron、日期、命名转换、金额大写、单位、颜色、图片压缩、二维码、哈希、编码。全在浏览器里算，不上传服务器。">
 <link rel="stylesheet" href="assets/theme.css">
 <style>
   .grid{display:grid; gap:12px; grid-template-columns:1fr}
@@ -61,12 +61,6 @@
       <p>一堆行粘进去：去重、排序、去空行，再变成逗号串 / JSON 数组 / Markdown / SQL IN。</p>
       <div class="tags"><span>去重</span><span>去空行</span><span>格式转换</span></div>
     </a>
-    <a class="card" href="ts/">
-      <div class="top"><span class="ico">⏱</span><span class="arrow">↗</span></div>
-      <h2>时间戳</h2>
-      <p>日志里的时间戳一行一个粘进来，变成本地时间、UTC 和相对时间；反过来也能转。</p>
-      <div class="tags"><span>秒 / 毫秒</span><span>批量</span><span>双向</span></div>
-    </a>
     <a class="card" href="regex/">
       <div class="top"><span class="ico">.*</span><span class="arrow">↗</span></div>
       <h2>正则解剖台</h2>
@@ -90,6 +84,33 @@
       <h2>哈希校验</h2>
       <p>文件拖进来出 MD5 / SHA-256 指纹，官方给的校验值粘进去立刻告诉你对不对。</p>
       <div class="tags"><span>不上传</span><span>四种算法</span><span>自动比对</span></div>
+    </a>
+    <a class="card" href="case/">
+      <div class="top"><span class="ico">aA</span><span class="arrow">↗</span></div>
+      <h2>命名风格转换</h2>
+      <p>一行一个字段名，粘进来同时出八种写法：驼峰、下划线、连字符、常量，点一下复制。</p>
+      <div class="tags"><span>八种写法</span><span>批量</span><span>一键复制</span></div>
+    </a>
+  </div>
+  <div class="group">时间与任务</div>
+  <div class="grid">
+    <a class="card" href="ts/">
+      <div class="top"><span class="ico">⏱</span><span class="arrow">↗</span></div>
+      <h2>时间戳</h2>
+      <p>日志里的时间戳一行一个粘进来，变成本地时间、UTC 和相对时间；反过来也能转。</p>
+      <div class="tags"><span>秒 / 毫秒</span><span>批量</span><span>双向</span></div>
+    </a>
+    <a class="card" href="cron/">
+      <div class="top"><span class="ico">⏰</span><span class="arrow">↗</span></div>
+      <h2>Cron 表达式</h2>
+      <p>粘一条 crontab 进来：先用中文说清它什么时候跑，再列出接下来 10 次的确切时间。</p>
+      <div class="tags"><span>看人话</span><span>下次 10 次</span><span>五段</span></div>
+    </a>
+    <a class="card" href="date/">
+      <div class="top"><span class="ico">日</span><span class="arrow">↗</span></div>
+      <h2>日期计算</h2>
+      <p>两个日子差多少天、多少个工作日；从某天往后推 N 天是几号，也能算。</p>
+      <div class="tags"><span>相差天数</span><span>工作日</span><span>往后推</span></div>
     </a>
   </div>
   <div class="group">数字与金额</div>
@@ -131,7 +152,7 @@
 
   <footer>
     同一个仓库里长出来的东西：新工具加个目录、挂进这张表就行。需要后端的（短码暂存、天气、主机指标、资讯聚合）各自独立跑，不塞进这里。
-    <br>更新于 2026-11-02
+    <br>更新于 2026-11-03 · 共 15 个工具
   </footer>
 </div>
 <script src="assets/base.js"></script>

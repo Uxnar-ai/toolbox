@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>命名风格转换 · 一份字段名换八种写法</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:860px){ .panes{grid-template-columns:1fr 1.15fr; align-items:start} }
+  #src{width:100%; min-height:230px}
+  .words{margin:10px 0 0; display:flex; flex-wrap:wrap; gap:6px; min-height:26px}
+  .words b{
+    font:500 12px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    background:var(--soft); color:var(--dim); border-radius:6px; padding:5px 8px;
+  }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px}
+  .row2{display:flex; gap:10px; align-items:flex-start; padding:10px 13px; border-bottom:1px solid var(--line)}
+  .row2:last-child{border-bottom:0}
+  .nm{flex:0 0 96px; font-size:12px; color:var(--dim); padding-top:3px}
+  .nm code{font:11.5px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--dim)}
+  .out{
+    flex:1 1 auto; min-width:0; font:13px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    white-space:pre-wrap; word-break:break-all; cursor:pointer;
+  }
+  .out:hover{color:var(--accent)}
+  .cp{
+    flex:0 0 auto; font:12px/1 inherit; padding:4px 9px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  .cp:hover{border-color:var(--accent); color:var(--accent)}
+  .tip{font-size:12.5px; color:var(--dim); margin:12px 0 0; line-height:1.75}
+  @media (max-width:560px){ .nm{flex-basis:74px; font-size:11.5px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>命名风格转换</h1>
+      <p class="lede">一行一个字段名，粘进来就同时出 camelCase、snake_case、kebab-case 八种写法，点一下复制。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div>
+      <div class="box">
+        <div class="hd"><span>原始名字（一行一个）</span><span id="cnt"></span></div>
+        <textarea id="src" spellcheck="false"></textarea>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="chip" id="bSample" type="button">填示例</button>
+        <button class="chip" id="bClear" type="button">清空</button>
+        <button class="chip" id="bJson" type="button">复制成 JSON 键名</button>
+      </div>
+      <p class="tip">camelCase、snake_case、kebab-case 混着来也认，全大写的缩写（如 <code>HTTPServer</code>）会拆成 http + server。<br>中文原样保留，只调分隔符。</p>
+      <div class="words" id="words"></div>
+    </div>
+
+    <div class="box">
+      <div class="hd"><span>八种写法</span><span id="hint">点结果直接复制</span></div>
+      <div id="rows"></div>
+    </div>
+  </div>
+
+  <footer>全部在浏览器里算，粘进来的字段名不会发到服务器。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var src = document.getElementById('src');
+  var rowsEl = document.getElementById('rows');
+  var wordsEl = document.getElementById('words');
+  var cnt = document.getElementById('cnt');
+
+  var SAMPLE = ['userName', 'HTTPServerConfig', 'order_item_id', 'is-active', 'XMLHttpRequest',
+                'createdAt', 'MAX_RETRY_COUNT', '地 址 编 码'].join('\n');
+
+  var STYLES = [
+    ['camelCase', '小驼峰', 'camel'],
+    ['PascalCase', '大驼峰', 'pascal'],
+    ['snake_case', '下划线', 'snake'],
+    ['SCREAMING', '常量', 'constant'],
+    ['kebab-case', '连字符', 'kebab'],
+    ['dot.case', '点分', 'dot'],
+    ['空格分隔', '小写', 'space'],
+    ['Title Case', '标题式', 'title']
+  ];
+
+  function splitWords(line){
+    var out = [];
+    line.split(/[^0-9A-Za-z\u4e00-\u9fff]+/).forEach(function(tok){
+      if (!tok) return;
+      // 拆驼峰：全大写串 + 首字母大写词（HTTPServer → HTTP Server）
+      var t = tok
+        .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+        .replace(/([A-Za-z])([0-9]+)(?=[A-Za-z])/g, '$1 $2');
+      t.split(/\s+/).forEach(function(w){ if (w) out.push(w); });
+    });
+    return out;
+  }
+
+  function cap(w){
+    if (!w) return '';
+    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  }
+
+  function build(words, style){
+    if (!words.length) return '';
+    var lower = words.map(function(w){ return w.toLowerCase(); });
+    switch (style){
+      case 'camel':    return lower[0] + words.slice(1).map(cap).join('');
+      case 'pascal':   return words.map(cap).join('');
+      case 'snake':    return lower.join('_');
+      case 'constant': return words.map(function(w){ return w.toUpperCase(); }).join('_');
+      case 'kebab':    return lower.join('-');
+      case 'dot':      return lower.join('.');
+      case 'space':    return lower.join(' ');
+      case 'title':    return words.map(cap).join(' ');
+    }
+    return '';
+  }
+
+  var last = {};
+
+  function convert(){
+    var lines = src.value.split(/\r?\n/).map(function(s){ return s.trim(); }).filter(Boolean);
+    cnt.textContent = lines.length ? lines.length + ' 行' : '';
+
+    var perStyle = {};
+    STYLES.forEach(function(s){ perStyle[s[2]] = []; });
+
+    lines.forEach(function(line){
+      var w = splitWords(line);
+      if (!w.length) return;
+      STYLES.forEach(function(s){ perStyle[s[2]].push(build(w, s[2])); });
+    });
+
+    last = {};
+    var html = '';
+    STYLES.forEach(function(s){
+      var val = perStyle[s[2]].join('\n');
+      last[s[2]] = val;
+      html += '<div class="row2"><span class="nm">' + s[1] + '<br><code>' + s[0] + '</code></span>'
+            + '<span class="out" data-k="' + s[2] + '">' + (val ? esc(val) : '—') + '</span>'
+            + (val ? '<button class="cp" data-k="' + s[2] + '" type="button">复制</button>' : '')
+            + '</div>';
+    });
+    rowsEl.innerHTML = html;
+
+    // 第一个非空行的拆词结果
+    var firstWords = [];
+    for (var i = 0; i < lines.length; i++){
+      var w = splitWords(lines[i]);
+      if (w.length){ firstWords = w; break; }
+    }
+    wordsEl.innerHTML = firstWords.length
+      ? '拆成 ' + firstWords.length + ' 个词：' + firstWords.map(function(w){ return '<b>' + esc(w) + '</b>'; }).join('')
+      : '';
+  }
+
+  function esc(s){
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  src.addEventListener('input', convert);
+
+  rowsEl.addEventListener('click', function(e){
+    var t = e.target;
+    if (!t.getAttribute) return;
+    var k = t.getAttribute('data-k');
+    if (!k || !last[k]) return;
+    if (t.classList.contains('cp')) copyText(last[k], t, '复制');
+    else copyText(last[k], null);
+  });
+
+  document.getElementById('bSample').addEventListener('click', function(){
+    src.value = SAMPLE;
+    convert();
+  });
+  document.getElementById('bClear').addEventListener('click', function(){
+    src.value = '';
+    convert();
+    src.focus();
+  });
+  document.getElementById('bJson').addEventListener('click', function(e){
+    // 把当前 camelCase 结果做成 JSON 对象骨架，直接进剪贴板
+    var keys = last.camel ? last.camel.split('\n') : [];
+    if (!keys.length){ src.focus(); return; }
+    var obj = {};
+    keys.forEach(function(k){ obj[k] = ''; });
+    copyText(JSON.stringify(obj, null, 2), e.currentTarget, '复制成 JSON 键名');
+  });
+
+  src.value = SAMPLE;
+  convert();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
