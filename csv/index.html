@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CSV 转表格 · 粘一段就成表，能导出 Markdown / SQL / JSON</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; margin-bottom:14px}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center; flex-wrap:wrap}
+  .bd{padding:12px}
+  textarea#src{height:132px; min-height:96px}
+  .tblwrap{overflow:auto; max-height:58vh}
+  table{border-collapse:separate; border-spacing:0; font-size:13px; width:100%}
+  th,td{
+    border-bottom:1px solid var(--line); border-right:1px solid var(--line);
+    padding:6px 10px; text-align:left; white-space:pre; max-width:340px;
+    overflow:hidden; text-overflow:ellipsis;
+  }
+  th:last-child,td:last-child{border-right:0}
+  th{
+    background:var(--soft); position:sticky; top:0; z-index:1;
+    font-weight:600; white-space:nowrap; cursor:pointer; user-select:none;
+  }
+  th:hover{color:var(--accent)}
+  th .srt{color:var(--dim); font-weight:400; font-size:11px; margin-left:4px}
+  tbody tr:nth-child(even) td{background:rgba(127,127,127,.055)}
+  td.num{text-align:right; font-variant-numeric:tabular-nums}
+  td.idx{color:var(--dim); text-align:right; width:1%; font-variant-numeric:tabular-nums; user-select:none}
+  pre.out{max-height:44vh; overflow:auto; margin:0; font-size:12.5px; line-height:1.65}
+  .seg{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px}
+  .seg button{padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--fg); font-size:12.5px; cursor:pointer}
+  .seg button[aria-pressed="true"]{border-color:var(--accent); color:var(--accent); background:var(--soft); font-weight:600}
+  .opts{display:flex; gap:14px; flex-wrap:wrap; align-items:center; font-size:12.5px; color:var(--dim)}
+  .opts label{display:flex; align-items:center; gap:6px; cursor:pointer; color:var(--fg)}
+  .opts input{accent-color:var(--accent)}
+  .name{font:12.5px/1 inherit; padding:6px 10px; border-radius:6px; border:1px solid var(--line); background:var(--card); color:var(--fg); width:120px}
+  .empty{padding:26px 13px; text-align:center; color:var(--dim); font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>CSV 转表格</h1>
+      <p class="lede">一段 CSV / TSV / 分号分隔的数据粘进来，立刻变成能看的表格；再一键导出 Markdown、SQL、JSON 或 HTML。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="box">
+    <div class="hd">
+      <span>粘数据进来（第一行会被当成表头）</span>
+      <span id="hint" style="font-weight:400">自动识别逗号 / 制表符 / 分号 / 竖线</span>
+    </div>
+    <div class="bd">
+      <textarea id="src" spellcheck="false" placeholder="姓名,部门,金额&#10;张三,销售部,1200.50"></textarea>
+      <div class="row" style="margin:10px 0 0">
+        <button class="chip" id="bSample" type="button">示例</button>
+        <button class="chip" id="bClear" type="button">清空</button>
+        <span class="sep"></span>
+        <div class="opts">
+          <label><input type="checkbox" id="optHead" checked>首行是表头</label>
+          <label><input type="checkbox" id="optTrim" checked>去掉单元格首尾空格</label>
+          <label><input type="checkbox" id="optSkip">跳过空行</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="hd">
+      <div class="seg" id="tabs" style="margin:0">
+        <button type="button" data-v="table" aria-pressed="true">表格</button>
+        <button type="button" data-v="md" aria-pressed="false">Markdown</button>
+        <button type="button" data-v="json" aria-pressed="false">JSON</button>
+        <button type="button" data-v="sql" aria-pressed="false">SQL</button>
+        <button type="button" data-v="html" aria-pressed="false">HTML</button>
+        <button type="button" data-v="tsv" aria-pressed="false">TSV</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;font-weight:400">
+        <input class="name" id="tblName" value="my_table" title="SQL 表名">
+        <button class="chip" id="bCopy" type="button">复制</button>
+      </div>
+    </div>
+    <div id="viewTable" class="tblwrap"><div class="empty">粘点什么进来，这里出表格。</div></div>
+    <div id="viewText" class="bd" style="display:none"><pre class="out" id="out"></pre></div>
+  </div>
+
+  <div class="stats">
+    <span>行 <b id="sRow">0</b></span>
+    <span>列 <b id="sCol">0</b></span>
+    <span>单元格 <b id="sCell">0</b></span>
+    <span>分隔符 <b id="sSep">—</b></span>
+    <span id="sNote" class="dim" style="color:var(--dim)"></span>
+  </div>
+
+  <footer>全部在浏览器里解析，数据不会发到服务器。引号里的逗号和换行都认；表格点表头能排序。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var src = document.getElementById('src');
+  var tabs = document.getElementById('tabs');
+  var viewTable = document.getElementById('viewTable');
+  var viewText = document.getElementById('viewText');
+  var out = document.getElementById('out');
+  var tblName = document.getElementById('tblName');
+  var bCopy = document.getElementById('bCopy');
+  var optHead = document.getElementById('optHead');
+  var optTrim = document.getElementById('optTrim');
+  var optSkip = document.getElementById('optSkip');
+  var sRow = document.getElementById('sRow'), sCol = document.getElementById('sCol');
+  var sCell = document.getElementById('sCell'), sSep = document.getElementById('sSep'), sNote = document.getElementById('sNote');
+  var hint = document.getElementById('hint');
+
+  var SAMPLE = [
+    '商品,单价,数量,小计',
+    '机械键盘,399,2,798',
+    '显示器 27寸,1299,1,1299',
+    'USB-C 线,39.9,5,199.5',
+    '桌垫,89,3,267',
+    '"椅子,人体工学",1580,1,1580'
+  ].join('\n');
+
+  var SEP_NAME = {',':'逗号', '\t':'制表符', ';':'分号', '|':'竖线'};
+  var state = {sep: ',', rows: [], view: 'table', sortCol: -1, sortDir: 1};
+
+  function detectSep(text){
+    var lines = text.split(/\r?\n/).filter(function(l){ return l.trim(); }).slice(0, 20);
+    var cands = [',', '\t', ';', '|'], best = ',', bestScore = -1;
+    cands.forEach(function(c){
+      var counts = lines.map(function(l){ return l.split(c).length - 1; });
+      if (!counts.length) return;
+      var min = Math.min.apply(null, counts), max = Math.max.apply(null, counts);
+      // 每行都出现的次数优先，再比总次数；都不出现就不选
+      var score = min > 0 ? min * 100 + max : 0;
+      if (score > bestScore){ bestScore = score; best = c; }
+    });
+    return bestScore > 0 ? best : ',';
+  }
+
+  function parse(text, sep){
+    var rows = [], row = [], field = '', i = 0, inQ = false, n = text.length, touched = false;
+    while (i < n){
+      var ch = text[i];
+      if (inQ){
+        if (ch === '"'){
+          if (text[i+1] === '"'){ field += '"'; i += 2; continue; }
+          inQ = false; i++; continue;
+        }
+        field += ch; i++; continue;
+      }
+      if (ch === '"' && field === ''){ inQ = true; touched = true; i++; continue; }
+      if (ch === sep){ row.push(field); field = ''; touched = true; i++; continue; }
+      if (ch === '\r'){ i++; continue; }
+      if (ch === '\n'){
+        row.push(field); rows.push(row); row = []; field = ''; touched = false; i++; continue;
+      }
+      field += ch; touched = true; i++;
+    }
+    if (touched || field !== '' || row.length){ row.push(field); rows.push(row); }
+    return rows;
+  }
+
+  function norm(rows){
+    var trim = optTrim.checked, skip = optSkip.checked;
+    rows = rows.map(function(r){
+      return r.map(function(c){ return trim ? c.trim() : c; });
+    });
+    if (skip) rows = rows.filter(function(r){ return r.some(function(c){ return c !== ''; }); });
+    return rows;
+  }
+
+  function isNum(v){
+    if (v === '') return false;
+    return /^-?\d+(\.\d+)?%?$/.test(v.replace(/,/g, ''));
+  }
+
+  function esc(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function renderTable(){
+    var rows = state.rows;
+    if (!rows.length){ viewTable.innerHTML = '<div class="empty">粘点什么进来，这里出表格。</div>'; return; }
+    var head = optHead.checked ? rows[0] : null;
+    var body = optHead.checked ? rows.slice(1) : rows;
+    var cols = rows.reduce(function(m, r){ return Math.max(m, r.length); }, 0);
+    if (state.sortCol >= 0 && state.sortCol < cols){
+      body = body.slice().sort(function(a, b){
+        var x = a[state.sortCol] || '', y = b[state.sortCol] || '';
+        if (isNum(x) && isNum(y)) return (parseFloat(x.replace(/,/g,'')) - parseFloat(y.replace(/,/g,''))) * state.sortDir;
+        return x.localeCompare(y, 'zh-Hans-CN') * state.sortDir;
+      });
+    }
+    var numeric = [];
+    for (var c = 0; c < cols; c++){
+      numeric[c] = body.length > 0 && body.every(function(r){ return r[c] === undefined || r[c] === '' || isNum(r[c]); });
+    }
+    var h = ['<table><thead><tr><th class="idx">#</th>'];
+    for (var j = 0; j < cols; j++){
+      var label = head ? (head[j] || ('列 ' + (j+1))) : ('列 ' + (j+1));
+      var arrow = state.sortCol === j ? (state.sortDir > 0 ? '↑' : '↓') : '';
+      h.push('<th data-c="' + j + '">' + esc(label) + '<span class="srt">' + arrow + '</span></th>');
+    }
+    h.push('</tr></thead><tbody>');
+    var limit = Math.min(body.length, 3000);
+    for (var i = 0; i < limit; i++){
+      h.push('<tr><td class="idx">' + (i+1) + '</td>');
+      for (var k = 0; k < cols; k++){
+        var v = body[i][k] === undefined ? '' : body[i][k];
+        h.push('<td' + (numeric[k] && isNum(v) ? ' class="num"' : '') + '>' + esc(v) + '</td>');
+      }
+      h.push('</tr>');
+    }
+    h.push('</tbody></table>');
+    if (body.length > limit) h.push('<div class="empty">只显示前 ' + limit + ' 行（共 ' + body.length + ' 行）</div>');
+    viewTable.innerHTML = h.join('');
+    viewTable.querySelectorAll('th[data-c]').forEach(function(th){
+      th.addEventListener('click', function(){
+        var c = +th.getAttribute('data-c');
+        if (state.sortCol === c) state.sortDir *= -1;
+        else { state.sortCol = c; state.sortDir = 1; }
+        renderTable();
+      });
+    });
+  }
+
+  function toText(){
+    var rows = state.rows;
+    if (!rows.length) return '';
+    var head = optHead.checked ? rows[0] : null;
+    var body = optHead.checked ? rows.slice(1) : rows;
+    var cols = rows.reduce(function(m, r){ return Math.max(m, r.length); }, 0);
+    var pad = function(r){ var a = r.slice(); while (a.length < cols) a.push(''); return a; };
+    var v = state.view, i, j, L = [];
+
+    if (v === 'md'){
+      var line = function(cells){ return '| ' + cells.join(' | ') + ' |'; };
+      L.push(line(pad(head || Array.apply(null, {length: cols}).map(function(_, k){ return '列 ' + (k+1); }))));
+      L.push(line(Array.apply(null, {length: cols}).map(function(){ return '---'; })));
+      body.forEach(function(r){
+        L.push(line(pad(r).map(function(c){ return String(c).replace(/\|/g, '\\|').replace(/\n/g, ' '); })));
+      });
+      return L.join('\n');
+    }
+    if (v === 'json'){
+      if (head){
+        var keys = pad(head).map(function(k, k2){ return k || ('col' + (k2+1)); });
+        return JSON.stringify(body.map(function(r){
+          var o = {}; pad(r).forEach(function(c, k){ o[keys[k]] = c; }); return o;
+        }), null, 2);
+      }
+      return JSON.stringify(body.map(pad), null, 2);
+    }
+    if (v === 'sql'){
+      var name = (tblName.value || 'my_table').replace(/[^A-Za-z0-9_]/g, '_');
+      var q = function(s){ return "'" + String(s).replace(/'/g, "''") + "'"; };
+      var colList = head ? ' (' + pad(head).map(function(k, k2){ return '`' + (k || ('col' + (k2+1))) + '`'; }).join(', ') + ')' : '';
+      if (!body.length) return '-- 没有数据行';
+      return 'INSERT INTO `' + name + '`' + colList + ' VALUES\n' +
+        body.map(function(r){ return '  (' + pad(r).map(q).join(', ') + ')'; }).join(',\n') + ';';
+    }
+    if (v === 'html'){
+      var o = ['<table>'];
+      if (head) o.push('  <thead><tr>' + pad(head).map(function(k){ return '<th>' + esc(k) + '</th>'; }).join('') + '</tr></thead>');
+      o.push('  <tbody>');
+      body.forEach(function(r){ o.push('    <tr>' + pad(r).map(function(c){ return '<td>' + esc(c) + '</td>'; }).join('') + '</tr>'); });
+      o.push('  </tbody>', '</table>');
+      return o.join('\n');
+    }
+    if (v === 'tsv'){
+      var all = head ? [head].concat(body) : body;
+      return all.map(function(r){ return pad(r).map(function(c){ return String(c).replace(/\t/g, ' '); }).join('\t'); }).join('\n');
+    }
+    return '';
+  }
+
+  function paint(){
+    var raw = src.value;
+    if (!raw.trim()){
+      state.rows = [];
+      state.sortCol = -1;
+      viewTable.innerHTML = '<div class="empty">粘点什么进来，这里出表格。</div>';
+      out.textContent = '';
+      sRow.textContent = sCol.textContent = sCell.textContent = '0';
+      sSep.textContent = '—';
+      return;
+    }
+    state.sep = detectSep(raw);
+    state.rows = norm(parse(raw, state.sep));
+    var cols = state.rows.reduce(function(m, r){ return Math.max(m, r.length); }, 0);
+    var bodyCount = optHead.checked ? Math.max(0, state.rows.length - 1) : state.rows.length;
+    sRow.textContent = bodyCount;
+    sCol.textContent = cols;
+    sCell.textContent = bodyCount * cols;
+    sSep.textContent = SEP_NAME[state.sep] || state.sep;
+    hint.textContent = '自动识别：' + (SEP_NAME[state.sep] || state.sep);
+    if (state.view === 'table') renderTable();
+    else out.textContent = toText();
+    sNote.textContent = optHead.checked && state.rows.length ? '表头：' + state.rows[0].slice(0, 3).join(' / ') + (state.rows[0].length > 3 ? ' …' : '') : '';
+  }
+
+  function switchView(v){
+    state.view = v;
+    tabs.querySelectorAll('button').forEach(function(b){
+      b.setAttribute('aria-pressed', b.getAttribute('data-v') === v ? 'true' : 'false');
+    });
+    if (v === 'table'){
+      viewTable.style.display = 'block'; viewText.style.display = 'none';
+      renderTable();
+    } else {
+      viewTable.style.display = 'none'; viewText.style.display = 'block';
+      out.textContent = toText();
+    }
+  }
+
+  src.addEventListener('input', paint);
+  [optHead, optTrim, optSkip].forEach(function(el){ el.addEventListener('change', paint); });
+  tabs.addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (b) switchView(b.getAttribute('data-v'));
+  });
+  document.getElementById('bSample').addEventListener('click', function(){ src.value = SAMPLE; paint(); });
+  document.getElementById('bClear').addEventListener('click', function(){ src.value = ''; paint(); src.focus(); });
+  tblName.addEventListener('input', function(){ if (state.view === 'sql') out.textContent = toText(); });
+  bCopy.addEventListener('click', function(){
+    var t = state.view === 'table' ? toText() : out.textContent;
+    // 表格视图下复制的是 TSV（粘进 Excel / 飞书表格能直接分列）
+    if (state.view === 'table'){ var keep = state.view; state.view = 'tsv'; t = toText(); state.view = keep; }
+    copyText(t, bCopy, '复制');
+  });
+
+  src.value = SAMPLE;
+  paint();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

@@ -1,6 +1,6 @@
-# toolbox — sixteen small tools that open and work
+# toolbox — twenty small tools that open and work
 
-> Sixteen tiny tools in one static site: JSON formatter, text tidier, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming-convention converter, random generator, RMB uppercase, unit converter, colour toolbox, QR codes and image compressor. No backend, no ports.
+> Twenty tiny tools in one static site: JSON formatter, text tidier, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming-convention converter, random generator, RMB uppercase, unit converter, colour toolbox, QR codes, image compressor, CSV-to-table, CJK/Latin spacing, word count and a URL dissector. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -25,9 +25,18 @@ Third round (twelve to fifteen), all of it the everyday stuff you hit while writ
 
 - **Random generator**: passwords, UUID v4, hex and plain digits, a batch at a time. Values come from the browser's CSPRNG through rejection sampling rather than a plain modulo (which would favour the leading characters), and passwords can exclude the look-alikes `0 O o 1 l I`. A meter estimates `length × log2(pool)` and says whether that is enough.
 
+Fourth round (sixteen to twenty), all about text going in and coming out:
+
+- **CSV to table**: comma, tab, semicolon and pipe are detected by counting occurrences per line; quoted commas, newlines and doubled quotes follow RFC 4180. You get a readable table first (sticky header, zebra rows, numeric columns right-aligned, click a header to sort), then the same data exported as Markdown / JSON / SQL INSERT / HTML / TSV. Copying from the table view yields TSV, which pastes straight into Excel or Feishu Sheets as columns.
+- **CJK/Latin spacing**: inserts a single space where Chinese meets Latin or digits, removes stray spaces between Chinese characters, and optionally converts full-width letters and digits. Insertions are marked with a placeholder first and normalised afterwards, so one rule cannot eat another rule's work; a toggle highlights every CJK/Latin space in the result.
+- **Word count**: Chinese characters, English words, digit runs, characters with and without spaces, lines, paragraphs, punctuation, longest sentence, plus a reading time folded from 300 chars/min and 200 words/min. A side panel lists the limits of Weibo, Xiaohongshu, WeChat digest, SMS and X, turning red when exceeded; frequent characters are counted with Chinese function words filtered out.
+- **URL dissector**: protocol, host, port, path and fragment laid out separately, with query parameters as an editable table — edit a value or delete a row and the clean link below rebuilds live. One click strips utm_*, spm, gclid, from and scene; the parameter table copies out as JSON with repeated keys merged into arrays. A link without a scheme is treated as https.
+
+The landing page also gained instant search: with twenty tools, scrolling to find one is slow — type 「表格」 or 「颜色」 and only matching cards stay, empty group headings disappear with them, `/` focuses the box and Esc clears it.
+
 ## Features
 
-- Sixteen tools in one static site, no backend and no ports
+- Twenty tools in one static site, no backend and no ports
 - One build script generates every page from its template
 - Text diff: line alignment, in-line character highlighting, foldable unchanged runs, copyable patch
 - QR: UTF-8 Chinese, L/M/Q/H correction, adjustable size, PNG download, fixed quiet zone
@@ -39,6 +48,11 @@ Third round (twelve to fifteen), all of it the everyday stuff you hit while writ
 - Naming converter: eight casings at once, acronym-aware tokenising, batch input, per-style copy
 - Date calculator: day and working-day gaps, calendar breakdown, add days/workdays/months/years
 - Random generator: passwords/UUID/hex/digits, CSPRNG with a strength estimate
+- CSV to table: delimiter detection, quoted commas, header sorting, six export formats
+- CJK/Latin spacing: insert spaces, full-width to half-width, highlight the changes
+- Word count: Chinese characters, English words, paragraphs, reading time, five platform limits
+- URL dissector: live param edits, one-click tracking removal, params to JSON
+- Instant search on the landing page across all twenty tools
 
 ## Stack
 

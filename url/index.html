@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>网址拆解 · 看清链接里的每一段参数，去掉跟踪尾巴</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; margin-bottom:14px}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center; flex-wrap:wrap}
+  .bd{padding:13px}
+  input#src{
+    width:100%; box-sizing:border-box; font:13.5px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    padding:11px 13px; border-radius:9px; border:1px solid var(--line);
+    background:var(--bg); color:var(--fg);
+  }
+  input#src:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .parts{display:grid; grid-template-columns:1fr; gap:0}
+  @media (min-width:700px){ .parts{grid-template-columns:1fr 1fr} }
+  .part{padding:10px 13px; border-top:1px solid var(--line); min-width:0}
+  .part:nth-child(2n){border-left:1px solid transparent}
+  @media (min-width:700px){ .part:nth-child(2n){border-left:1px solid var(--line)} }
+  .part i{display:block; font-style:normal; font-size:11.5px; color:var(--dim); margin-bottom:3px}
+  .part b{font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-weight:500; word-break:break-all; display:block}
+  .part.empty b{color:var(--dim); font-family:inherit; font-weight:400}
+  table{width:100%; border-collapse:collapse; font-size:13px}
+  th{text-align:left; font-size:11.5px; color:var(--dim); font-weight:600; padding:7px 10px; border-bottom:1px solid var(--line); background:var(--soft)}
+  td{padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:middle}
+  tr:last-child td{border-bottom:0}
+  td input{
+    width:100%; box-sizing:border-box; font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    padding:4px 7px; border-radius:6px; border:1px solid transparent; background:transparent; color:var(--fg);
+  }
+  td input:hover{border-color:var(--line)}
+  td input:focus{outline:0; border-color:var(--accent); background:var(--bg)}
+  td.k input{color:var(--accent); font-weight:500}
+  td.del{width:1%; white-space:nowrap}
+  td.del button{
+    border:0; background:transparent; color:var(--dim); cursor:pointer; font-size:15px; line-height:1;
+    padding:3px 6px; border-radius:5px;
+  }
+  td.del button:hover{color:var(--err); background:var(--soft)}
+  .dup{font-size:10.5px; color:var(--warn); border:1px solid currentColor; border-radius:99px; padding:0 5px; margin-left:4px}
+  .emptyrow{padding:20px 13px; text-align:center; color:var(--dim); font-size:13px}
+  .chips{display:flex; gap:8px; flex-wrap:wrap}
+  .stat{display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:var(--dim); margin-top:11px}
+  .stat b{color:var(--fg); font-variant-numeric:tabular-nums}
+  .bar{display:flex; gap:8px; flex-wrap:wrap; align-items:center; padding:11px 13px; border-top:1px solid var(--line); background:var(--soft)}
+  .warnbox{padding:10px 13px; font-size:12.5px; color:var(--warn); background:var(--card); border-top:1px solid var(--line); display:none}
+  .warnbox.on{display:block}
+  pre.out{white-space:pre-wrap; word-break:break-all; margin:0; font-size:12.5px; line-height:1.7; max-height:220px; overflow:auto}
+  .cleanlink{font:12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; word-break:break-all; color:var(--fg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>网址拆解</h1>
+      <p class="lede">贴一条链接进来，看清它的域名、路径和每个参数；勾掉跟踪尾巴，复制一条干净的。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="box">
+    <div class="bd">
+      <input id="src" spellcheck="false" placeholder="https://example.com/path?id=123&utm_source=wx">
+      <div class="chips" style="margin-top:10px">
+        <button class="chip" id="bSample" type="button">示例</button>
+        <button class="chip" id="bTidy" type="button">去掉跟踪参数</button>
+        <button class="chip" id="bCopy" type="button">复制干净链接</button>
+        <button class="chip" id="bJson" type="button">复制参数表</button>
+        <button class="chip" id="bReset" type="button">还原</button>
+      </div>
+      <div class="stat">
+        <span>参数 <b id="sN">0</b> 个</span>
+        <span>链接长度 <b id="sLen">0</b></span>
+        <span id="sCtx" style="color:var(--dim)"></span>
+      </div>
+    </div>
+    <div class="warnbox" id="warn"></div>
+  </div>
+
+  <div class="box">
+    <div class="hd"><span>拆开看</span></div>
+    <div class="parts" id="parts"></div>
+  </div>
+
+  <div class="box">
+    <div class="hd">
+      <span>查询参数（可以直接改，右边的结果跟着变）</span>
+      <span id="cleanHint" style="font-weight:400"></span>
+    </div>
+    <table>
+      <thead><tr><th style="width:34%">名称</th><th>值</th><th></th></tr></thead>
+      <tbody id="params"></tbody>
+    </table>
+    <div id="noParams" class="emptyrow" style="display:none">这条链接没有查询参数，很干净。</div>
+    <div class="bar" style="display:block">
+      <div style="font-size:11.5px;color:var(--dim);margin-bottom:5px">干净链接（改参数、删参数，这里实时跟着变）</div>
+      <div class="cleanlink" id="out"></div>
+    </div>
+  </div>
+
+  <footer>全部在浏览器里解析，链接不会发到服务器。参数做了反转义显示，复制出去的仍是编码后的原始形式。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var src = document.getElementById('src');
+  var partsEl = document.getElementById('parts');
+  var paramsEl = document.getElementById('params');
+  var noParams = document.getElementById('noParams');
+  var out = document.getElementById('out');
+  var warn = document.getElementById('warn');
+  var sN = document.getElementById('sN'), sLen = document.getElementById('sLen'), sCtx = document.getElementById('sCtx');
+  var cleanHint = document.getElementById('cleanHint');
+
+  var SAMPLE = 'https://mp.weixin.qq.com/s/AbCdEf123?chksm=9f8e7d6c5b&scene=21&utm_source=timeline&utm_medium=social&spm=a1z.2.3&from=singlemessage#wechat_redirect';
+
+  var TRACK = /^(utm_[a-z_]+|gclid|fbclid|msclkid|yclid|dclid|spm([a-z_.]*)?|scm|share_[a-z_]+|from|from_source|referrer?|_t|wxfid|vd_source|si|spm_id_from|scene)$/i;
+
+  var state = {url: null, params: [], origin: '', path: '', hash: '', bad: false};
+
+  function decode(s){
+    try { return decodeURIComponent(s.replace(/\+/g, ' ')); } catch(e){ return s; }
+  }
+
+  function parseInput(raw){
+    var t = raw.trim();
+    if (!t){ return null; }
+    var hadProto = /^[a-z][a-z0-9+.-]*:\/\//i.test(t);
+    if (!hadProto){
+      if (/^[a-z][a-z0-9+.-]*:/i.test(t) && !/^https?:/i.test(t)){ return {err: '只认 http / https 链接'}; }
+      t = 'https://' + t;
+    }
+    var u;
+    try { u = new URL(t); } catch(e){ return {err: '这条不像链接，检查一下有没有多空格或少了域名'}; }
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return {err: '只认 http / https 链接'};
+    var params = [];
+    u.searchParams.forEach(function(v, k){ params.push({k: k, v: v}); });
+    return {
+      origin: u.origin,
+      path: u.pathname + (u.search ? '' : ''),
+      hash: u.hash,
+      params: params,
+      search: u.search,
+      proto: u.protocol.replace(':', ''),
+      host: u.hostname,
+      port: u.port,
+      hadProto: hadProto,
+      raw: t
+    };
+  }
+
+  function build(){
+    var s = '';
+    state.params.forEach(function(p){
+      if (!p.k) return;
+      s += (s ? '&' : '') + encodeURIComponent(p.k) + '=' + encodeURIComponent(p.v);
+    });
+    return state.origin + state.path + (s ? '?' + s : '') + state.hash;
+  }
+
+  function paintParts(){
+    var rows = [
+      ['协议', state.proto || '—', !state.proto],
+      ['域名', state.host || '—', !state.host],
+      ['端口', state.port || '默认（' + (state.proto === 'https' ? '443' : '80') + '）', !state.port],
+      ['路径', state.path || '/', !state.path || state.path === '/'],
+      ['锚点', state.hash || '—', !state.hash]
+    ];
+    partsEl.innerHTML = rows.map(function(r){
+      return '<div class="part' + (r[2] ? ' empty' : '') + '"><i>' + r[0] + '</i><b>' +
+        String(r[1]).replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</b></div>';
+    }).join('');
+  }
+
+  function paintParams(){
+    var seen = {};
+    state.params.forEach(function(p){ seen[p.k] = (seen[p.k] || 0) + 1; });
+    if (!state.params.length){
+      paramsEl.innerHTML = '';
+      noParams.style.display = 'block';
+    } else {
+      noParams.style.display = 'none';
+      paramsEl.innerHTML = state.params.map(function(p, i){
+        var dup = seen[p.k] > 1 ? '<span class="dup">重复</span>' : '';
+        var track = TRACK.test(p.k) ? ' title="这看起来是跟踪参数"' : '';
+        return '<tr data-i="' + i + '">' +
+          '<td class="k"><input value="' + escapeAttr(decode(p.k)) + '" data-f="k"' + track + '>' + dup + '</td>' +
+          '<td><input value="' + escapeAttr(decode(p.v)) + '" data-f="v"></td>' +
+          '<td class="del"><button type="button" title="删掉这个参数">×</button></td></tr>';
+      }).join('');
+    }
+    sN.textContent = state.params.length;
+    var url = build();
+    out.textContent = url;
+    sLen.textContent = url.length;
+    var trackCount = state.params.filter(function(p){ return TRACK.test(p.k); }).length;
+    cleanHint.textContent = trackCount ? ('其中 ' + trackCount + ' 个像跟踪参数') : '';
+  }
+
+  function escapeAttr(s){
+    return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  }
+
+  function paint(){
+    var raw = src.value;
+    warn.className = 'warnbox';
+    if (!raw.trim()){
+      state = {origin:'', path:'', hash:'', params:[], proto:'', host:'', port:''};
+      partsEl.innerHTML = '<div class="part empty"><i>等一条链接</i><b>贴上来就拆给你看</b></div>';
+      paramsEl.innerHTML = '';
+      noParams.style.display = 'block';
+      out.textContent = '';
+      sN.textContent = '0'; sLen.textContent = '0'; sCtx.textContent = '';
+      cleanHint.textContent = '';
+      return;
+    }
+    var r = parseInput(raw);
+    if (!r || r.err){
+      warn.textContent = r ? r.err : '';
+      warn.className = 'warnbox on';
+      sCtx.textContent = '';
+      return;
+    }
+    state = r;
+    paintParts();
+    paintParams();
+    sCtx.textContent = r.hadProto ? '' : '（原链接没写协议，按 https 处理）';
+  }
+
+  paramsEl.addEventListener('input', function(e){
+    var inp = e.target.closest('input');
+    if (!inp) return;
+    var tr = inp.closest('tr');
+    var i = +tr.getAttribute('data-i');
+    state.params[i][inp.getAttribute('data-f')] = inp.value;
+    var url = build();
+    out.textContent = url;
+    sLen.textContent = url.length;
+  });
+  paramsEl.addEventListener('click', function(e){
+    var b = e.target.closest('button');
+    if (!b) return;
+    var tr = b.closest('tr'), i = +tr.getAttribute('data-i');
+    state.params.splice(i, 1);
+    paintParams();
+    paintParts();
+  });
+
+  src.addEventListener('input', paint);
+  document.getElementById('bSample').addEventListener('click', function(){ src.value = SAMPLE; paint(); });
+  document.getElementById('bTidy').addEventListener('click', function(){
+    var before = state.params.length;
+    state.params = state.params.filter(function(p){ return !TRACK.test(p.k); });
+    paintParams();
+    cleanHint.textContent = before === state.params.length ? '没找到跟踪参数，本来就干净' : ('去掉了 ' + (before - state.params.length) + ' 个跟踪参数');
+  });
+  document.getElementById('bCopy').addEventListener('click', function(){
+    copyText(out.textContent, document.getElementById('bCopy'), '复制干净链接');
+  });
+  document.getElementById('bJson').addEventListener('click', function(){
+    var obj = {};
+    state.params.forEach(function(p){
+      if (!p.k) return;
+      if (obj[p.k] === undefined) obj[p.k] = decode(p.v);
+      else if (Array.isArray(obj[p.k])) obj[p.k].push(decode(p.v));
+      else obj[p.k] = [obj[p.k], decode(p.v)];
+    });
+    copyText(JSON.stringify(obj, null, 2), document.getElementById('bJson'), '复制参数表');
+  });
+  document.getElementById('bReset').addEventListener('click', paint);
+
+  src.value = SAMPLE;
+  paint();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

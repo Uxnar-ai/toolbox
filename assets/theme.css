@@ -1,7 +1,9 @@
+@import url("/_fonts/misans.css");
 /* ============================================================
    tiny-webapp-kit · theme.css
    小工具站的统一主题。四个站（snip / jsonfmt / txt / ts）用的就是这套。
    改颜色只改 :root 里那 12 个变量；组件不用动。
+   字体：正文 MiSans（/_fonts/ 通道，见 SKILL.md「字体」一节）。
    ============================================================ */
 
 :root{
@@ -41,7 +43,7 @@
 *{box-sizing:border-box}
 body{
   margin:0; background:var(--bg); color:var(--fg);
-  font:15px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  font:15px/1.6 MiSans,-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
   -webkit-font-smoothing:antialiased;
 }
 .wrap{max-width:1100px; margin:0 auto; padding:24px 16px 48px}

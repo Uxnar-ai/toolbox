@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>字数统计 · 中文字数、英文词数、阅读时长，边写边算</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:880px){ .panes{grid-template-columns:1fr 380px; align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:13px}
+  textarea{height:420px; border:0; border-radius:0; font-size:14px; line-height:1.85}
+  textarea:focus{outline:0; box-shadow:inset 0 0 0 2px var(--accent)}
+  .big{display:flex; align-items:baseline; gap:8px; margin:0 0 2px}
+  .big b{font-size:40px; line-height:1.1; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-.5px}
+  .big span{font-size:12.5px; color:var(--dim)}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line); border-top:1px solid var(--line)}
+  .cell{background:var(--card); padding:11px 13px}
+  .cell i{display:block; font-style:normal; font-size:11.5px; color:var(--dim); margin-bottom:3px}
+  .cell b{font-size:17px; font-weight:600; font-variant-numeric:tabular-nums}
+  .cell b small{font-size:11px; font-weight:400; color:var(--dim); margin-left:3px}
+  .limits{padding:12px 13px 14px}
+  .limits h3{margin:0 0 10px; font-size:12px; font-weight:600; color:var(--dim); letter-spacing:.3px}
+  .lim{margin-bottom:10px}
+  .lim .t{display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:4px}
+  .lim .t s{text-decoration:none; color:var(--dim); font-variant-numeric:tabular-nums}
+  .lim .b{height:5px; border-radius:99px; background:var(--soft); overflow:hidden}
+  .lim .b i{display:block; height:100%; width:0; background:var(--ok); transition:width .15s, background .15s}
+  .lim.over .b i{background:var(--err)}
+  .lim.over .t s{color:var(--err); font-weight:600}
+  .chars{display:flex; gap:6px; flex-wrap:wrap; padding:12px 13px; border-top:1px solid var(--line)}
+  .chars span{
+    font-size:12px; background:var(--soft); color:var(--fg); border-radius:6px;
+    padding:4px 8px; display:inline-flex; gap:5px; align-items:center;
+  }
+  .chars span em{font-style:normal; color:var(--dim); font-size:11px; font-variant-numeric:tabular-nums}
+  .tip{font-size:11.5px; color:var(--dim); margin:8px 0 0; line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>字数统计</h1>
+      <p class="lede">边写边算：中文字数、英文词数、行数段落、大概要读多久，顺带看各大平台的字数上限还剩多少。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <div class="hd"><span>正文</span><span id="live">实时统计</span></div>
+      <textarea id="src" spellcheck="false" placeholder="在这里写，或者把稿子粘进来……"></textarea>
+      <div class="bd" style="border-top:1px solid var(--line); display:flex; gap:8px; flex-wrap:wrap">
+        <button class="chip" id="bSample" type="button">示例段落</button>
+        <button class="chip" id="bClear" type="button">清空</button>
+        <button class="chip" id="bCopy" type="button">复制统计结果</button>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="bd">
+        <p class="big"><b id="cjk">0</b><span>中文字 · <span id="cjkPct">0%</span> 占比</span></p>
+        <p style="margin:6px 0 0; font-size:12.5px; color:var(--dim)" id="readTime">大概 0 分钟读完</p>
+      </div>
+      <div class="grid2">
+        <div class="cell"><i>英文单词</i><b id="words">0</b></div>
+        <div class="cell"><i>数字串</i><b id="nums">0</b></div>
+        <div class="cell"><i>字符（不含空格）</i><b id="charNoSp">0</b></div>
+        <div class="cell"><i>字符（含空格）</i><b id="charAll">0</b></div>
+        <div class="cell"><i>行数</i><b id="lines">0</b></div>
+        <div class="cell"><i>段落</i><b id="paras">0</b></div>
+        <div class="cell"><i>标点符号</i><b id="punct">0</b></div>
+        <div class="cell"><i>最长一句</i><b id="longest">0<small>字</small></b></div>
+      </div>
+      <div class="limits">
+        <h3>平台字数上限</h3>
+        <div id="limBox"></div>
+        <p class="tip">按「中文字 + 英文单词 + 数字串」折算字数；平台规则会变，发之前以官方提示为准。</p>
+      </div>
+      <div class="chars" id="topChars"></div>
+    </div>
+  </div>
+
+  <footer>全部在本地算，写完关页面什么都不留。字数口径：中文字按字算，英文按词算，标点不计入正文字数。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var src = document.getElementById('src');
+  var el = function(id){ return document.getElementById(id); };
+  var CJK = /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/g;
+
+  var LIMITS = [
+    {name:'微博正文', max:2000},
+    {name:'小红书正文', max:1000},
+    {name:'公众号摘要', max:120},
+    {name:'短信（单条）', max:70},
+    {name:'X / Twitter', max:280}
+  ];
+
+  var SAMPLE = '做小工具这件事，最大的误区是「先想清楚它有多大」再动手。\n\n' +
+    '真正能上线的，往往是那些 30 分钟内能跑通闭环的东西：粘进去、点一下、结果就在眼前。' +
+    '多一个设置项，就多一次让人放弃的机会。\n\n' +
+    '所以我给自己定了个规矩：首屏一句话说清用途，打开就有示例数据，三步之内出结果。' +
+    '剩下的时间，拿去修那些「每天都想用但一直将就」的细节。';
+
+  function analyze(t){
+    var cjk = (t.match(CJK) || []).length;
+    var words = (t.match(/[A-Za-z]+(?:['’-][A-Za-z]+)*/g) || []).length;
+    var nums = (t.match(/\d+(?:[.,]\d+)*/g) || []).length;
+    var charAll = t.length;
+    var charNoSp = t.replace(/[\s\u3000]/g, '').length;
+    var lines = t === '' ? 0 : t.split(/\r?\n/).length;
+    var paras = t.split(/\n\s*\n/).filter(function(p){ return p.trim(); }).length;
+    var punct = (t.match(/[\u3000-\u303f\uff00-\uffef!-\/:-@\[-`{-~]/g) || []).length;
+    // 最长一句：按中英文句末标点切
+    var sentences = t.split(/[。！？!?；;…]+|\n+/).filter(function(s){ return s.trim(); });
+    var longest = sentences.reduce(function(m, s){
+      var n = (s.match(CJK) || []).length + (s.match(/[A-Za-z]+/g) || []).length;
+      return Math.max(m, n);
+    }, 0);
+    var minutes = cjk / 300 + words / 200;
+    return {cjk:cjk, words:words, nums:nums, charAll:charAll, charNoSp:charNoSp,
+      lines:lines, paras:paras, punct:punct, longest:longest, minutes:minutes};
+  }
+
+  function paintLimits(count){
+    var box = el('limBox'), html = '';
+    LIMITS.forEach(function(L){
+      var pct = Math.min(100, count / L.max * 100);
+      var left = L.max - count;
+      var over = left < 0;
+      html += '<div class="lim' + (over ? ' over' : '') + '">' +
+        '<div class="t"><span>' + L.name + '</span><s>' +
+        (over ? ('超 ' + (-left) + ' 字') : ('还剩 ' + left + ' 字')) +
+        ' · ' + L.max + '</s></div>' +
+        '<div class="b"><i style="width:' + pct.toFixed(1) + '%"></i></div></div>';
+    });
+    box.innerHTML = html;
+  }
+
+  var STOP = '的了是在和有就不人都一这上中也很大到说要去会着没看好自己过还只把被让给对与及其之而但却或如果需要可以因为所以然后就是没有一二三四五六七八九十';
+  function paintChars(t){
+    var map = {}, arr = t.match(CJK) || [];
+    arr.forEach(function(ch){ map[ch] = (map[ch] || 0) + 1; });
+    var top = Object.keys(map)
+      .filter(function(ch){ return STOP.indexOf(ch) < 0; })
+      .sort(function(a, b){ return map[b] - map[a]; })
+      .slice(0, 10);
+    el('topChars').innerHTML = top.length
+      ? top.map(function(ch){ return '<span>' + ch + ' <em>' + map[ch] + '</em></span>'; }).join('')
+      : '<span style="background:none;color:var(--dim);padding:0">还没写中文字</span>';
+  }
+
+  function paint(){
+    var t = src.value;
+    var r = analyze(t);
+    var count = r.cjk + r.words + r.nums;
+    el('cjk').textContent = r.cjk;
+    el('cjkPct').textContent = r.charNoSp ? Math.round(r.cjk / r.charNoSp * 100) + '%' : '0%';
+    el('words').textContent = r.words;
+    el('nums').textContent = r.nums;
+    el('charNoSp').textContent = r.charNoSp;
+    el('charAll').textContent = r.charAll;
+    el('lines').textContent = r.lines;
+    el('paras').textContent = r.paras;
+    el('punct').textContent = r.punct;
+    el('longest').innerHTML = r.longest + '<small>字</small>';
+    var m = r.minutes;
+    el('readTime').textContent = m < 0.1 ? '大概 0 分钟读完' :
+      (m < 1 ? '大概 ' + Math.max(1, Math.round(m * 60)) + ' 秒读完' : '大概 ' + (m < 10 ? m.toFixed(1) : Math.round(m)) + ' 分钟读完');
+    paintLimits(count);
+    paintChars(t);
+  }
+
+  src.addEventListener('input', paint);
+  el('bSample').addEventListener('click', function(){ src.value = SAMPLE; paint(); });
+  el('bClear').addEventListener('click', function(){ src.value = ''; paint(); src.focus(); });
+  el('bCopy').addEventListener('click', function(){
+    var r = analyze(src.value);
+    var txt = '中文字 ' + r.cjk + ' · 英文词 ' + r.words + ' · 数字串 ' + r.nums +
+      '\n字符（不含空格）' + r.charNoSp + ' · 含空格 ' + r.charAll +
+      '\n行 ' + r.lines + ' · 段 ' + r.paras + ' · 标点 ' + r.punct +
+      '\n折算字数 ' + (r.cjk + r.words + r.nums);
+    copyText(txt, el('bCopy'), '复制统计结果');
+  });
+
+  src.value = SAMPLE;
+  paint();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

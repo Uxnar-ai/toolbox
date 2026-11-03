@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>工具台 toolbox</title>
-<meta name="description" content="一堆打开就能用的小工具：JSON、文本、时间戳、对比、Cron、日期、命名转换、金额大写、单位、颜色、图片压缩、二维码、哈希、编码。全在浏览器里算，不上传服务器。">
+<meta name="description" content="一堆打开就能用的小工具：JSON、文本、CSV 表格、字数统计、中英混排、网址拆解、时间戳、对比、Cron、日期、命名转换、金额大写、单位、颜色、图片压缩、二维码、哈希、编码。全在浏览器里算，不上传服务器。">
 <link rel="stylesheet" href="assets/theme.css">
 <style>
   .grid{display:grid; gap:12px; grid-template-columns:1fr}
@@ -36,6 +36,15 @@
   }
   .group{ margin:26px 0 10px; font-size:12.5px; font-weight:600; color:var(--dim); letter-spacing:.4px }
   .group:first-of-type{ margin-top:6px }
+  .searchbar{ display:flex; align-items:center; gap:10px; margin:14px 0 4px }
+  .searchbar input{
+    flex:1 1 auto; min-width:0; font:13.5px/1.5 inherit; padding:9px 13px;
+    border-radius:9px; border:1px solid var(--line); background:var(--card); color:var(--fg);
+    -webkit-appearance:none; appearance:none;
+  }
+  .searchbar input:focus{ outline:2px solid var(--accent); outline-offset:-1px }
+  .searchbar input::placeholder{ color:var(--dim) }
+  .searchbar span{ font-size:12px; color:var(--dim); white-space:nowrap }
 </style>
 </head>
 <body>
@@ -47,66 +56,94 @@
     </div>
     <button class="toggle" id="theme">☀︎ / ☾</button>
   </header>
+  <div class="searchbar">
+    <input id="q" type="search" placeholder="搜工具：表格、字数、颜色、Cron……（按 / 聚焦）" autocomplete="off">
+    <span id="qinfo"></span>
+  </div>
   <div class="group">文本与数据</div>
   <div class="grid">
-    <a class="card" href="json/">
+    <a class="card" href="json/" data-k="json JSON 排版 粘进去就排好：缩进、压缩、查错定位到行列、键排序，全在浏览器里算。 排错定位 键排序 压缩">
       <div class="top"><span class="ico">{}</span><span class="arrow">↗</span></div>
       <h2>JSON 排版</h2>
       <p>粘进去就排好：缩进、压缩、查错定位到行列、键排序，全在浏览器里算。</p>
       <div class="tags"><span>排错定位</span><span>键排序</span><span>压缩</span></div>
     </a>
-    <a class="card" href="txt/">
+    <a class="card" href="txt/" data-k="txt 文本整理 一堆行粘进去：去重、排序、去空行，再变成逗号串 / JSON 数组 / Markdown / SQL IN。 去重 去空行 格式转换">
       <div class="top"><span class="ico">≡</span><span class="arrow">↗</span></div>
       <h2>文本整理</h2>
       <p>一堆行粘进去：去重、排序、去空行，再变成逗号串 / JSON 数组 / Markdown / SQL IN。</p>
       <div class="tags"><span>去重</span><span>去空行</span><span>格式转换</span></div>
     </a>
-    <a class="card" href="regex/">
+    <a class="card" href="regex/" data-k="regex 正则解剖台 一条正则拆成语法树、编译成 NFA 画出来，三种引擎跑同一输入串对比步数与耗时。 语法树 NFA / DFA 三引擎">
       <div class="top"><span class="ico">.*</span><span class="arrow">↗</span></div>
       <h2>正则解剖台</h2>
       <p>一条正则拆成语法树、编译成 NFA 画出来，三种引擎跑同一输入串对比步数与耗时。</p>
       <div class="tags"><span>语法树</span><span>NFA / DFA</span><span>三引擎</span></div>
     </a>
-    <a class="card" href="diff/">
+    <a class="card" href="diff/" data-k="diff 文本对比 改前改后各粘一遍，哪行删了、哪行加了、哪几个字变了，一眼看出来。 逐行对比 字级高亮 可折叠">
       <div class="top"><span class="ico">±</span><span class="arrow">↗</span></div>
       <h2>文本对比</h2>
       <p>改前改后各粘一遍，哪行删了、哪行加了、哪几个字变了，一眼看出来。</p>
       <div class="tags"><span>逐行对比</span><span>字级高亮</span><span>可折叠</span></div>
     </a>
-    <a class="card" href="codec/">
+    <a class="card" href="codec/" data-k="codec 编码解码 Base64、网址转义、HTML 转义、\u 转义、拆 JWT，粘进去选一下就好，中文不乱码。 Base64 JWT 中文安全">
       <div class="top"><span class="ico">⇄</span><span class="arrow">↗</span></div>
       <h2>编码解码</h2>
       <p>Base64、网址转义、HTML 转义、\u 转义、拆 JWT，粘进去选一下就好，中文不乱码。</p>
       <div class="tags"><span>Base64</span><span>JWT</span><span>中文安全</span></div>
     </a>
-    <a class="card" href="hash/">
+    <a class="card" href="hash/" data-k="hash 哈希校验 文件拖进来出 MD5 / SHA-256 指纹，官方给的校验值粘进去立刻告诉你对不对。 不上传 四种算法 自动比对">
       <div class="top"><span class="ico">#</span><span class="arrow">↗</span></div>
       <h2>哈希校验</h2>
       <p>文件拖进来出 MD5 / SHA-256 指纹，官方给的校验值粘进去立刻告诉你对不对。</p>
       <div class="tags"><span>不上传</span><span>四种算法</span><span>自动比对</span></div>
     </a>
-    <a class="card" href="case/">
+    <a class="card" href="case/" data-k="case 命名风格转换 一行一个字段名，粘进来同时出八种写法：驼峰、下划线、连字符、常量，点一下复制。 八种写法 批量 一键复制">
       <div class="top"><span class="ico">aA</span><span class="arrow">↗</span></div>
       <h2>命名风格转换</h2>
       <p>一行一个字段名，粘进来同时出八种写法：驼峰、下划线、连字符、常量，点一下复制。</p>
       <div class="tags"><span>八种写法</span><span>批量</span><span>一键复制</span></div>
     </a>
+    <a class="card" href="csv/" data-k="csv CSV 转表格 一段逗号或制表符分隔的数据粘进来就成表，点表头能排序，再导出 Markdown、SQL、JSON。 自动识别分隔符 表头排序 六种导出">
+      <div class="top"><span class="ico">⊞</span><span class="arrow">↗</span></div>
+      <h2>CSV 转表格</h2>
+      <p>一段逗号或制表符分隔的数据粘进来就成表，点表头能排序，再导出 Markdown、SQL、JSON。</p>
+      <div class="tags"><span>自动识别分隔符</span><span>表头排序</span><span>六种导出</span></div>
+    </a>
+    <a class="card" href="space/" data-k="space 中英混排加空格 中文里夹英文和数字的地方自动补一个空格，读起来不挤；全角字母数字也能转半角。 中英空格 全角转半角 标出改动">
+      <div class="top"><span class="ico">␣</span><span class="arrow">↗</span></div>
+      <h2>中英混排加空格</h2>
+      <p>中文里夹英文和数字的地方自动补一个空格，读起来不挤；全角字母数字也能转半角。</p>
+      <div class="tags"><span>中英空格</span><span>全角转半角</span><span>标出改动</span></div>
+    </a>
+    <a class="card" href="count/" data-k="count 字数统计 边写边算：中文字数、英文词数、行数段落、大概读多久，顺带看各平台字数上限还剩多少。 实时统计 阅读时长 平台上限">
+      <div class="top"><span class="ico">字</span><span class="arrow">↗</span></div>
+      <h2>字数统计</h2>
+      <p>边写边算：中文字数、英文词数、行数段落、大概读多久，顺带看各平台字数上限还剩多少。</p>
+      <div class="tags"><span>实时统计</span><span>阅读时长</span><span>平台上限</span></div>
+    </a>
+    <a class="card" href="url/" data-k="url 网址拆解 贴一条链接，域名、路径、每个参数逐段拆开；跟踪参数一键去掉，复制一条干净的。 参数拆解 去跟踪 可编辑">
+      <div class="top"><span class="ico">⛓</span><span class="arrow">↗</span></div>
+      <h2>网址拆解</h2>
+      <p>贴一条链接，域名、路径、每个参数逐段拆开；跟踪参数一键去掉，复制一条干净的。</p>
+      <div class="tags"><span>参数拆解</span><span>去跟踪</span><span>可编辑</span></div>
+    </a>
   </div>
   <div class="group">时间与任务</div>
   <div class="grid">
-    <a class="card" href="ts/">
+    <a class="card" href="ts/" data-k="ts 时间戳 日志里的时间戳一行一个粘进来，变成本地时间、UTC 和相对时间；反过来也能转。 秒 / 毫秒 批量 双向">
       <div class="top"><span class="ico">⏱</span><span class="arrow">↗</span></div>
       <h2>时间戳</h2>
       <p>日志里的时间戳一行一个粘进来，变成本地时间、UTC 和相对时间；反过来也能转。</p>
       <div class="tags"><span>秒 / 毫秒</span><span>批量</span><span>双向</span></div>
     </a>
-    <a class="card" href="cron/">
+    <a class="card" href="cron/" data-k="cron Cron 表达式 粘一条 crontab 进来：先用中文说清它什么时候跑，再列出接下来 10 次的确切时间。 看人话 下次 10 次 五段">
       <div class="top"><span class="ico">⏰</span><span class="arrow">↗</span></div>
       <h2>Cron 表达式</h2>
       <p>粘一条 crontab 进来：先用中文说清它什么时候跑，再列出接下来 10 次的确切时间。</p>
       <div class="tags"><span>看人话</span><span>下次 10 次</span><span>五段</span></div>
     </a>
-    <a class="card" href="date/">
+    <a class="card" href="date/" data-k="date 日期计算 两个日子差多少天、多少个工作日；从某天往后推 N 天是几号，也能算。 相差天数 工作日 往后推">
       <div class="top"><span class="ico">日</span><span class="arrow">↗</span></div>
       <h2>日期计算</h2>
       <p>两个日子差多少天、多少个工作日；从某天往后推 N 天是几号，也能算。</p>
@@ -115,19 +152,19 @@
   </div>
   <div class="group">数字与金额</div>
   <div class="grid">
-    <a class="card" href="rmb/">
+    <a class="card" href="rmb/" data-k="rmb 金额大写 填金额出人民币大写，元角分整零按票据规范写；日期也能写成大写。 票据规范 日期大写">
       <div class="top"><span class="ico">¥</span><span class="arrow">↗</span></div>
       <h2>金额大写</h2>
       <p>填金额出人民币大写，元角分整零按票据规范写；日期也能写成大写。</p>
       <div class="tags"><span>票据规范</span><span>日期大写</span></div>
     </a>
-    <a class="card" href="unit/">
+    <a class="card" href="unit/" data-k="unit 单位换算 一个数换出同一类量的全部单位，带市尺、斤两、亩，点一行就复制。 市制 批量 一键复制">
       <div class="top"><span class="ico">↔</span><span class="arrow">↗</span></div>
       <h2>单位换算</h2>
       <p>一个数换出同一类量的全部单位，带市尺、斤两、亩，点一行就复制。</p>
       <div class="tags"><span>市制</span><span>批量</span><span>一键复制</span></div>
     </a>
-    <a class="card" href="color/">
+    <a class="card" href="color/" data-k="color 颜色工具箱 色值四种写法互转、9 档色阶、搭配色与对比度；拖张截图进来能点取色。 取色 色阶 对比度">
       <div class="top"><span class="ico">◐</span><span class="arrow">↗</span></div>
       <h2>颜色工具箱</h2>
       <p>色值四种写法互转、9 档色阶、搭配色与对比度；拖张截图进来能点取色。</p>
@@ -136,13 +173,13 @@
   </div>
   <div class="group">图片</div>
   <div class="grid">
-    <a class="card" href="pic/">
+    <a class="card" href="pic/" data-k="pic 图片压缩 图太大发不出去？拖进来定个长边和质量，直接下压缩好的，省了多少实时摆着。 本地压缩 不上传 质量可调">
       <div class="top"><span class="ico">▣</span><span class="arrow">↗</span></div>
       <h2>图片压缩</h2>
       <p>图太大发不出去？拖进来定个长边和质量，直接下压缩好的，省了多少实时摆着。</p>
       <div class="tags"><span>本地压缩</span><span>不上传</span><span>质量可调</span></div>
     </a>
-    <a class="card" href="qr/">
+    <a class="card" href="qr/" data-k="qr 二维码生成 贴一段字或链接，右边立刻出码，下载就是 PNG。中文长链接都认，本地算。 中文 下载 PNG 容错可调">
       <div class="top"><span class="ico">▦</span><span class="arrow">↗</span></div>
       <h2>二维码生成</h2>
       <p>贴一段字或链接，右边立刻出码，下载就是 PNG。中文长链接都认，本地算。</p>
@@ -151,7 +188,7 @@
   </div>
   <div class="group">生成与随机</div>
   <div class="grid">
-    <a class="card" href="rand/">
+    <a class="card" href="rand/" data-k="rand 随机生成 密码、UUID、随机串、随机数字，选好长度一次出一批，点一下就复制走。 密码 UUID 强度估算">
       <div class="top"><span class="ico">⁂</span><span class="arrow">↗</span></div>
       <h2>随机生成</h2>
       <p>密码、UUID、随机串、随机数字，选好长度一次出一批，点一下就复制走。</p>
@@ -161,9 +198,44 @@
 
   <footer>
     同一个仓库里长出来的东西：新工具加个目录、挂进这张表就行。需要后端的（短码暂存、天气、主机指标、资讯聚合）各自独立跑，不塞进这里。
-    <br>更新于 2026-11-03 · 共 16 个工具
+    <br>更新于 2026-11-04 · 共 20 个工具
   </footer>
 </div>
 <script src="assets/base.js"></script>
+<script>
+(function(){
+  var q = document.getElementById('q');
+  var info = document.getElementById('qinfo');
+  var cards = [].slice.call(document.querySelectorAll('a.card'));
+  var groups = [].slice.call(document.querySelectorAll('.group'));
+  function apply(){
+    var key = q.value.trim().toLowerCase();
+    var hit = 0;
+    cards.forEach(function(c){
+      var k = (c.getAttribute('data-k') || '').toLowerCase();
+      var show = !key || k.indexOf(key) > -1;
+      c.style.display = show ? '' : 'none';
+      if (show) hit++;
+    });
+    groups.forEach(function(g){
+      var grid = g.nextElementSibling;
+      var any = grid && [].some.call(grid.children, function(c){ return c.style.display !== 'none'; });
+      g.style.display = any ? '' : 'none';
+      if (grid) grid.style.display = any ? '' : 'none';
+    });
+    info.textContent = key ? (hit ? hit + ' 个匹配' : '没找到，换个词试试') : '';
+  }
+  q.addEventListener('input', apply);
+  document.addEventListener('keydown', function(e){
+    if (e.key === '/' && document.activeElement !== q){
+      e.preventDefault(); q.focus();
+    } else if (e.key === 'Escape' && document.activeElement === q){
+      q.value = ''; apply(); q.blur();
+    }
+  });
+  apply();
+})();
+</script>
+
 </body>
 </html>

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>中英混排加空格 · 中文和英文数字之间自动留空</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:880px){ .panes{grid-template-columns:1fr 1fr; align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:13px}
+  textarea{height:300px; border:0; border-radius:0; font-size:14px; line-height:1.85}
+  textarea:focus{outline:0; box-shadow:inset 0 0 0 2px var(--accent)}
+  pre.out{white-space:pre-wrap; word-break:break-word; margin:0; padding:13px; min-height:300px; font-size:14px; line-height:1.85; font-family:inherit}
+  pre.out mark{background:rgba(47,109,246,.16); color:inherit; border-radius:3px; padding:0 1px}
+  .opts{display:grid; gap:9px; margin-top:2px}
+  .opts label{display:flex; align-items:flex-start; gap:8px; font-size:13px; cursor:pointer; line-height:1.6}
+  .opts input{margin-top:3px; accent-color:var(--accent); flex:0 0 auto}
+  .opts small{display:block; color:var(--dim); font-size:11.5px; margin-top:1px}
+  .toggles{margin-top:12px; display:flex; gap:8px; flex-wrap:wrap}
+  .hl{display:flex; gap:8px; align-items:center; font-size:12px; color:var(--dim); margin-top:10px}
+  .hl input{accent-color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>中英混排加空格</h1>
+      <p class="lede">左边粘中文里夹英文的文字，右边自动在中文和英文、数字之间留一个空格，读起来不挤。规则可关。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <div class="hd"><span>原文</span><span id="cntIn">0 字</span></div>
+      <textarea id="src" spellcheck="false" placeholder="把要排版的中文粘进来……"></textarea>
+      <div class="bd" style="border-top:1px solid var(--line)">
+        <div class="opts">
+          <label><input type="checkbox" id="optLatin" checked><span>中文与英文之间加空格<small>用iPhone拍照 → 用 iPhone 拍照</small></span></label>
+          <label><input type="checkbox" id="optDigit" checked><span>中文与数字之间加空格<small>共3次 → 共 3 次</small></span></label>
+          <label><input type="checkbox" id="optTight" checked><span>去掉中文字之间的多余空格<small>这 是 中 文 → 这是中文</small></span></label>
+          <label><input type="checkbox" id="optFull"><span>全角字母数字转半角<small>ＤＰＴ１２３ → DPT123</small></span></label>
+          <label><input type="checkbox" id="optPunct"><span>英文标点后补空格<small>Hello,world → Hello, world</small></span></label>
+        </div>
+        <div class="toggles">
+          <button class="chip" id="bSample" type="button">示例</button>
+          <button class="chip" id="bClear" type="button">清空</button>
+          <button class="chip quick" id="bUndo" type="button">结果替换原文</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="hd"><span>加好空格的版本</span><span id="cntOut">0 字</span></div>
+      <pre class="out" id="out"></pre>
+      <div class="bd" style="border-top:1px solid var(--line); display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+        <button class="chip" id="bCopy" type="button">复制结果</button>
+        <button class="chip" id="bDiff" type="button">标出改动</button>
+        <span id="stat" style="font-size:12px;color:var(--dim)"></span>
+      </div>
+    </div>
+  </div>
+
+  <footer>规则跟大家都用的那套「中文排版」一致：中文与西文、数字之间一个空格，中文之间不留空格。纯本地处理，不上传。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var src = document.getElementById('src'), out = document.getElementById('out');
+  var optLatin = document.getElementById('optLatin'), optDigit = document.getElementById('optDigit');
+  var optTight = document.getElementById('optTight'), optFull = document.getElementById('optFull');
+  var optPunct = document.getElementById('optPunct');
+  var stat = document.getElementById('stat'), cntIn = document.getElementById('cntIn'), cntOut = document.getElementById('cntOut');
+  var bDiff = document.getElementById('bDiff'), showMark = false;
+
+  var SAMPLE = '我在iphone上用WeChat发了3条消息给Tony，他说OK，明天9:30见。\n' +
+    '这个API返回200状态码，耗时120ms，比上个版本快了约30%。\n' +
+    '顺便说下，PD-100这款充电器支持65W快充，价格￥199。';
+
+  var CJK = '\\u3400-\\u4dbf\\u4e00-\\u9fff\\uf900-\\ufaff';
+  var CJK_RE = new RegExp('[' + CJK + ']');
+  var KEEP = '，。、；：？！「」『』（）《》〈〉【】…—～·';
+
+  function isCJK(ch){ return ch && CJK_RE.test(ch); }
+
+  // 在字符串之间插入分隔标记，最后统一换成空格（避免反复替换吃掉相邻关系）
+  function convert(text){
+    var t = text;
+    if (optFull.checked){
+      t = t.replace(/[\uff01-\uff5e]/g, function(ch){ return String.fromCharCode(ch.charCodeAt(0) - 0xfee0); });
+      t = t.replace(/\u3000/g, ' ');
+    }
+    if (optTight.checked){
+      // 中文之间的空格（含多个）全去掉；保留换行
+      t = t.replace(new RegExp('([' + CJK + '])[ \\t]+([' + CJK + '])', 'g'), '$1$2');
+      for (var k = 0; k < 3; k++){
+        t = t.replace(new RegExp('([' + CJK + '])[ \\t]+([' + CJK + '])', 'g'), '$1$2');
+      }
+    }
+    // 先插占位符 \u0001，避免与已有空格、后续匹配互相干扰
+    if (optLatin.checked){
+      t = t.replace(new RegExp('([' + CJK + '])([A-Za-z@#$%&*+=/_\\-\\.])', 'g'), '$1\u0001$2');
+      t = t.replace(new RegExp('([A-Za-z%&*+=/_\\-\\.])([' + CJK + '])', 'g'), '$1\u0001$2');
+    }
+    if (optDigit.checked){
+      t = t.replace(new RegExp('([' + CJK + '])([0-9])', 'g'), '$1\u0001$2');
+      t = t.replace(new RegExp('([0-9])([' + CJK + '])', 'g'), '$1\u0001$2');
+    }
+    if (optPunct.checked){
+      t = t.replace(/([A-Za-z0-9])([,;:!?])(?=[A-Za-z0-9])/g, '$1$2 ');
+    }
+    // 占位符若紧贴已有空格，压缩成一个（不动用户原有的缩进）
+    t = t.replace(/\u0001[ \t]+/g, ' ');
+    t = t.replace(/[ \t]+\u0001/g, ' ');
+    t = t.replace(/\u0001/g, ' ');
+    return t;
+  }
+
+  function esc(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // 把「中英/中数交界处」的空格标出来，让人看清改了哪儿
+  var LATIN1 = /[A-Za-z0-9@#$%&*+=/_.\-]/;
+  function markUp(s){
+    var res = '', added = 0;
+    for (var i = 0; i < s.length; i++){
+      var ch = s[i];
+      if (ch === ' ' && i > 0 && i + 1 < s.length){
+        var p = s[i-1], n = s[i+1];
+        if ((isCJK(p) && LATIN1.test(n)) || (LATIN1.test(p) && isCJK(n))){
+          res += '<mark> </mark>'; added++; continue;
+        }
+      }
+      res += esc(ch);
+    }
+    return {html: res, n: added};
+  }
+
+  function paint(){
+    var before = src.value;
+    var after = before ? convert(before) : '';
+    cntIn.textContent = before.length + ' 字';
+    cntOut.textContent = after.length + ' 字';
+    if (!before){
+      out.textContent = '左边粘点东西，这里出结果。';
+      stat.textContent = '';
+      return;
+    }
+    var added = after.length - before.length;
+    stat.textContent = added > 0 ? ('比原文多 ' + added + ' 个字符（基本都是空格）') : (added === 0 ? '已经挺规整，没改动' : ('少了 ' + (-added) + ' 个字符'));
+    if (showMark){
+      var m = markUp(after);
+      out.innerHTML = m.html;
+      stat.textContent = '已标出 ' + m.n + ' 处中英/中数之间的空格';
+    } else {
+      out.textContent = after;
+    }
+  }
+
+  src.addEventListener('input', paint);
+  [optLatin, optDigit, optTight, optFull, optPunct].forEach(function(el){ el.addEventListener('change', paint); });
+  document.getElementById('bSample').addEventListener('click', function(){ src.value = SAMPLE; paint(); });
+  document.getElementById('bClear').addEventListener('click', function(){ src.value = ''; paint(); src.focus(); });
+  document.getElementById('bUndo').addEventListener('click', function(){ src.value = out.textContent; paint(); });
+  document.getElementById('bCopy').addEventListener('click', function(){
+    copyText(out.textContent, document.getElementById('bCopy'), '复制结果');
+  });
+  bDiff.addEventListener('click', function(){
+    showMark = !showMark;
+    bDiff.textContent = showMark ? '看纯文本' : '标出改动';
+    bDiff.setAttribute('aria-pressed', showMark ? 'true' : 'false');
+    paint();
+  });
+
+  src.value = SAMPLE;
+  paint();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
