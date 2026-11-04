@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>乱码修复 · 粘一段乱码，试出原文</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:12px; grid-template-columns:1fr}
+  @media (min-width:880px){ .panes{grid-template-columns:1fr 1fr; align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; min-width:0}
+  .hd{
+    padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim);
+    background:var(--soft); border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; gap:8px; align-items:center;
+  }
+  .hd .r{display:flex; gap:6px}
+  .hd button{
+    font:inherit; font-size:12px; font-weight:400; padding:3px 9px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  textarea{
+    width:100%; height:250px; border:0; resize:vertical; padding:12px; background:transparent; color:var(--fg);
+    font:13.5px/1.75 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  textarea:focus{outline:2px solid var(--accent); outline-offset:-2px}
+  .res{padding:11px; display:flex; flex-direction:column; gap:9px}
+  .r{
+    border:1px solid var(--line); border-radius:10px; padding:10px 12px; background:var(--bg); min-width:0;
+  }
+  .r.first{border-color:var(--accent); background:var(--soft)}
+  .rh{display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:5px}
+  .rh span{font-size:11.5px; color:var(--dim); line-height:1.5}
+  .r.first .rh span{color:var(--accent); font-weight:600}
+  .rh button{
+    flex:0 0 auto; font:inherit; font-size:11.5px; padding:3px 9px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  .rt{
+    margin:0; font-size:14.5px; line-height:1.75; word-break:break-word; white-space:pre-wrap;
+    max-height:130px; overflow:auto;
+  }
+  .none{padding:16px; font-size:13px; color:var(--dim); line-height:1.8}
+  .warn{
+    margin:0 0 10px; padding:9px 12px; border-radius:9px; font-size:12.5px; line-height:1.7;
+    background:rgba(180,83,9,.1); color:var(--warn); border:1px solid rgba(180,83,9,.25);
+  }
+  footer{margin-top:16px; font-size:12.5px; color:var(--dim); line-height:1.8}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>乱码修复</h1>
+      <p class="lede">粘一段乱码进来，这里按几种编码各试一遍，把最像原文的那个排在第一个。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <div class="hd"><span>乱码原文</span><div class="r">
+        <button type="button" id="bS1">例一</button>
+        <button type="button" id="bS2">例二</button>
+        <button type="button" id="bClear">清空</button>
+      </div></div>
+      <textarea id="src" spellcheck="false" placeholder="把乱码粘进来……"></textarea>
+    </div>
+
+    <div class="box">
+      <div class="hd"><span>可能的原文</span><span id="cnt" style="font-weight:400"></span></div>
+      <div class="res" id="out"></div>
+    </div>
+  </div>
+
+  <footer>
+    只修「字节本身没错、只是被按错编码显示」的乱码。整页都变成「锟斤拷」或「ï¿½」的，说明原始字节在转换时已经被替换掉了，谁都救不回来。<br>
+    全部在浏览器里算，粘进来的内容不会发到服务器。
+  </footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var src = document.getElementById('src');
+  var out = document.getElementById('out');
+  var cnt = document.getElementById('cnt');
+
+  // 示例在运行时造出来，避免文件里出现不可见控制字符（被编辑器/工具规范化就废了）
+  function latin1Of(s){
+    var b = new TextEncoder().encode(s), r = '';
+    for (var i = 0; i < b.length; i++) r += String.fromCharCode(b[i]);
+    return r;
+  }
+  function makeS2(){
+    var tries = ['测试中文文档', '你好世界', '这是一段中文', '编码转换测试'];
+    for (var i = 0; i < tries.length; i++){
+      var g = new TextDecoder('gbk').decode(new TextEncoder().encode(tries[i]));
+      if (g.indexOf('\uFFFD') > -1) continue;
+      var b = gbkBytes(g);
+      if (b && dec(b, 'utf-8') === tries[i]) return g;
+    }
+    return null;
+  }
+
+  var S1 = latin1Of('测试中文：你好');   // 西文乱码：UTF-8 被当成 Latin-1 / GBK
+  var S2 = null;                          // 中文乱码：UTF-8 被当成 GBK 解出来的怪字
+  function sampleCN(){ if (S2 === null) S2 = makeS2(); return S2 || S1; }
+
+  // ---------- GBK 反查表（用浏览器自己的解码器现建，跟它保持一致） ----------
+  var REV = null;
+  function buildRev(){
+    REV = {};
+    var d = new TextDecoder('gbk');
+    for (var b1 = 0x81; b1 <= 0xFE; b1++){
+      for (var b2 = 0x40; b2 <= 0xFE; b2++){
+        if (b2 === 0x7F) continue;
+        var ch = d.decode(new Uint8Array([b1, b2]));
+        if (!ch || ch.length !== 1 || ch === '\uFFFD') continue;
+        if (REV[ch] === undefined) REV[ch] = (b1 << 8) | b2;
+      }
+    }
+  }
+  function gbkBytes(str){
+    if (!REV) buildRev();
+    var out = [];
+    for (var i = 0; i < str.length; i++){
+      var c = str.charCodeAt(i), ch = str.charAt(i);
+      if (c < 0x80){ out.push(c); continue; }
+      if (c >= 0xD800 && c <= 0xDFFF){ return null; }
+      var v = REV[ch];
+      if (v === undefined) return null;
+      out.push(v >> 8, v & 0xFF);
+    }
+    return new Uint8Array(out);
+  }
+
+  // Windows-1252 把 0x80–0x9F 换成了可见字符，粘回来要能还原
+  var CP1252 = {
+    0x20AC:0x80, 0x201A:0x82, 0x0192:0x83, 0x201E:0x84, 0x2026:0x85, 0x2020:0x86,
+    0x2021:0x87, 0x02C6:0x88, 0x2030:0x89, 0x0160:0x8A, 0x2039:0x8B, 0x0152:0x8C,
+    0x017D:0x8E, 0x2018:0x91, 0x2019:0x92, 0x201C:0x93, 0x201D:0x94, 0x2022:0x95,
+    0x2013:0x96, 0x2014:0x97, 0x02DC:0x98, 0x2122:0x99, 0x0161:0x9A, 0x203A:0x9B,
+    0x0153:0x9C, 0x017E:0x9E, 0x0178:0x9F
+  };
+
+  function latin1Bytes(s){
+    var a = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++){
+      var c = s.charCodeAt(i);
+      if (c <= 0xFF){ a[i] = c; continue; }
+      var m = CP1252[c];
+      if (m === undefined) return null;
+      a[i] = m;
+    }
+    return a;
+  }
+
+  function dec(bytes, enc){
+    if (!bytes) return null;
+    try { return new TextDecoder(enc, {fatal: true}).decode(bytes); } catch(e){ return null; }
+  }
+
+  function score(s){
+    if (!s) return -1;
+    var bad = 0, cjk = 0, asc = 0, other = 0;
+    for (var i = 0; i < s.length; i++){
+      var c = s.charCodeAt(i);
+      if (c === 0xFFFD) bad++;
+      else if (c >= 0x4E00 && c <= 0x9FFF) cjk++;
+      else if (c < 0x80) asc++;
+      else if (c >= 0x3000) other++;
+    }
+    return cjk * 2.2 + other * 0.6 + asc * 0.05 - bad * 12 - Math.max(0, s.length - 400) * 0.01;
+  }
+
+  function hasCJK(s){
+    return /[\u4e00-\u9fff]/.test(s || '');
+  }
+
+  function candidates(t){
+    var list = [];
+    var lb = latin1Bytes(t);
+    if (lb){
+      list.push(['按 UTF-8 重新解（UTF-8 被当成西文显示）', dec(lb, 'utf-8')]);
+      list.push(['按 GBK 重新解（GBK 被当成西文显示）', dec(lb, 'gbk')]);
+      list.push(['按 Big5 重新解（繁体，台湾香港常见）', dec(lb, 'big5')]);
+    }
+    var gb = gbkBytes(t);
+    if (gb) list.push(['按 GBK 编码再用 UTF-8 解（GBK 被当成 UTF-8 显示）', dec(gb, 'utf-8')]);
+
+    var u = null;
+    try { u = decodeURIComponent(t.replace(/\+/g, ' ')); } catch(e){}
+    if (u && u !== t) list.push(['按网址编码解（%E6%B5%8B 这种）', u]);
+
+    if (/&(#\d+|#x[0-9a-f]+|[a-z]+);/i.test(t)){
+      var d = document.createElement('textarea');
+      d.innerHTML = t;
+      if (d.value !== t) list.push(['按网页实体解（&amp;#20013; 这种）', d.value]);
+    }
+
+    if (/\\u[0-9a-fA-F]{4}/.test(t)){
+      var e = t.replace(/\\u([0-9a-fA-F]{4})/g, function(_, h){ return String.fromCharCode(parseInt(h, 16)); });
+      if (e !== t) list.push(['按 \\u 转义解（程序里打印出来的那种）', e]);
+    }
+
+    // 去重 + 打分
+    var seen = {}, res = [];
+    list.forEach(function(it){
+      var text = it[1];
+      if (!text || text === t || /^[\x00-\x1f]*$/.test(text)) return;
+      if (seen[text]) return;
+      seen[text] = 1;
+      res.push({label: it[0], text: text, s: score(text)});
+    });
+    res.sort(function(a, b){ return b.s - a.s; });
+    return res;
+  }
+
+  function esc(s){
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function paint(){
+    var t = src.value;
+    if (!t.trim()){
+      out.innerHTML = '<div class="none">粘一段乱码到左边，这边会列出几种可能。</div>';
+      cnt.textContent = '';
+      return;
+    }
+    var broken = /锟斤拷|ï¿½|\uFFFD/.test(t);
+    var list = candidates(t);
+    var html = '';
+    if (broken){
+      html += '<div class="warn">这段里有「锟斤拷 / ï¿½」这类替换符：原文的字节在转换时已经被丢掉了，修不回原样，只能看出个大概。</div>';
+    }
+    if (!list.length){
+      html += '<div class="none">试了几种编码都对不上，这段可能不是编码问题——要么本来就是这种字符，要么原始字节已经损坏。</div>';
+      cnt.textContent = '';
+      out.innerHTML = html;
+      return;
+    }
+    html += list.slice(0, 4).map(function(r, i){
+      return '<div class="r' + (i === 0 && hasCJK(r.text) ? ' first' : '') + '">' +
+        '<div class="rh"><span>' + r.label + '</span>' +
+        '<button type="button" data-i="' + i + '">复制</button></div>' +
+        '<p class="rt">' + esc(r.text.slice(0, 600)) + (r.text.length > 600 ? ' …' : '') + '</p></div>';
+    }).join('');
+    cnt.textContent = list.length + ' 种可能';
+    out.innerHTML = html;
+    out.__list = list;
+  }
+
+  out.addEventListener('click', function(e){
+    var b = e.target.closest('button');
+    if (!b) return;
+    var r = out.__list[+b.getAttribute('data-i')];
+    if (r) copyText(r.text, b, '复制');
+  });
+
+  src.addEventListener('input', paint);
+  document.getElementById('bS1').addEventListener('click', function(){ src.value = sampleCN(); paint(); });
+  document.getElementById('bS2').addEventListener('click', function(){ src.value = S1; paint(); });
+  document.getElementById('bClear').addEventListener('click', function(){ src.value = ''; paint(); src.focus(); });
+  if (!src.value){ src.value = sampleCN(); }
+  paint();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

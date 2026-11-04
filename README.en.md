@@ -1,6 +1,6 @@
-# toolbox — twenty small tools that open and work
+# toolbox — twenty-four small tools that open and work
 
-> Twenty tiny tools in one static site: JSON formatter, text tidier, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming-convention converter, random generator, RMB uppercase, unit converter, colour toolbox, QR codes, image compressor, CSV-to-table, CJK/Latin spacing, word count and a URL dissector. No backend, no ports.
+> Twenty-four tiny tools in one static site: JSON formatter, text tidier, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming-convention converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR codes, image compressor, CSV-to-table, CJK/Latin spacing, word count, URL dissector, subnet calculator, mojibake repair and a Markdown preview. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -34,6 +34,13 @@ Fourth round (sixteen to twenty), all about text going in and coming out:
 
 The landing page also gained instant search: with twenty tools, scrolling to find one is slow — type 「表格」 or 「颜色」 and only matching cards stay, empty group headings disappear with them, `/` focuses the box and Esc clears it.
 
+Fifth round (twenty to twenty-four), a set about converting and repairing:
+
+- **Subnet calculator**: give it an address with `/26` or a dotted mask and it lists network, broadcast, usable range, usable host count, mask, wildcard mask and the address class (private / loopback / link-local / documentation). Dotted masks are validated for contiguity — `255.0.255.0` is rejected instead of producing a plausible lie — and `/31` counts both addresses as usable while `/32` counts one, matching what devices actually do. Below that you can split the block into N subnets and see each range, or test whether another address belongs to it, including whether that address is the network or broadcast one.
+- **Percentage**: four live panels side by side — discount (price plus discount rate gives what you pay and what you save), change (old to new gives percent and multiple), share (part over whole gives percent and how far from 100%), and increase (base plus percent, negative to subtract). A zero denominator explains itself instead of printing Infinity.
+- **Mojibake repair**: paste garbage and it tries UTF-8 read as Latin-1, GBK read as Latin-1, Big5 read as Latin-1 and GBK read as UTF-8, ranks the results by how much readable CJK they contain, highlights the best guess and copies it on click; URL encoding, HTML entities and backslash-u escapes are decoded too. It is honest about the hopeless case: strings containing replacement characters lost their original bytes during the bad conversion, and the page says so rather than pretending.
+- **Markdown preview**: write on the left, see the page on the right — headings, bold/italic/strikethrough, inline code, fenced code (escaped as text, never rendered as tags), ordered and unordered lists with one level of nesting, quotes, tables (leading and trailing pipes optional), rules, links and images. Then copy the HTML, copy the text, or download a standalone page with inline styles.
+
 ## Features
 
 - Twenty tools in one static site, no backend and no ports
@@ -53,6 +60,10 @@ The landing page also gained instant search: with twenty tools, scrolling to fin
 - Word count: Chinese characters, English words, paragraphs, reading time, five platform limits
 - URL dissector: live param edits, one-click tracking removal, params to JSON
 - Instant search on the landing page across all twenty tools
+- Subnet calculator: network/broadcast/host range/mask conversion, subnet splitting, membership test
+- Percentage: discount, change, share and increase in four live panels
+- Mojibake repair: ranks the plausible UTF-8/GBK/Big5 reinterpretations, plus URL and escape decoding
+- Markdown preview: live rendering of headings, lists, tables and code, export to HTML
 
 ## Stack
 

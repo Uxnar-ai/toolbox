@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>工具台 toolbox</title>
-<meta name="description" content="一堆打开就能用的小工具：JSON、文本、CSV 表格、字数统计、中英混排、网址拆解、时间戳、对比、Cron、日期、命名转换、金额大写、单位、颜色、图片压缩、二维码、哈希、编码。全在浏览器里算，不上传服务器。">
+<meta name="description" content="一堆打开就能用的小工具：JSON、文本、CSV 表格、Markdown 预览、字数统计、中英混排、网址拆解、乱码修复、时间戳、对比、Cron、日期、命名转换、金额大写、百分比、单位、网段计算、颜色、图片压缩、二维码、哈希、编码。全在浏览器里算，不上传服务器。">
 <link rel="stylesheet" href="assets/theme.css">
 <style>
   .grid{display:grid; gap:12px; grid-template-columns:1fr}
@@ -128,6 +128,12 @@
       <p>贴一条链接，域名、路径、每个参数逐段拆开；跟踪参数一键去掉，复制一条干净的。</p>
       <div class="tags"><span>参数拆解</span><span>去跟踪</span><span>可编辑</span></div>
     </a>
+    <a class="card" href="md/" data-k="md Markdown 预览 左边写 Markdown，右边立刻是排版好的样子；满意了复制 HTML 或下载成网页。 实时预览 复制 HTML 导出网页">
+      <div class="top"><span class="ico">M↓</span><span class="arrow">↗</span></div>
+      <h2>Markdown 预览</h2>
+      <p>左边写 Markdown，右边立刻是排版好的样子；满意了复制 HTML 或下载成网页。</p>
+      <div class="tags"><span>实时预览</span><span>复制 HTML</span><span>导出网页</span></div>
+    </a>
   </div>
   <div class="group">时间与任务</div>
   <div class="grid">
@@ -170,6 +176,27 @@
       <p>色值四种写法互转、9 档色阶、搭配色与对比度；拖张截图进来能点取色。</p>
       <div class="tags"><span>取色</span><span>色阶</span><span>对比度</span></div>
     </a>
+    <a class="card" href="percent/" data-k="percent 百分比计算 打折省多少、涨了百分之几、占多少比例、加几成，填两个数就出结果。 打折 涨跌幅 占比">
+      <div class="top"><span class="ico">％</span><span class="arrow">↗</span></div>
+      <h2>百分比计算</h2>
+      <p>打折省多少、涨了百分之几、占多少比例、加几成，填两个数就出结果。</p>
+      <div class="tags"><span>打折</span><span>涨跌幅</span><span>占比</span></div>
+    </a>
+  </div>
+  <div class="group">网络与编码</div>
+  <div class="grid">
+    <a class="card" href="cidr/" data-k="cidr 网段计算 贴一个 IP 或网段，算出网络地址、广播、可用主机范围和能放多少台；想切子网也行。 网络 / 广播 子网划分 在不在段内">
+      <div class="top"><span class="ico">◫</span><span class="arrow">↗</span></div>
+      <h2>网段计算</h2>
+      <p>贴一个 IP 或网段，算出网络地址、广播、可用主机范围和能放多少台；想切子网也行。</p>
+      <div class="tags"><span>网络 / 广播</span><span>子网划分</span><span>在不在段内</span></div>
+    </a>
+    <a class="card" href="charset/" data-k="charset 乱码修复 一段乱码粘进来，按几种编码各试一遍，最像原文的排第一，点一下就复制。 编码还原 GBK / UTF-8 本地算">
+      <div class="top"><span class="ico">码</span><span class="arrow">↗</span></div>
+      <h2>乱码修复</h2>
+      <p>一段乱码粘进来，按几种编码各试一遍，最像原文的排第一，点一下就复制。</p>
+      <div class="tags"><span>编码还原</span><span>GBK / UTF-8</span><span>本地算</span></div>
+    </a>
   </div>
   <div class="group">图片</div>
   <div class="grid">
@@ -198,7 +225,7 @@
 
   <footer>
     同一个仓库里长出来的东西：新工具加个目录、挂进这张表就行。需要后端的（短码暂存、天气、主机指标、资讯聚合）各自独立跑，不塞进这里。
-    <br>更新于 2026-11-04 · 共 20 个工具
+    <br>更新于 2026-11-05 · 共 24 个工具
   </footer>
 </div>
 <script src="assets/base.js"></script>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>百分比计算 · 打折、涨跌、占比、增减，填两个数就出结果</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .cards{display:grid; gap:12px; grid-template-columns:1fr}
+  @media (min-width:720px){ .cards{grid-template-columns:1fr 1fr} }
+  .c{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px; min-width:0; display:flex; flex-direction:column;
+  }
+  .c h2{margin:0 0 10px; font-size:13px; font-weight:600; color:var(--dim); letter-spacing:.3px}
+  .fields{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end}
+  .f{display:flex; flex-direction:column; gap:4px; flex:1 1 96px; min-width:0}
+  .f s{text-decoration:none; font-size:11.5px; color:var(--dim)}
+  .f input{
+    width:100%; font:15px/1.4 inherit; font-variant-numeric:tabular-nums;
+    padding:8px 10px; border:1px solid var(--line); border-radius:8px;
+    background:var(--bg); color:var(--fg); -webkit-appearance:none; appearance:none;
+  }
+  .f input:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .f.unit{flex:0 0 74px}
+  .res{margin-top:12px; padding-top:11px; border-top:1px solid var(--line)}
+  .res b{
+    display:block; font-size:26px; font-weight:600; line-height:1.2;
+    font-variant-numeric:tabular-nums; letter-spacing:-.4px;
+  }
+  .res b.up{color:var(--err)}
+  .res b.down{color:var(--ok)}
+  .res span{display:block; font-size:12.5px; color:var(--dim); margin-top:4px; line-height:1.6}
+  .res span em{font-style:normal; color:var(--fg); font-variant-numeric:tabular-nums}
+  .note{font-size:11.5px; color:var(--dim); margin:9px 0 0; line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>百分比计算</h1>
+      <p class="lede">打折省多少、涨了百分之几、A 占 B 多少、加一成是多少 —— 四个框，填数就出结果。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="cards">
+    <div class="c">
+      <h2>打折后多少钱</h2>
+      <div class="fields">
+        <label class="f"><s>原价（元）</s><input id="a1" type="text" inputmode="decimal" value="199"></label>
+        <label class="f unit"><s>打几折</s><input id="a2" type="text" inputmode="decimal" value="7.5"></label>
+      </div>
+      <div class="res"><b id="o1">—</b><span id="s1"></span></div>
+      <p class="note">7.5 折就是原价的 75%，省下的钱按原价减现价算。</p>
+    </div>
+
+    <div class="c">
+      <h2>涨了还是跌了</h2>
+      <div class="fields">
+        <label class="f"><s>原来</s><input id="b1" type="text" inputmode="decimal" value="1200"></label>
+        <label class="f"><s>现在</s><input id="b2" type="text" inputmode="decimal" value="1520"></label>
+      </div>
+      <div class="res"><b id="o2">—</b><span id="s2"></span></div>
+      <p class="note">涨用百分比表示，也给出差值和是原来的多少倍。</p>
+    </div>
+
+    <div class="c">
+      <h2>占多少比例</h2>
+      <div class="fields">
+        <label class="f"><s>其中（分子）</s><input id="c1" type="text" inputmode="decimal" value="37"></label>
+        <label class="f"><s>总共（分母）</s><input id="c2" type="text" inputmode="decimal" value="240"></label>
+      </div>
+      <div class="res"><b id="o3">—</b><span id="s3"></span></div>
+      <p class="note">分母填 0 没意义，会直接提示。</p>
+    </div>
+
+    <div class="c">
+      <h2>加几成 / 减几成</h2>
+      <div class="fields">
+        <label class="f"><s>基数</s><input id="d1" type="text" inputmode="decimal" value="8800"></label>
+        <label class="f unit"><s>增加 %</s><input id="d2" type="text" inputmode="decimal" value="-12"></label>
+      </div>
+      <div class="res"><b id="o4">—</b><span id="s4"></span></div>
+      <p class="note">填负数就是减，比如 −12 表示降 12%。</p>
+    </div>
+  </div>
+
+  <footer>全部在浏览器里算，不上传任何数字。结果保留两位小数，整数不补零。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  function num(id){
+    var v = document.getElementById(id).value.trim().replace(/,/g, '').replace(/[%％]/g, '');
+    if (!v) return null;
+    var n = Number(v);
+    return isFinite(n) ? n : null;
+  }
+  function money(n){
+    var s = (Math.round(n * 100) / 100).toFixed(2).replace(/\.00$/, '');
+    // 千分位
+    var parts = s.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return parts.join('.');
+  }
+  function pct(n){
+    var r = Math.round(n * 100) / 100;
+    return (r > 0 && n > 0 ? '+' : '') + r.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1') + '%';
+  }
+  function plain(n){
+    var r = Math.round(n * 100) / 100;
+    return r.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+  }
+  function set(id, text, cls){
+    var el = document.getElementById('o' + id);
+    el.textContent = text;
+    el.className = cls || '';
+  }
+
+  function run1(){
+    var p = num('a1'), d = num('a2');
+    var s = document.getElementById('s1');
+    if (p === null || d === null){ set(1, '—'); s.textContent = '填原价和折扣'; return; }
+    var pay = p * d / 10;
+    set(1, money(pay) + ' 元');
+    s.innerHTML = '省了 <em>' + money(p - pay) + '</em> 元，相当于原价的 <em>' + plain(d * 10) + '%</em>' +
+      (d > 10 ? '（加价了，不是打折）' : '');
+  }
+
+  function run2(){
+    var a = num('b1'), b = num('b2');
+    var s = document.getElementById('s2');
+    if (a === null || b === null){ set(2, '—'); s.textContent = '填两个数'; return; }
+    if (a === 0){
+      set(2, '—');
+      s.textContent = '原来是 0，算涨跌百分比没有意义，差值才是 ' + money(b);
+      return;
+    }
+    var ch = (b - a) / Math.abs(a) * 100;
+    set(2, pct(ch), ch > 0 ? 'up' : (ch < 0 ? 'down' : ''));
+    s.innerHTML = '差值 <em>' + (b - a > 0 ? '+' : '') + money(b - a) + '</em>，现在是原来的 <em>' + plain(b / a) + ' 倍</em>';
+  }
+
+  function run3(){
+    var a = num('c1'), b = num('c2');
+    var s = document.getElementById('s3');
+    if (a === null || b === null){ set(3, '—'); s.textContent = '填两个数'; return; }
+    if (b === 0){ set(3, '—'); s.textContent = '分母不能是 0'; return; }
+    var r = a / b * 100;
+    set(3, plain(r) + '%');
+    s.innerHTML = '每 100 个里有 <em>' + plain(r) + '</em> 个；离 100% 还差 <em>' + plain(100 - r) + '</em> 个百分点';
+  }
+
+  function run4(){
+    var base = num('d1'), p = num('d2');
+    var s = document.getElementById('s4');
+    if (base === null || p === null){ set(4, '—'); s.textContent = '填两个数'; return; }
+    var out = base * (1 + p / 100);
+    set(4, money(out), p > 0 ? 'up' : (p < 0 ? 'down' : ''));
+    s.innerHTML = (p >= 0 ? '增加' : '减少') + ' <em>' + money(Math.abs(base * p / 100)) + '</em>，' +
+      '原来是 <em>' + money(base) + '</em>';
+  }
+
+  var ids = ['a1','a2','b1','b2','c1','c2','d1','d2'];
+  var fns = {a1: run1, a2: run1, b1: run2, b2: run2, c1: run3, c2: run3, d1: run4, d2: run4};
+  ids.forEach(function(id){
+    document.getElementById(id).addEventListener('input', fns[id]);
+  });
+  run1(); run2(); run3(); run4();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
