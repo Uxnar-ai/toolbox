@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>图片转 Data URI</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); min-width:0}
+  .box h2{
+    margin:0; padding:8px 12px; font-size:12.5px; font-weight:600; letter-spacing:.3px;
+    color:var(--dim); border-bottom:1px solid var(--line); background:var(--soft);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .box .pad{padding:12px}
+  .panes{display:grid; gap:12px}
+  @media (min-width:900px){ .panes{grid-template-columns:1fr 1fr} }
+  #drop{
+    border:2px dashed var(--line); border-radius:var(--radius); padding:22px 14px; text-align:center;
+    cursor:pointer; transition:border-color .15s, background .15s;
+  }
+  #drop.on{border-color:var(--accent); background:var(--soft)}
+  #drop b{font-size:14.5px}
+  #drop p{margin:6px 0 0; font-size:12.5px; color:var(--dim); line-height:1.6}
+  .prev{
+    margin-top:12px; border:1px solid var(--line); border-radius:9px; min-height:110px;
+    display:flex; align-items:center; justify-content:center; padding:10px; background:var(--soft);
+  }
+  .prev.hasimg{background:repeating-conic-gradient(var(--card) 0% 25%, var(--soft) 0% 50%) 50%/16px 16px}
+  .prev img{max-width:100%; max-height:180px; border-radius:6px; display:block}
+  .prev .ph{font-size:12.5px; color:var(--dim)}
+  .meta{font-size:12.5px; color:var(--dim); margin-top:8px; line-height:1.7; word-break:break-all}
+  .meta b{color:var(--fg)}
+  .toolbar{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px}
+  .toolbar button{
+    padding:5px 11px; border-radius:999px; border:1px solid var(--line2, var(--line));
+    background:transparent; color:var(--fg); font:600 12.5px/1 inherit; cursor:pointer;
+  }
+  .toolbar button.on{background:var(--accent); color:var(--accent-fg); border-color:var(--accent)}
+  .out{
+    margin-top:10px; border:1px solid var(--line); border-radius:9px; background:var(--soft);
+    padding:10px; font:12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;
+    max-height:158px; overflow:auto; word-break:break-all; white-space:pre-wrap; color:var(--fg);
+    box-sizing:border-box;
+  }
+  .out:empty::before{content:'这里出结果'; color:var(--dim)}
+  #tail{
+    width:100%; box-sizing:border-box; height:118px; min-height:88px; resize:vertical; padding:10px;
+    border-radius:9px; border:1px solid var(--line2, var(--line)); background:var(--card);
+    color:var(--fg); font:12.5px/1.6 ui-monospace,monospace;
+  }
+  #tail:focus{outline:2px solid var(--accent); outline-offset:1px; border-color:transparent}
+  .hint{font-size:12px; color:var(--dim); margin:8px 0 0; line-height:1.7}
+  .warn{color:var(--err); font-size:12.5px; margin-top:6px; min-height:16px}
+  .dl{color:var(--accent); font-weight:600; font-size:12.5px; text-decoration:none}
+  @media (max-width:520px){ .prev img{max-height:140px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>图片转 Data URI</h1>
+      <p class="lede">把小图变成能直接贴进 HTML / CSS 的一长串，或者反过来把一串还原成图片。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <h2><span>图片 → 一长串</span><span id="fname">还没选</span></h2>
+      <div class="pad">
+        <div id="drop">
+          <b>把图片拖进来，或点一下选</b>
+          <p>适合图标、小图；超过 30 KB 就不建议内嵌了，往下看有提示。</p>
+        </div>
+        <input type="file" id="file" accept="image/*" style="display:none">
+        <div class="prev" id="prev"><span class="ph">选张图，这里出预览</span></div>
+        <div class="meta" id="meta">—</div>
+        <div class="toolbar" id="kinds">
+          <button data-k="uri" class="on" type="button">完整 Data URI</button>
+          <button data-k="b64" type="button">只要 base64</button>
+          <button data-k="css" type="button">CSS 背景</button>
+          <button data-k="img" type="button">HTML 标签</button>
+          <button id="copy" type="button">复制</button>
+        </div>
+        <div class="warn" id="warn" style="margin-top:8px; margin-bottom:2px"></div>
+        <div class="out" id="out"></div>
+      </div>
+    </div>
+
+    <div class="box">
+      <h2><span>一长串 → 图片</span><span id="typeTip"></span></h2>
+      <div class="pad">
+        <textarea id="tail" spellcheck="false" placeholder="把 data:image/png;base64,... 或者只把 base64 那段粘进来"></textarea>
+        <div class="toolbar">
+          <button id="restore" type="button">还原成图</button>
+          <button id="useLeft" type="button">用左边的图试试</button>
+          <button id="clearTail" type="button">清空</button>
+        </div>
+        <div class="prev" id="prev2"><span class="ph">还原的图会出现在这里</span></div>
+        <div class="meta" id="meta2">—</div>
+        <div class="warn" id="warn2"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>全部在你自己的浏览器里算，图片和那串东西都不上传。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var drop = document.getElementById('drop'), fileIn = document.getElementById('file'),
+      prev = document.getElementById('prev'), meta = document.getElementById('meta'),
+      out = document.getElementById('out'), warn = document.getElementById('warn'),
+      fname = document.getElementById('fname'), kinds = document.getElementById('kinds'),
+      tail = document.getElementById('tail'), prev2 = document.getElementById('prev2'),
+      meta2 = document.getElementById('meta2'), warn2 = document.getElementById('warn2'),
+      typeTip = document.getElementById('typeTip');
+
+  var cur = null;        // {name, uri, size, w, h}
+  var kind = 'uri';
+
+  function kb(n){
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n/1024).toFixed(1) + ' KB';
+    return (n/1048576).toFixed(2) + ' MB';
+  }
+  function baseName(n){ return String(n || 'image').replace(/\.[^.]+$/, '') || 'image'; }
+
+  function body(){
+    if (!cur) return '';
+    var b64 = cur.uri.split(',')[1] || '';
+    if (kind === 'b64') return b64;
+    if (kind === 'css') return 'background-image:url("' + cur.uri + '");';
+    if (kind === 'img') return '<img src="' + cur.uri + '" alt="' + baseName(cur.name) + '">';
+    return cur.uri;
+  }
+
+  function paintOut(){
+    var s = body();
+    out.textContent = s;
+    if (!cur){ warn.textContent = ''; return; }
+    var grows = cur.uri.length / cur.size;
+    warn.textContent = cur.size > 30 * 1024
+      ? '这张 ' + kb(cur.size) + '，转成文字后 ' + kb(cur.uri.length * 0.75) + '，别内嵌进页面，老老实实放文件。'
+      : (grows > 1 ? '转成文字大约是原图的 ' + grows.toFixed(2) + ' 倍大，图标这类小图划算。' : '');
+  }
+
+  function load(file){
+    if (!file) return;
+    if (!/^image\//.test(file.type)){ warn.textContent = '这个不是图片'; return; }
+    var fr = new FileReader();
+    fr.onload = function(){
+      var uri = String(fr.result);
+      var im = new Image();
+      im.onload = function(){
+        cur = {name: file.name, uri: uri, size: file.size, w: im.naturalWidth, h: im.naturalHeight};
+        fname.textContent = file.name.length > 24 ? file.name.slice(0, 22) + '…' : file.name;
+        prev.className = 'prev hasimg';
+        prev.innerHTML = '';
+        prev.appendChild(im);
+        meta.innerHTML = '<b>' + im.naturalWidth + ' × ' + im.naturalHeight + '</b> · 原图 ' + kb(file.size) +
+          ' · 这串 ' + kb(uri.length) + '（' + (file.type || '').replace('image/', '').toUpperCase() + '）';
+        typeTip.textContent = (file.type || '').replace('image/', '').toUpperCase();
+        warn.textContent = '';
+        paintOut();
+      };
+      im.onerror = function(){ warn.textContent = '浏览器读不了这个格式'; };
+      im.src = uri;
+    };
+    fr.onerror = function(){ warn.textContent = '文件读不出来'; };
+    fr.readAsDataURL(file);
+  }
+
+  // 打开先给一张现画的小图标，免得空着
+  function demo(){
+    var c = document.createElement('canvas');
+    c.width = 64; c.height = 64;
+    var x = c.getContext('2d');
+    var g = x.createLinearGradient(0, 0, 64, 64);
+    g.addColorStop(0, '#2f6df6'); g.addColorStop(1, '#1f7a4d');
+    x.fillStyle = g;
+    x.beginPath(); x.moveTo(32, 4); x.lineTo(60, 18); x.lineTo(60, 44); x.lineTo(32, 60); x.lineTo(4, 44); x.lineTo(4, 18);
+    x.closePath(); x.fill();
+    x.fillStyle = '#fff'; x.font = '700 26px sans-serif'; x.textAlign = 'center';
+    x.fillText('A', 32, 42);
+    c.toBlob(function(b){
+      load(new File([b], '示例图标.png', {type:'image/png'}));
+    }, 'image/png');
+  }
+
+  drop.addEventListener('click', function(){ fileIn.click(); });
+  fileIn.addEventListener('change', function(){ load(this.files && this.files[0]); this.value = ''; });
+  ['dragenter','dragover'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.className = 'on'; });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.className = ''; });
+  });
+  drop.addEventListener('drop', function(e){
+    if (e.dataTransfer && e.dataTransfer.files) load(e.dataTransfer.files[0]);
+  });
+
+  kinds.addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('button[data-k]') : null;
+    if (!b) return;
+    kind = b.getAttribute('data-k');
+    Array.prototype.forEach.call(kinds.querySelectorAll('button[data-k]'), function(o){ o.className = ''; });
+    b.className = 'on';
+    paintOut();
+  });
+
+  document.getElementById('copy').addEventListener('click', function(){
+    if (!cur) return;
+    copyText(body());
+    this.textContent = '已复制';
+    var self = this;
+    setTimeout(function(){ self.textContent = '复制'; }, 1200);
+  });
+
+  // 反向还原
+  function restore(){
+    warn2.textContent = '';
+    var s = tail.value.trim();
+    if (!s){ warn2.textContent = '先粘一段进来'; return; }
+    var uri = s;
+    if (s.indexOf('data:') !== 0){
+      var m = s.replace(/\s/g, '');
+      var head = 'data:image/png;base64,';
+      if (/^\/9j\//.test(m)) head = 'data:image/jpeg;base64,';
+      else if (/^R0lGOD/.test(m)) head = 'data:image/gif;base64,';
+      else if (/^UklGR/.test(m)) head = 'data:image/webp;base64,';
+      uri = head + m;
+    }
+    var im = new Image();
+    im.onload = function(){
+      prev2.className = 'prev hasimg';
+      prev2.innerHTML = '';
+      prev2.appendChild(im);
+      meta2.innerHTML = '<b>' + im.naturalWidth + ' × ' + im.naturalHeight + '</b> · 这串 ' + kb(uri.length) +
+        ' · <a class="dl" download="restored.png" href="' + uri + '">下载这张图</a>';
+      var t = (uri.match(/^data:([^;,]+)/) || [])[1] || '';
+      typeTip.textContent = t.replace('image/', '').toUpperCase();
+    };
+    im.onerror = function(){
+      prev2.className = 'prev';
+      prev2.innerHTML = '<span class="ph">还原不出来</span>';
+      meta2.textContent = '—';
+      warn2.textContent = '这段不是有效的图片数据，或者少了前缀（纯 base64 也行，会自动补）';
+    };
+    im.src = uri;
+  }
+
+  document.getElementById('restore').addEventListener('click', restore);
+  document.getElementById('useLeft').addEventListener('click', function(){
+    if (!cur) return;
+    tail.value = cur.uri;
+    restore();
+  });
+  document.getElementById('clearTail').addEventListener('click', function(){
+    tail.value = '';
+    prev2.className = 'prev';
+    prev2.innerHTML = '<span class="ph">还原的图会出现在这里</span>';
+    meta2.textContent = '—';
+    warn2.textContent = '';
+    typeTip.textContent = '';
+  });
+
+  demo();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>进制转换</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); min-width:0}
+  .box h2{
+    margin:0; padding:8px 12px; font-size:12.5px; font-weight:600; letter-spacing:.3px;
+    color:var(--dim); border-bottom:1px solid var(--line); background:var(--soft);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .box .pad{padding:12px}
+  #in{
+    width:100%; box-sizing:border-box; padding:11px 12px; border-radius:9px;
+    border:1px solid var(--line2, var(--line)); background:var(--card); color:var(--fg);
+    font:500 18px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.4px;
+  }
+  #in:focus{outline:2px solid var(--accent); outline-offset:1px; border-color:transparent}
+  .hint{font-size:12px; color:var(--dim); margin:8px 0 0; line-height:1.7}
+  .rows{margin-top:12px; display:grid; gap:8px}
+  .row{
+    display:grid; grid-template-columns:78px minmax(0,1fr) auto; gap:10px; align-items:center;
+    border:1px solid var(--line); border-radius:9px; padding:8px 10px; min-width:0;
+  }
+  .k{font-size:12.5px; color:var(--dim)}
+  .v{
+    font:600 14px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; word-break:break-all;
+    min-width:0; overflow-wrap:anywhere;
+  }
+  .cp{
+    padding:5px 9px; border-radius:7px; border:1px solid var(--line2, var(--line));
+    background:transparent; color:var(--dim); font:600 12px/1 inherit; cursor:pointer;
+  }
+  .cp:hover{color:var(--accent); border-color:var(--accent)}
+  .cp.done{color:var(--ok); border-color:var(--ok)}
+  .bits{display:flex; flex-wrap:wrap; gap:4px; margin-top:12px}
+  .bits i{
+    width:16px; height:22px; border-radius:4px; font:500 11px/22px ui-monospace,monospace;
+    text-align:center; font-style:normal; background:var(--soft); color:var(--dim);
+  }
+  .bits i.on{background:var(--accent); color:var(--accent-fg)}
+  .cap{font-size:12px; color:var(--dim); margin:0 0 4px}
+  .calc{display:grid; gap:10px; margin-top:2px}
+  @media (min-width:720px){ .calc{grid-template-columns:1fr 1fr} }
+  .calc input{
+    width:100%; box-sizing:border-box; padding:9px 10px; border-radius:8px; color:var(--fg);
+    border:1px solid var(--line2, var(--line)); background:var(--card);
+    font:500 15px/1.4 ui-monospace,monospace;
+  }
+  .ops{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px}
+  .ops button{
+    padding:6px 11px; border-radius:999px; border:1px solid var(--line2, var(--line));
+    background:transparent; color:var(--fg); font:600 12.5px/1 inherit; cursor:pointer;
+  }
+  .ops button.on{background:var(--accent); color:var(--accent-fg); border-color:var(--accent)}
+  .res{margin-top:12px; border-top:1px dashed var(--line); padding-top:10px; font-size:13px; line-height:1.9}
+  .res code{
+    font:600 13px/1.6 ui-monospace,monospace; background:var(--soft); border-radius:5px;
+    padding:1px 6px; word-break:break-all;
+  }
+  .res .lbl{color:var(--dim); display:inline-block; min-width:74px}
+  .err{color:var(--err); font-size:12.5px; margin-top:8px; min-height:18px}
+  @media (max-width:520px){
+    .row{grid-template-columns:64px minmax(0,1fr) auto; padding:7px 8px; gap:8px}
+    .k{font-size:12px}
+    .v{font-size:13px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>进制转换</h1>
+      <p class="lede">填一个数，二进制、八进制、十进制、十六进制一起出；顺手算位运算，全在浏览器里。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="box">
+    <h2><span>填个数</span><span id="detect"></span></h2>
+    <div class="pad">
+      <input id="in" value="0xC0FFEE" spellcheck="false" autocomplete="off">
+      <p class="hint">前面加 <b>0x</b> 当十六进制、<b>0b</b> 当二进制、<b>0o</b> 当八进制，不加就按十进制。空格和下划线会被忽略，位数不限。</p>
+      <div class="rows" id="rows"></div>
+      <div class="err" id="err"></div>
+      <p class="cap" style="margin-top:12px">按位看（从高位到低位，仅显示有效位）</p>
+      <div class="bits" id="bits"></div>
+    </div>
+  </div>
+
+  <div class="box" style="margin-top:12px">
+    <h2><span>位运算</span><span id="opName">与 AND</span></h2>
+    <div class="pad">
+      <div class="calc">
+        <input id="a" value="0xC0FFEE" spellcheck="false" placeholder="第一个数">
+        <input id="b" value="0xFF00" spellcheck="false" placeholder="第二个数">
+      </div>
+      <div class="ops" id="ops">
+        <button data-op="and" class="on" type="button">与 AND</button>
+        <button data-op="or" type="button">或 OR</button>
+        <button data-op="xor" type="button">异或 XOR</button>
+        <button data-op="shl" type="button">左移 &lt;&lt;</button>
+        <button data-op="shr" type="button">右移 &gt;&gt;</button>
+        <button data-op="not" type="button">取反 NOT</button>
+      </div>
+      <div class="res" id="res"></div>
+      <p class="hint">取反按无符号 32 位算（NOT x = 0xFFFFFFFF 减 x）；移位次数取第二个数。</p>
+    </div>
+  </div>
+
+  <footer>全在你自己的浏览器里算，数字不上传；十六进制统一大写，复制就是干净的值。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var inEl = document.getElementById('in'),
+      rows = document.getElementById('rows'),
+      bits = document.getElementById('bits'),
+      err  = document.getElementById('err'),
+      det  = document.getElementById('detect'),
+      aEl  = document.getElementById('a'),
+      bEl  = document.getElementById('b'),
+      res  = document.getElementById('res'),
+      opName = document.getElementById('opName'),
+      ops  = document.getElementById('ops');
+
+  var op = 'and';
+  var OPNAME = {and:'与 AND', or:'或 OR', xor:'异或 XOR', shl:'左移 <<', shr:'右移 >>', not:'取反 NOT'};
+
+  function parse(s){
+    if (!s) return {ok:false};
+    s = String(s).trim().replace(/[\s_]/g, '').replace(/^＋/, '+');
+    var neg = false;
+    if (s[0] === '-'){ neg = true; s = s.slice(1); }
+    var base = 10, body = s;
+    if (/^0[xX]/.test(s)){ base = 16; body = s.slice(2); }
+    else if (/^0[bB]/.test(s)){ base = 2; body = s.slice(2); }
+    else if (/^0[oO]/.test(s)){ base = 8; body = s.slice(2); }
+    else if (/^#/.test(s)){ base = 16; body = s.slice(1); }
+    if (!body) return {ok:false};
+    var digits = '0123456789abcdefghijklmnopqrstuvwxyz'.slice(0, base);
+    for (var i = 0; i < body.length; i++){
+      if (digits.indexOf(body[i].toLowerCase()) < 0) return {ok:false, bad:body[i], base:base};
+    }
+    try {
+      var v = BigInt((base === 16 ? '0x' : base === 8 ? '0o' : base === 2 ? '0b' : '') + body);
+      return {ok:true, v: neg ? -v : v, base:base};
+    } catch(e){ return {ok:false}; }
+  }
+
+  function group(s, n, sep){
+    sep = sep === undefined ? ',' : sep;
+    var sign = s[0] === '-' ? '-' : '';
+    if (sign) s = s.slice(1);
+    var out = '', c = 0;
+    for (var i = s.length - 1; i >= 0; i--){
+      out = s[i] + out;
+      if (++c % n === 0 && i > 0) out = sep + out;
+    }
+    return sign + out;
+  }
+
+  function fmt(v, base){
+    var neg = v < 0n;
+    var s = (neg ? -v : v).toString(base).toUpperCase();
+    return (neg ? '-' : '') + s;
+  }
+
+  var cells = {};
+  function buildRows(){
+    var defs = [
+      ['dec', '十进制', '十进制'],
+      ['hex', '十六进制', 'hex'],
+      ['bin', '二进制', 'bin'],
+      ['oct', '八进制', 'oct']
+    ];
+    rows.innerHTML = defs.map(function(d){
+      return '<div class="row"><span class="k">' + d[1] + '</span>' +
+        '<span class="v" id="v-' + d[0] + '">—</span>' +
+        '<button class="cp" data-k="' + d[0] + '" type="button">复制</button></div>';
+    }).join('');
+    ['dec','hex','bin','oct'].forEach(function(k){ cells[k] = document.getElementById('v-' + k); });
+
+    rows.addEventListener('click', function(e){
+      var b = e.target.closest ? e.target.closest('.cp') : null;
+      if (!b) return;
+      var v = cells[b.getAttribute('data-k')].textContent.replace(/[,\s]/g, '');
+      if (v === '—') return;
+      copyText(v);
+      b.textContent = '已复制'; b.className = 'cp done';
+      setTimeout(function(){ b.textContent = '复制'; b.className = 'cp'; }, 1200);
+    });
+  }
+
+  function renderBits(v){
+    var s = (v < 0n ? -v : v).toString(2);
+    if (s === '0') s = '0';
+    if (s.length > 64) s = s.slice(-64) + '';   // 太长就别画了，取低位 64 位看
+    var html = '';
+    for (var i = 0; i < s.length; i++){
+      html += '<i class="' + (s[i] === '1' ? 'on' : '') + '">' + s[i] + '</i>';
+    }
+    bits.innerHTML = html || '<i>0</i>';
+  }
+
+  function update(){
+    var r = parse(inEl.value);
+    err.textContent = '';
+    if (!r.ok){
+      ['dec','hex','bin','oct'].forEach(function(k){ cells[k].textContent = '—'; });
+      bits.innerHTML = '';
+      det.textContent = '';
+      var nm = {2:'二进制', 8:'八进制', 10:'十进制', 16:'十六进制'}[r.base] || '这个进制';
+      err.textContent = r.bad ? '「' + r.bad + '」不是' + nm + '里的数字' : '这个写法认不出来，换个试试';
+      return;
+    }
+    var v = r.v;
+    cells.dec.textContent = group(fmt(v, 10), 3);
+    cells.hex.textContent = fmt(v, 16);
+    cells.bin.textContent = group(fmt(v, 2), 4, ' ');
+    cells.oct.textContent = fmt(v, 8);
+    det.textContent = (v < 0n ? '负数 · ' : '') + '按' + (r.base === 10 ? '十进制' : r.base === 16 ? '十六进制' : r.base === 8 ? '八进制' : '二进制') + '读';
+    renderBits(v);
+  }
+
+  function calc(){
+    var A = parse(aEl.value), B = parse(bEl.value);
+    if (!A.ok || !B.ok){
+      res.innerHTML = '<span class="err">两个框都要填能认出来的数</span>';
+      return;
+    }
+    var x = A.v, y = B.v, out, s;
+    if (op === 'and') out = x & y;
+    else if (op === 'or') out = x | y;
+    else if (op === 'xor') out = x ^ y;
+    else if (op === 'not') out = 0xFFFFFFFFn - (x & 0xFFFFFFFFn);
+    else if (op === 'shl') out = x << (y < 0n ? -y : y);
+    else out = x >> (y < 0n ? -y : y);
+
+    s = '<div><span class="lbl">结果</span><code>' + out.toString() + '</code></div>' +
+        '<div><span class="lbl">十六进制</span><code>0x' + (out < 0n ? '-' : '') + fmt(out, 16).replace('-','') + '</code></div>' +
+        '<div><span class="lbl">二进制</span><code>' + group(fmt(out, 2), 4, ' ') + '</code></div>';
+    if (out >= 0n && out <= 0x10FFFFn){
+      var cp = Number(out), ch = '';
+      // 只认确定能显示的区段，未分配码位（如 U+FF00）画出来是豆腐块
+      var okc = (cp >= 0x21 && cp <= 0x7e) || (cp >= 0x4e00 && cp <= 0x9fff) ||
+                (cp >= 0x3001 && cp <= 0x303f) || (cp >= 0xff01 && cp <= 0xff5e) ||
+                (cp >= 0x1f300 && cp <= 0x1faff);
+      if (okc){ try { ch = String.fromCodePoint(cp); } catch(e){ ch = ''; } }
+      if (ch) s += '<div><span class="lbl">对应字符</span><code>' + ch + '</code></div>';
+    }
+    res.innerHTML = s;
+    opName.textContent = OPNAME[op];
+  }
+
+  ops.addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('button[data-op]') : null;
+    if (!b) return;
+    op = b.getAttribute('data-op');
+    Array.prototype.forEach.call(ops.querySelectorAll('button'), function(o){ o.className = ''; });
+    b.className = 'on';
+    calc();
+  });
+
+  inEl.addEventListener('input', update);
+  aEl.addEventListener('input', calc);
+  bEl.addEventListener('input', calc);
+
+  buildRows();
+  update();
+  calc();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

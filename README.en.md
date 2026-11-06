@@ -1,6 +1,6 @@
-# toolbox — twenty-four small tools that open and work
+# toolbox — twenty-seven small tools that open and work
 
-> Twenty-four tiny tools in one static site: JSON formatter, text tidier, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming-convention converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR codes, image compressor, CSV-to-table, CJK/Latin spacing, word count, URL dissector, subnet calculator, mojibake repair and a Markdown preview. No backend, no ports.
+> Twenty-seven tiny tools in one static site: JSON formatter, text tidier, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming-convention converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR codes, image compressor, image-to-WebP batch converter, base converter with bit ops, image-to-Data-URI, CSV-to-table, CJK/Latin spacing, word count, URL dissector, subnet calculator, mojibake repair and a Markdown preview. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -40,6 +40,12 @@ Fifth round (twenty to twenty-four), a set about converting and repairing:
 - **Percentage**: four live panels side by side — discount (price plus discount rate gives what you pay and what you save), change (old to new gives percent and multiple), share (part over whole gives percent and how far from 100%), and increase (base plus percent, negative to subtract). A zero denominator explains itself instead of printing Infinity.
 - **Mojibake repair**: paste garbage and it tries UTF-8 read as Latin-1, GBK read as Latin-1, Big5 read as Latin-1 and GBK read as UTF-8, ranks the results by how much readable CJK they contain, highlights the best guess and copies it on click; URL encoding, HTML entities and backslash-u escapes are decoded too. It is honest about the hopeless case: strings containing replacement characters lost their original bytes during the bad conversion, and the page says so rather than pretending.
 - **Markdown preview**: write on the left, see the page on the right — headings, bold/italic/strikethrough, inline code, fenced code (escaped as text, never rendered as tags), ordered and unordered lists with one level of nesting, quotes, tables (leading and trailing pipes optional), rules, links and images. Then copy the HTML, copy the text, or download a standalone page with inline styles.
+
+Sixth round (twenty-four to twenty-seven):
+
+- **Image to WebP**: drop JPG / PNG / BMP / AVIF / SVG (with explicit width and height) and every one is encoded in the browser through canvas — quality 50–100, optional maximum edge, automatic re-encode when you change either. Transparency is preserved instead of flattened to white, EXIF orientation is honoured via `imageOrientation: 'from-image'`, and the queue converts one file at a time so a 20 MP photo cannot blow up memory. Two sample images (a photo and a transparent circle) are drawn at load time so the size difference is visible immediately.
+- **Base converter**: one field understands `0x` / `0b` / `0o` / `#` prefixes and stores values as BigInt, so digit count is unbounded. Decimal gets thousands separators, binary is grouped in fours, and every row copies. A bit strip highlights the ones, and a row of bitwise operations (and, or, xor, shifts, unsigned 32-bit not) reports the result in decimal, hex and binary, appending the character when the code point lands somewhere printable.
+- **Image to Data URI**: small images become a string you can paste into HTML or CSS — four formats (full URI, bare base64, CSS background, img tag) with a copy button, the inflation factor spelled out and a warning past 30 KB. Going the other way, paste a data URI or bare base64 and it rebuilds the image for download, guessing JPEG / GIF / WebP / PNG from magic bytes when the prefix is missing.
 
 ## Features
 

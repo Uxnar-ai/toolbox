@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>图片转 WebP</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); min-width:0}
+  .box h2{
+    margin:0; padding:8px 12px; font-size:12.5px; font-weight:600; letter-spacing:.3px;
+    color:var(--dim); border-bottom:1px solid var(--line); background:var(--soft);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .box .pad{padding:12px}
+  #drop{
+    border:2px dashed var(--line); border-radius:var(--radius); padding:26px 16px; text-align:center;
+    cursor:pointer; transition:border-color .15s, background .15s;
+  }
+  #drop.on{border-color:var(--accent); background:var(--soft)}
+  #drop b{font-size:15px}
+  #drop p{margin:6px 0 0; font-size:12.5px; color:var(--dim); line-height:1.6}
+  .opts{display:grid; gap:10px; margin-top:12px}
+  .opt{display:flex; align-items:center; gap:10px; font-size:13px; min-width:0}
+  .opt label{flex:0 0 62px; color:var(--dim)}
+  .opt input[type=range]{flex:1 1 auto; accent-color:var(--accent); min-width:60px}
+  .opt select{
+    flex:1 1 auto; min-width:0; padding:5px 8px; border-radius:8px; font:13px inherit;
+    border:1px solid var(--line2, var(--line)); background:var(--card); color:var(--fg);
+  }
+  .opt .num{flex:0 0 52px; text-align:right; font:13px ui-monospace,monospace; color:var(--dim)}
+  .picks{display:flex; gap:6px; flex-wrap:wrap; margin-top:12px}
+  .picks .chip{padding:5px 11px; font-size:12.5px}
+  .picks .chip.quick{border-color:var(--accent); color:var(--accent)}
+  .list{display:grid; gap:8px}
+  .row{
+    display:grid; grid-template-columns:44px minmax(0,1fr) auto; gap:10px; align-items:center;
+    border:1px solid var(--line); border-radius:9px; padding:8px; min-width:0;
+  }
+  .th{width:44px; height:44px; object-fit:cover; border-radius:6px; background:var(--soft); display:block}
+  .th.ph{display:flex; align-items:center; justify-content:center; color:var(--dim); font-size:11px}
+  .info{min-width:0}
+  .nm{font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .sub{font-size:12px; color:var(--dim); line-height:1.6; overflow:hidden; text-overflow:ellipsis}
+  .sub .save{color:var(--ok); font-weight:600; white-space:nowrap}
+  .sub .grow{color:var(--err); font-weight:600; white-space:nowrap}
+  .btn{
+    padding:7px 12px; border-radius:8px; border:1px solid var(--accent); color:var(--accent);
+    background:transparent; font:600 12.5px/1 inherit; text-decoration:none; white-space:nowrap;
+  }
+  .btn:hover{background:var(--accent); color:var(--accent-fg)}
+  .empty{color:var(--dim); font-size:13px; padding:6px 2px}
+  @media (max-width:520px){
+    .opt label{flex:0 0 54px}
+    .row{padding:7px; gap:8px}
+    .th{width:38px; height:38px}
+    .btn{padding:7px 9px; font-size:12px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>图片转 WebP</h1>
+      <p class="lede">JPEG / PNG / BMP / AVIF / SVG 拖进来，直接变成 WebP 下载，画质自己调，图片不离开你的电脑。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="box">
+    <h2><span>放图片</span><span id="cnt">还没选</span></h2>
+    <div class="pad">
+      <div id="drop">
+        <b>把图片拖到这里，或点一下选（可多张）</b>
+        <p>JPG / PNG / BMP / AVIF / SVG（SVG 要写死宽高）· 不上传，刷新就清空</p>
+      </div>
+      <input type="file" id="file" multiple
+             accept=".jpg,.jpeg,.png,.bmp,.avif,.svg,image/jpeg,image/png,image/bmp,image/avif,image/svg+xml"
+             style="display:none">
+
+      <div class="opts">
+        <div class="opt">
+          <label for="quality">质量</label>
+          <input type="range" id="quality" min="50" max="100" step="1" value="82">
+          <span class="num" id="qN">82</span>
+        </div>
+        <div class="opt">
+          <label for="maxside">最大长边</label>
+          <select id="maxside">
+            <option value="0">不缩小</option>
+            <option value="2000">2000 px</option>
+            <option value="1600">1600 px</option>
+            <option value="1200">1200 px</option>
+            <option value="800">800 px</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="picks">
+        <button class="chip quick" id="demo" type="button">用示例图试试</button>
+        <button class="chip" id="all" type="button">全部下载</button>
+        <button class="chip" id="clear" type="button">清空</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="box" style="margin-top:12px">
+    <h2><span>转换结果</span><span id="sum"></span></h2>
+    <div class="pad"><div class="list" id="list"></div></div>
+  </div>
+
+  <footer>全部在你自己浏览器里算，图片不上传；透明背景会保留，浅色深色都跟系统走。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var drop   = document.getElementById('drop'),
+      fileIn = document.getElementById('file'),
+      list   = document.getElementById('list'),
+      cnt    = document.getElementById('cnt'),
+      sum    = document.getElementById('sum'),
+      qRange = document.getElementById('quality'),
+      qN     = document.getElementById('qN'),
+      msSel  = document.getElementById('maxside');
+
+  var items = [];       // {file, name, url, thumb, out, err, done}
+  var busy = false;
+  var webpOK = true;
+
+  function kb(n){
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n/1024).toFixed(1) + ' KB';
+    return (n/1048576).toFixed(2) + ' MB';
+  }
+  function baseName(n){ return String(n || 'image').replace(/\.[^.]+$/, '') || 'image'; }
+  function shortName(n){ return n.length > 34 ? n.slice(0, 32) + '…' : n; }
+
+  // ---------- 取像素 ----------
+  function loadBitmap(file){
+    return new Promise(function(res, rej){
+      if (window.createImageBitmap){
+        createImageBitmap(file, {imageOrientation:'from-image'}).then(res, fallback);
+      } else fallback();
+
+      function fallback(){
+        var u = URL.createObjectURL(file), im = new Image();
+        im.onload = function(){
+          if (!im.naturalWidth || !im.naturalHeight){ rej(new Error('这张图读不出尺寸')); return; }
+          res(im);
+        };
+        im.onerror = function(){ rej(new Error('浏览器读不了这个格式')); };
+        im.src = u;
+      }
+    });
+  }
+
+  function loadSvg(file){
+    return new Promise(function(res, rej){
+      var u = URL.createObjectURL(file), im = new Image();
+      im.onload = function(){
+        if (!im.naturalWidth || !im.naturalHeight){
+          rej(new Error('这张 SVG 没写死宽高，读不出尺寸')); return;
+        }
+        res(im);
+      };
+      im.onerror = function(){ rej(new Error('这个 SVG 打不开')); };
+      im.src = u;
+    });
+  }
+
+  function pickLoader(file){
+    var isSvg = /svg/i.test(file.type) || /\.svg$/i.test(file.name);
+    return isSvg ? loadSvg(file) : loadBitmap(file);
+  }
+
+  // ---------- 转一张 ----------
+  function convert(item){
+    item.state = 'run';
+    return pickLoader(item.file).then(function(img){
+      var w0 = img.width, h0 = img.height;
+      var cap = +msSel.value;
+      var k = cap ? Math.min(1, cap / Math.max(w0, h0)) : 1;
+      var w = Math.max(1, Math.round(w0 * k)), h = Math.max(1, Math.round(h0 * k));
+
+      var c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      var x = c.getContext('2d');
+      x.imageSmoothingQuality = 'high';
+      x.drawImage(img, 0, 0, w, h);
+
+      var q = (+qRange.value) / 100;
+      return new Promise(function(res){
+        c.toBlob(function(b){
+          if (!b){ item.err = '导出失败'; item.state = 'err'; res(); return; }
+          if (b.type !== 'image/webp'){
+            webpOK = false;
+            item.err = '这个浏览器不支持导出 WebP'; item.state = 'err'; res(); return;
+          }
+          if (item.url) URL.revokeObjectURL(item.url);
+          item.url = URL.createObjectURL(b);
+          item.out = {w:w, h:h, size:b.size, url:item.url};
+          item.thumb = item.url;
+          item.state = 'ok';
+          res();
+        }, 'image/webp', q);
+      });
+    }).catch(function(e){
+      item.err = (e && e.message) || '转换失败';
+      item.state = 'err';
+    });
+  }
+
+  // ---------- 渲染 ----------
+  function rowHTML(it, i){
+    var sub, btn = '';
+    if (it.state === 'ok'){
+      var d = it.sizeIn ? (1 - it.out.size / it.sizeIn) * 100 : 0;
+      var cls = d > 0 ? 'save' : 'grow';
+      var word = d > 0 ? '省 ' + d.toFixed(0) + '%' : '大了 ' + Math.abs(d).toFixed(0) + '%';
+      sub = it.out.w + '×' + it.out.h + ' · ' + kb(it.sizeIn) + ' → ' + kb(it.out.size) +
+            ' · <span class="' + cls + '">' + word + '</span>';
+      btn = '<a class="btn" href="' + it.out.url + '" download="' + baseName(it.name) + '.webp">下载</a>';
+    } else if (it.state === 'run'){
+      sub = '正在转…';
+    } else if (it.state === 'err'){
+      sub = '<span class="grow">' + it.err + '</span>';
+    } else {
+      sub = '排队中';
+    }
+    var th = it.thumb
+      ? '<img class="th" alt="" src="' + it.thumb + '">'
+      : '<div class="th ph">' + (it.state === 'err' ? '✕' : '…') + '</div>';
+    return '<div class="row">' + th +
+      '<div class="info"><div class="nm" title="' + it.name + '">' + shortName(it.name) + '</div>' +
+      '<div class="sub">' + sub + '</div></div>' + btn + '</div>';
+  }
+
+  function paint(){
+    if (!items.length){
+      list.innerHTML = '<div class="empty">还没有图片。拖一张进来，或者点上面的「用示例图试试」。</div>';
+    } else {
+      list.innerHTML = items.map(rowHTML).join('');
+    }
+    var ok = items.filter(function(i){ return i.state === 'ok'; });
+    var inB = 0, outB = 0;
+    ok.forEach(function(i){ inB += i.sizeIn; outB += i.out.size; });
+    cnt.textContent = items.length ? items.length + ' 张' : '还没选';
+    sum.textContent = ok.length
+      ? ok.length + '/' + items.length + ' 已转好 · ' + kb(inB) + ' → ' + kb(outB)
+      : '';
+    document.getElementById('all').disabled = !ok.length;
+  }
+
+  // ---------- 队列：一张一张来，别把内存吃爆 ----------
+  function pump(){
+    if (busy) return;
+    var next = items.filter(function(i){ return i.state === 'wait'; })[0];
+    if (!next) return;
+    busy = true;
+    convert(next).then(function(){
+      busy = false;
+      paint();
+      pump();
+    });
+  }
+
+  function addFiles(files){
+    var added = 0;
+    Array.prototype.forEach.call(files, function(f){
+      if (!f) return;
+      items.push({file:f, name:f.name, sizeIn:f.size, state:'wait'});
+      added++;
+    });
+    if (!added) return;
+    paint();
+    pump();
+  }
+
+  function clearAll(){
+    items.forEach(function(i){ if (i.url) URL.revokeObjectURL(i.url); });
+    items = [];
+    paint();
+  }
+
+  // ---------- 示例图（现画，不联网） ----------
+  function canvasFile(w, h, png){
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    var x = c.getContext('2d');
+    if (png){
+      x.clearRect(0, 0, w, h);
+      var g = x.createRadialGradient(w/2, h/2, 10, w/2, h/2, w/2);
+      g.addColorStop(0, '#2f6df6'); g.addColorStop(1, '#7aa7ff');
+      x.fillStyle = g;
+      x.beginPath(); x.arc(w/2, h/2, w*0.42, 0, 6.3); x.fill();
+      x.fillStyle = '#fff';
+      x.font = '700 ' + Math.round(w*0.1) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+      x.textAlign = 'center';
+      x.fillText('透明背景', w/2, h*0.56);
+    } else {
+      var g2 = x.createLinearGradient(0, 0, w, h);
+      g2.addColorStop(0, '#2f6df6'); g2.addColorStop(.5, '#7aa7ff'); g2.addColorStop(1, '#1f7a4d');
+      x.fillStyle = g2; x.fillRect(0, 0, w, h);
+      x.globalAlpha = .18; x.fillStyle = '#fff';
+      for (var i = 0; i < 40; i++){
+        x.beginPath();
+        x.arc(Math.random()*w, Math.random()*h, 20 + Math.random()*120, 0, 6.3);
+        x.fill();
+      }
+      x.globalAlpha = 1;
+      x.fillStyle = '#fff';
+      x.textAlign = 'center';
+      x.font = '700 ' + Math.round(w*0.075) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+      x.fillText('示例大图 ' + w + '×' + h, w/2, h*0.52);
+      x.font = '400 ' + Math.round(w*0.036) + 'px "PingFang SC","Microsoft YaHei",sans-serif';
+      x.fillText('换成你自己的照片试试', w/2, h*0.6);
+    }
+    var mime = png ? 'image/png' : 'image/jpeg';
+    return new Promise(function(res){
+      c.toBlob(function(b){
+        res(new File([b], png ? '示例-透明图.png' : '示例照片-1600x1000.jpg', {type:mime}));
+      }, mime, png ? undefined : .92);
+    });
+  }
+
+  function demo(){
+    Promise.all([canvasFile(1600, 1000, false), canvasFile(700, 700, true)])
+      .then(function(fs){ addFiles(fs); });
+  }
+
+  // ---------- 交互 ----------
+  drop.addEventListener('click', function(){ fileIn.click(); });
+  fileIn.addEventListener('change', function(){
+    addFiles(this.files);
+    this.value = '';
+  });
+  ['dragenter','dragover'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.className = 'on'; });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.className = ''; });
+  });
+  drop.addEventListener('drop', function(e){
+    if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+  });
+
+  var timer = null;
+  function redoAll(){
+    if (!items.some(function(i){ return i.state === 'ok'; })) return;
+    items.forEach(function(i){
+      if (i.state === 'ok' || i.state === 'err'){
+        if (i.out) { i.state = 'wait'; }   // 改参数后重转
+        else i.state = 'wait';
+      }
+    });
+    paint(); pump();
+  }
+  qRange.addEventListener('input', function(){
+    qN.textContent = qRange.value;
+    clearTimeout(timer); timer = setTimeout(redoAll, 260);
+  });
+  msSel.addEventListener('change', redoAll);
+
+  document.getElementById('demo').addEventListener('click', demo);
+  document.getElementById('clear').addEventListener('click', clearAll);
+  document.getElementById('all').addEventListener('click', function(){
+    var links = list.querySelectorAll('a.btn');
+    if (!links.length) return;
+    Array.prototype.forEach.call(links, function(a, i){
+      setTimeout(function(){ a.click(); }, i * 260);
+    });
+  });
+
+  paint();
+  demo();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
