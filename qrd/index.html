@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>二维码识别</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); min-width:0}
+  .box h2{
+    margin:0; padding:8px 12px; font-size:12.5px; font-weight:600; letter-spacing:.3px;
+    color:var(--dim); border-bottom:1px solid var(--line); background:var(--soft);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .box .pad{padding:12px}
+  .panes{display:grid; gap:12px}
+  @media (min-width:900px){ .panes{grid-template-columns:1fr 1fr} }
+  #drop{
+    border:2px dashed var(--line); border-radius:var(--radius); padding:20px 14px; text-align:center;
+    cursor:pointer; transition:border-color .15s, background .15s;
+  }
+  #drop.on{border-color:var(--accent); background:var(--soft)}
+  #drop b{font-size:14px}
+  #drop p{margin:6px 0 0; font-size:12.5px; color:var(--dim); line-height:1.6}
+  #file{display:none}
+  .prev{
+    margin-top:12px; border:1px solid var(--line); border-radius:9px; min-height:120px;
+    display:flex; align-items:center; justify-content:center; padding:10px; background:var(--soft);
+  }
+  .prev img{max-width:100%; max-height:200px; border-radius:6px; display:block}
+  .meta{font-size:12.5px; color:var(--dim); margin-top:8px; line-height:1.7; word-break:break-all}
+  .meta b{color:var(--fg)}
+  .toolbar{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px}
+  .toolbar button, .rt button{
+    padding:5px 11px; border-radius:999px; border:1px solid var(--line2, var(--line));
+    background:transparent; color:var(--fg); font:600 12.5px/1 inherit; cursor:pointer;
+  }
+  .toolbar button:hover, .rt button:hover{border-color:var(--accent); color:var(--accent)}
+  .rt{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px}
+  .rt li{border:1px solid var(--line); border-radius:9px; background:var(--soft); padding:10px 11px}
+  .rh{display:flex; align-items:center; gap:8px; margin-bottom:7px}
+  .tag{
+    font-size:11.5px; font-weight:600; color:var(--accent); background:var(--card);
+    border:1px solid var(--line); border-radius:999px; padding:2px 8px;
+  }
+  .rh .n{font-size:12px; color:var(--dim); flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .rv{
+    font:13px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--fg);
+    white-space:pre-wrap; word-break:break-all; max-height:150px; overflow:auto;
+  }
+  .rv a{color:var(--accent)}
+  .empty{font-size:13px; color:var(--dim); padding:16px 4px; line-height:1.8}
+  .warn{color:var(--err); font-size:12.5px; margin-top:8px; min-height:17px}
+  .hint{font-size:12px; color:var(--dim); margin:12px 0 0; line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>二维码识别</h1>
+      <p class="lede">截图或照片里有二维码？拖进来，直接读出里面的文字和链接。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <h2><span>图片 → 内容</span><span id="stat">示例图</span></h2>
+      <div class="pad">
+        <div id="drop">
+          <b>拖进来、点一下选，或者直接 Ctrl+V 粘贴截图</b>
+          <p>一次可以选多张。模糊、倾斜、反色都会试一遍。</p>
+        </div>
+        <input type="file" id="file" accept="image/*" multiple>
+        <div class="prev" id="prev"><img id="shot" alt="示例二维码"></div>
+        <div class="meta" id="meta">—</div>
+        <div class="warn" id="warn"></div>
+        <div class="toolbar">
+          <button id="pick" type="button">换一张</button>
+          <button id="again" type="button">再读一次</button>
+          <button id="loadDemo" type="button">看示例</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="box">
+      <h2><span>读出来的内容</span><span id="count">0 条</span></h2>
+      <div class="pad">
+        <ul class="rt" id="list"></ul>
+        <div class="empty" id="empty">还没有结果。左边的示例图读出来是一条「工具台」的地址。</div>
+        <p class="hint">整页截图里的小码不好认，裁近一点再拖成功率最高；纯二维码图片几乎都能读出来。</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>图片只在你的浏览器里解码，不上传。用的是开源 jsQR。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script src="../assets/qrd/jsQR.js"></script>
+<script>
+(function(){
+  var drop = document.getElementById('drop'), fileIn = document.getElementById('file'),
+      shot = document.getElementById('shot'), prev = document.getElementById('prev'),
+      meta = document.getElementById('meta'), warn = document.getElementById('warn'),
+      stat = document.getElementById('stat'), list = document.getElementById('list'),
+      count = document.getElementById('count'), empty = document.getElementById('empty');
+
+  var SAMPLE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASgAAAEoCAIAAABkZftOAAAElklEQVR42u3dwWocSwyG0b9D3v+VnXUWxgyULKn6nHW4Hs/1RzUIdT1fX18BftcfXwEID4QHCA+EBwgPhAcID4QHCA+EB8IDhAfCA4QHwgOEB8IDhAfCA+EBwgPhAcID4QHCA+EBwgPhgfAA4cF9/lb/gOd5VnwR390T+N3n7/r305z6fbf8PTjxwKMmIDwQHiA8EB4ID8glc7w0zUlyaK64ZZ7WNWc79f1s+Xtw4oFHTUB4IDxAeCA8EB6Qy+d4KZ6rVM+FTu3RVe/1VX9+fw9OPPCoCQgPhAfCA4QHwgPyijlels8Vu97DmeK51tv2GJ14IDxAeCA8QHggPEB4EHO8q1Tvy536uZ/OD7ffd+fEA4QHwgPhAcID4QHCg5jj5ab3H576nNVzsFPvyZw2l7t1r8+JB8ID4QHCA+EBwgPhARk6x7t1j2vLvXlb5pBOPEB4IDxAeCA8QHggPIg5XuxT5dfndVve81m9l+jEA4QHwgOEB8IDhAfCA/7zVM9Vquddp/bTsnyelkvnhNVzxa55rBMPPGqC8ADhgfAA4YHwgAyd42XY/ljXftrb9hK3zC3N8cCjJiA8EB4gPBAeIDzI5XO8LfO9LNkTq55bdn3OrnmafTzwqAkID4QHCA+EBwgP8tL78bJ8bnZqDtY1l/v05376e02bE26Z9zrxQHggPEB4IDxAeCA8IEP38br2u1I8/+maU3V9z9VzvO17d0488KgJwgOEB8IDhAfCA7LsfrxpP7f637/tXkH34znxwKMmIDwQHggPEB4ID8hV79WcNn+rfj/kp++rzPL9wy33BDrxwKMmIDwQHiA8EB4gPMjlc7wte2K5dM9w2nxy2v2HTjzwqAkID4QHCA+EBwgPYh8vE+Z+1Xtx1Z+za07Vtcc4bR7oxAOPmoDwQHiA8EB4IDwgl8zxqve1uu6jy/L72bru36v+nrfsEzrxwKMmCA8QHggPEB4ID/jB07WPtOX+va65WZr2G6e9d3TL/YdOPPCoCQgPhAfCA4QHwgNy+Xs1M2yek0Nzs675Vdf7SDNsP9P9eIDwQHggPEB4IDxAeBD7eCv30Ka9p3Havty0OZj3agLCA+EBwgPhgfAA4UHs42XyPW/b5zyn7pfr2jPc8n5OJx4gPBAeCA8QHggPEB7EHC9v2OOatge45f9j9b7ilu/TiQfCA+EBwgPhAcID4QEZej9e11xly3s1T/33T92nN20+ueX9mU488KgJwgOEB8IDhAfCA7Jsjpfiva9p73Ws3ks89TlPzeu2/L7uxwOPmoDwQHiA8EB4gPAg5ngrdd0Ld+v35nM68cCjJggPEB4IDxAeCA+IOV7mz/e63mNZvafX9X7RNO31OfHAoyYgPBAeCA8QHggPyOVzvC17XNXzt2n3xW25V7Dr+3figUdNQHggPBAeIDwQHpBL5njT5ipb7uurfs9n1712adqX815N8KgJCA+EBwgPhAcID4Z63OcGTjwQHiA8EB4gPBAeIDwQHiA8EB4IDxAeCA8QHggPEB4IDxAeCA+EBwgPhAcID4QHCA+EBwgPhAfCA4QHwgMO+Af7/kVZm0tHVAAAAABJRU5ErkJggg==';
+  var items = [];      // [{text, type}]
+  var busy = false;
+
+  function row(tag, note, text, url){
+    var li = document.createElement('li');
+    var rh = document.createElement('div'); rh.className = 'rh';
+    var t = document.createElement('span'); t.className = 'tag'; t.textContent = tag;
+    var n = document.createElement('span'); n.className = 'n'; n.textContent = note;
+    var btn = document.createElement('button'); btn.type = 'button'; btn.textContent = '复制';
+    btn.addEventListener('click', function(){ copyText(text, btn, '复制'); });
+    rh.appendChild(t); rh.appendChild(n);
+    if (url){
+      var a = document.createElement('a');
+      a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      a.textContent = '打开'; a.style.fontSize = '12.5px'; a.style.fontWeight = '600';
+      rh.appendChild(a);
+    }
+    rh.appendChild(btn);
+    var rv = document.createElement('div'); rv.className = 'rv';
+    if (url){
+      var link = document.createElement('a');
+      link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+      link.textContent = text;
+      rv.appendChild(link);
+    } else {
+      rv.textContent = text;
+    }
+    li.appendChild(rh); li.appendChild(rv);
+    return li;
+  }
+
+  function paint(){
+    list.innerHTML = '';
+    items.forEach(function(it, i){
+      list.appendChild(row(it.url ? '链接' : '文字', '#' + (i + 1) + ' · ' + it.size, it.text, it.url));
+    });
+    count.textContent = items.length + ' 条';
+    empty.style.display = items.length ? 'none' : '';
+  }
+
+  function isUrl(s){
+    return /^(https?:\/\/|www\.)\S+$/i.test(s.trim());
+  }
+
+  /* 把图片画进 canvas 取像素；大图缩到 maxSide 以减少耗时 */
+  function pixels(img, maxSide){
+    var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    if (!w || !h) return null;
+    var s = Math.min(1, maxSide / Math.max(w, h));
+    var cw = Math.max(1, Math.round(w * s)), ch = Math.max(1, Math.round(h * s));
+    var cv = document.createElement('canvas');
+    cv.width = cw; cv.height = ch;
+    var x = cv.getContext('2d', {willReadFrequently: true});
+    x.drawImage(img, 0, 0, cw, ch);
+    try { return {d: x.getImageData(0, 0, cw, ch), w: cw, h: ch}; }
+    catch (e) { return null; }
+  }
+
+  function decode(img){
+    var sizes = [1100, 2000];
+    for (var i = 0; i < sizes.length; i++){
+      var p = pixels(img, sizes[i]);
+      if (!p) return null;
+      var r = null;
+      try { r = jsQR(p.d.data, p.w, p.h, {inversionAttempts: 'attemptBoth'}); } catch (e) { r = null; }
+      if (r && r.data) return {text: r.data, w: img.naturalWidth, h: img.naturalHeight};
+    }
+    return null;
+  }
+
+  function handle(img, label, keep){
+    busy = true;
+    stat.textContent = '识别中…';
+    setTimeout(function(){
+      var t0 = Date.now();
+      var r = decode(img);
+      var ms = Date.now() - t0;
+      if (keep){
+        // 只有最后一张留在左栏当预览，避免一多张时闪来闪去
+        shot.src = img.src;
+        prev.style.display = '';
+        meta.innerHTML = '<b>' + (img.naturalWidth || '?') + ' × ' + (img.naturalHeight || '?') + '</b> · ' + label +
+          ' · 用时 ' + ms + ' ms';
+      }
+      if (r){
+        warn.textContent = '';
+        items.unshift({
+          text: r.text, url: isUrl(r.text) ? (/^www\./i.test(r.text) ? 'https://' + r.text : r.text.trim()) : '',
+          size: r.w + '×' + r.h
+        });
+        stat.textContent = '读到了';
+        paint();
+      } else {
+        stat.textContent = '没读到';
+        warn.textContent = '这张没读出来。二维码太小、太糊或者不是标准二维码时都会这样。';
+      }
+      busy = false;
+    }, 30);
+  }
+
+  function fromFile(file, keep){
+    if (!file) return;
+    if (!/^image\//.test(file.type)){ warn.textContent = '这个不是图片文件'; return; }
+    var fr = new FileReader();
+    fr.onload = function(){
+      var im = new Image();
+      im.onload = function(){ handle(im, file.name.length > 20 ? file.name.slice(0, 18) + '…' : file.name, keep); };
+      im.onerror = function(){ warn.textContent = '浏览器读不了这个格式'; };
+      im.src = String(fr.result);
+    };
+    fr.onerror = function(){ warn.textContent = '文件读不出来'; };
+    fr.readAsDataURL(file);
+  }
+
+  function loadDemo(){
+    items = [];
+    paint();
+    warn.textContent = '';
+    var im = new Image();
+    im.onload = function(){
+      prev.style.display = '';
+      shot.src = SAMPLE;
+      handle(im, '示例图', false);
+      meta.innerHTML = '<b>' + im.naturalWidth + ' × ' + im.naturalHeight + '</b> · 示例图';
+      stat.textContent = '示例图';
+    };
+    im.src = SAMPLE;
+  }
+
+  drop.addEventListener('click', function(){ fileIn.click(); });
+  document.getElementById('pick').addEventListener('click', function(){ fileIn.click(); });
+  document.getElementById('again').addEventListener('click', function(){
+    var im = new Image();
+    im.onload = function(){ items = []; handle(im, '再读一次', true); };
+    im.src = shot.src;
+  });
+  document.getElementById('loadDemo').addEventListener('click', loadDemo);
+
+  fileIn.addEventListener('change', function(){
+    var fs = this.files;
+    if (fs && fs.length){
+      for (var i = 0; i < fs.length; i++) fromFile(fs[i], i === fs.length - 1);
+    }
+    this.value = '';
+  });
+
+  ['dragenter', 'dragover'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.className = 'on'; });
+  });
+  ['dragleave', 'drop'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.className = ''; });
+  });
+  drop.addEventListener('drop', function(e){
+    var fs = e.dataTransfer && e.dataTransfer.files;
+    if (fs && fs.length){
+      for (var i = 0; i < fs.length; i++) fromFile(fs[i], i === fs.length - 1);
+    }
+  });
+
+  // 截图直接粘进来最顺手
+  document.addEventListener('paste', function(e){
+    var d = e.clipboardData;
+    if (!d) return;
+    var files = [];
+    if (d.items){
+      for (var i = 0; i < d.items.length; i++){
+        var it = d.items[i];
+        if (it.kind === 'file' && /^image\//.test(it.type)){
+          var f = it.getAsFile();
+          if (f) files.push(f);
+        }
+      }
+    }
+    if (files.length){
+      e.preventDefault();
+      files.forEach(function(f, i){ fromFile(f, i === files.length - 1); });
+    }
+  });
+
+  loadDemo();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

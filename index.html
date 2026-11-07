@@ -45,6 +45,18 @@
   .searchbar input:focus{ outline:2px solid var(--accent); outline-offset:-1px }
   .searchbar input::placeholder{ color:var(--dim) }
   .searchbar span{ font-size:12px; color:var(--dim); white-space:nowrap }
+  .chips{ display:flex; gap:7px; flex-wrap:wrap }
+  a.chip{
+    display:inline-flex; align-items:center; gap:7px; text-decoration:none; color:var(--fg);
+    background:var(--card); border:1px solid var(--line); border-radius:999px;
+    padding:6px 13px 6px 7px; font-size:13px; font-weight:500; white-space:nowrap;
+    transition:border-color .15s, color .15s;
+  }
+  a.chip:hover{ border-color:var(--accent); color:var(--accent) }
+  a.chip .ci{
+    font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--accent);
+    background:var(--soft); border-radius:999px; padding:4px 6px; min-width:24px; text-align:center;
+  }
 </style>
 </head>
 <body>
@@ -60,96 +72,115 @@
     <input id="q" type="search" placeholder="搜工具：表格、字数、颜色、Cron……（按 / 聚焦）" autocomplete="off">
     <span id="qinfo"></span>
   </div>
+  <div id="recent"></div>
   <div class="group">文本与数据</div>
   <div class="grid">
-    <a class="card" href="json/" data-k="json JSON 排版 粘进去就排好：缩进、压缩、查错定位到行列、键排序，全在浏览器里算。 排错定位 键排序 压缩">
+    <a class="card" href="json/" data-k="json JSON 排版 粘进去就排好：缩进、压缩、查错定位到行列、键排序，全在浏览器里算。 排错定位 键排序 压缩" data-slug="json">
       <div class="top"><span class="ico">{}</span><span class="arrow">↗</span></div>
       <h2>JSON 排版</h2>
       <p>粘进去就排好：缩进、压缩、查错定位到行列、键排序，全在浏览器里算。</p>
       <div class="tags"><span>排错定位</span><span>键排序</span><span>压缩</span></div>
     </a>
-    <a class="card" href="txt/" data-k="txt 文本整理 一堆行粘进去：去重、排序、去空行，再变成逗号串 / JSON 数组 / Markdown / SQL IN。 去重 去空行 格式转换">
+    <a class="card" href="txt/" data-k="txt 文本整理 一堆行粘进去：去重、排序、去空行，再变成逗号串 / JSON 数组 / Markdown / SQL IN。 去重 去空行 格式转换" data-slug="txt">
       <div class="top"><span class="ico">≡</span><span class="arrow">↗</span></div>
       <h2>文本整理</h2>
       <p>一堆行粘进去：去重、排序、去空行，再变成逗号串 / JSON 数组 / Markdown / SQL IN。</p>
       <div class="tags"><span>去重</span><span>去空行</span><span>格式转换</span></div>
     </a>
-    <a class="card" href="regex/" data-k="regex 正则解剖台 一条正则拆成语法树、编译成 NFA 画出来，三种引擎跑同一输入串对比步数与耗时。 语法树 NFA / DFA 三引擎">
+    <a class="card" href="regex/" data-k="regex 正则解剖台 一条正则拆成语法树、编译成 NFA 画出来，三种引擎跑同一输入串对比步数与耗时。 语法树 NFA / DFA 三引擎" data-slug="regex">
       <div class="top"><span class="ico">.*</span><span class="arrow">↗</span></div>
       <h2>正则解剖台</h2>
       <p>一条正则拆成语法树、编译成 NFA 画出来，三种引擎跑同一输入串对比步数与耗时。</p>
       <div class="tags"><span>语法树</span><span>NFA / DFA</span><span>三引擎</span></div>
     </a>
-    <a class="card" href="diff/" data-k="diff 文本对比 改前改后各粘一遍，哪行删了、哪行加了、哪几个字变了，一眼看出来。 逐行对比 字级高亮 可折叠">
+    <a class="card" href="diff/" data-k="diff 文本对比 改前改后各粘一遍，哪行删了、哪行加了、哪几个字变了，一眼看出来。 逐行对比 字级高亮 可折叠" data-slug="diff">
       <div class="top"><span class="ico">±</span><span class="arrow">↗</span></div>
       <h2>文本对比</h2>
       <p>改前改后各粘一遍，哪行删了、哪行加了、哪几个字变了，一眼看出来。</p>
       <div class="tags"><span>逐行对比</span><span>字级高亮</span><span>可折叠</span></div>
     </a>
-    <a class="card" href="codec/" data-k="codec 编码解码 Base64、网址转义、HTML 转义、\u 转义、拆 JWT，粘进去选一下就好，中文不乱码。 Base64 JWT 中文安全">
+    <a class="card" href="codec/" data-k="codec 编码解码 Base64、网址转义、HTML 转义、\u 转义、拆 JWT，粘进去选一下就好，中文不乱码。 Base64 JWT 中文安全" data-slug="codec">
       <div class="top"><span class="ico">⇄</span><span class="arrow">↗</span></div>
       <h2>编码解码</h2>
       <p>Base64、网址转义、HTML 转义、\u 转义、拆 JWT，粘进去选一下就好，中文不乱码。</p>
       <div class="tags"><span>Base64</span><span>JWT</span><span>中文安全</span></div>
     </a>
-    <a class="card" href="hash/" data-k="hash 哈希校验 文件拖进来出 MD5 / SHA-256 指纹，官方给的校验值粘进去立刻告诉你对不对。 不上传 四种算法 自动比对">
+    <a class="card" href="hash/" data-k="hash 哈希校验 文件拖进来出 MD5 / SHA-256 指纹，官方给的校验值粘进去立刻告诉你对不对。 不上传 四种算法 自动比对" data-slug="hash">
       <div class="top"><span class="ico">#</span><span class="arrow">↗</span></div>
       <h2>哈希校验</h2>
       <p>文件拖进来出 MD5 / SHA-256 指纹，官方给的校验值粘进去立刻告诉你对不对。</p>
       <div class="tags"><span>不上传</span><span>四种算法</span><span>自动比对</span></div>
     </a>
-    <a class="card" href="case/" data-k="case 命名风格转换 一行一个字段名，粘进来同时出八种写法：驼峰、下划线、连字符、常量，点一下复制。 八种写法 批量 一键复制">
+    <a class="card" href="case/" data-k="case 命名风格转换 一行一个字段名，粘进来同时出八种写法：驼峰、下划线、连字符、常量，点一下复制。 八种写法 批量 一键复制" data-slug="case">
       <div class="top"><span class="ico">aA</span><span class="arrow">↗</span></div>
       <h2>命名风格转换</h2>
       <p>一行一个字段名，粘进来同时出八种写法：驼峰、下划线、连字符、常量，点一下复制。</p>
       <div class="tags"><span>八种写法</span><span>批量</span><span>一键复制</span></div>
     </a>
-    <a class="card" href="csv/" data-k="csv CSV 转表格 一段逗号或制表符分隔的数据粘进来就成表，点表头能排序，再导出 Markdown、SQL、JSON。 自动识别分隔符 表头排序 六种导出">
+    <a class="card" href="csv/" data-k="csv CSV 转表格 一段逗号或制表符分隔的数据粘进来就成表，点表头能排序，再导出 Markdown、SQL、JSON。 自动识别分隔符 表头排序 六种导出" data-slug="csv">
       <div class="top"><span class="ico">⊞</span><span class="arrow">↗</span></div>
       <h2>CSV 转表格</h2>
       <p>一段逗号或制表符分隔的数据粘进来就成表，点表头能排序，再导出 Markdown、SQL、JSON。</p>
       <div class="tags"><span>自动识别分隔符</span><span>表头排序</span><span>六种导出</span></div>
     </a>
-    <a class="card" href="space/" data-k="space 中英混排加空格 中文里夹英文和数字的地方自动补一个空格，读起来不挤；全角字母数字也能转半角。 中英空格 全角转半角 标出改动">
+    <a class="card" href="space/" data-k="space 中英混排加空格 中文里夹英文和数字的地方自动补一个空格，读起来不挤；全角字母数字也能转半角。 中英空格 全角转半角 标出改动" data-slug="space">
       <div class="top"><span class="ico">␣</span><span class="arrow">↗</span></div>
       <h2>中英混排加空格</h2>
       <p>中文里夹英文和数字的地方自动补一个空格，读起来不挤；全角字母数字也能转半角。</p>
       <div class="tags"><span>中英空格</span><span>全角转半角</span><span>标出改动</span></div>
     </a>
-    <a class="card" href="count/" data-k="count 字数统计 边写边算：中文字数、英文词数、行数段落、大概读多久，顺带看各平台字数上限还剩多少。 实时统计 阅读时长 平台上限">
+    <a class="card" href="count/" data-k="count 字数统计 边写边算：中文字数、英文词数、行数段落、大概读多久，顺带看各平台字数上限还剩多少。 实时统计 阅读时长 平台上限" data-slug="count">
       <div class="top"><span class="ico">字</span><span class="arrow">↗</span></div>
       <h2>字数统计</h2>
       <p>边写边算：中文字数、英文词数、行数段落、大概读多久，顺带看各平台字数上限还剩多少。</p>
       <div class="tags"><span>实时统计</span><span>阅读时长</span><span>平台上限</span></div>
     </a>
-    <a class="card" href="url/" data-k="url 网址拆解 贴一条链接，域名、路径、每个参数逐段拆开；跟踪参数一键去掉，复制一条干净的。 参数拆解 去跟踪 可编辑">
+    <a class="card" href="url/" data-k="url 网址拆解 贴一条链接，域名、路径、每个参数逐段拆开；跟踪参数一键去掉，复制一条干净的。 参数拆解 去跟踪 可编辑" data-slug="url">
       <div class="top"><span class="ico">⛓</span><span class="arrow">↗</span></div>
       <h2>网址拆解</h2>
       <p>贴一条链接，域名、路径、每个参数逐段拆开；跟踪参数一键去掉，复制一条干净的。</p>
       <div class="tags"><span>参数拆解</span><span>去跟踪</span><span>可编辑</span></div>
     </a>
-    <a class="card" href="md/" data-k="md Markdown 预览 左边写 Markdown，右边立刻是排版好的样子；满意了复制 HTML 或下载成网页。 实时预览 复制 HTML 导出网页">
+    <a class="card" href="md/" data-k="md Markdown 预览 左边写 Markdown，右边立刻是排版好的样子；满意了复制 HTML 或下载成网页。 实时预览 复制 HTML 导出网页" data-slug="md">
       <div class="top"><span class="ico">M↓</span><span class="arrow">↗</span></div>
       <h2>Markdown 预览</h2>
       <p>左边写 Markdown，右边立刻是排版好的样子；满意了复制 HTML 或下载成网页。</p>
       <div class="tags"><span>实时预览</span><span>复制 HTML</span><span>导出网页</span></div>
     </a>
+    <a class="card" href="mask/" data-k="mask 文本脱敏 日志发给别人之前，先把手机号、邮箱、身份证、卡号遮掉；保留首尾几位，方便对方核对。 一键打码 逐类开关 本地算" data-slug="mask">
+      <div class="top"><span class="ico">✱</span><span class="arrow">↗</span></div>
+      <h2>文本脱敏</h2>
+      <p>日志发给别人之前，先把手机号、邮箱、身份证、卡号遮掉；保留首尾几位，方便对方核对。</p>
+      <div class="tags"><span>一键打码</span><span>逐类开关</span><span>本地算</span></div>
+    </a>
+    <a class="card" href="rpl/" data-k="rpl 正则查找替换 一段文本加一条正则，边打边看替换后的样子；分组 $1 直接能用，五个常用预设。 实时预览 分组引用 常用预设" data-slug="rpl">
+      <div class="top"><span class="ico">⇢</span><span class="arrow">↗</span></div>
+      <h2>正则查找替换</h2>
+      <p>一段文本加一条正则，边打边看替换后的样子；分组 $1 直接能用，五个常用预设。</p>
+      <div class="tags"><span>实时预览</span><span>分组引用</span><span>常用预设</span></div>
+    </a>
+    <a class="card" href="yml/" data-k="yml YAML 转 JSON 配置文件两种写法互转：粘进来点方向就出结果，写错会告诉你在第几行，注释会提示会丢。 双向互转 报错定位 可下载" data-slug="yml">
+      <div class="top"><span class="ico">Y</span><span class="arrow">↗</span></div>
+      <h2>YAML 转 JSON</h2>
+      <p>配置文件两种写法互转：粘进来点方向就出结果，写错会告诉你在第几行，注释会提示会丢。</p>
+      <div class="tags"><span>双向互转</span><span>报错定位</span><span>可下载</span></div>
+    </a>
   </div>
   <div class="group">时间与任务</div>
   <div class="grid">
-    <a class="card" href="ts/" data-k="ts 时间戳 日志里的时间戳一行一个粘进来，变成本地时间、UTC 和相对时间；反过来也能转。 秒 / 毫秒 批量 双向">
+    <a class="card" href="ts/" data-k="ts 时间戳 日志里的时间戳一行一个粘进来，变成本地时间、UTC 和相对时间；反过来也能转。 秒 / 毫秒 批量 双向" data-slug="ts">
       <div class="top"><span class="ico">⏱</span><span class="arrow">↗</span></div>
       <h2>时间戳</h2>
       <p>日志里的时间戳一行一个粘进来，变成本地时间、UTC 和相对时间；反过来也能转。</p>
       <div class="tags"><span>秒 / 毫秒</span><span>批量</span><span>双向</span></div>
     </a>
-    <a class="card" href="cron/" data-k="cron Cron 表达式 粘一条 crontab 进来：先用中文说清它什么时候跑，再列出接下来 10 次的确切时间。 看人话 下次 10 次 五段">
+    <a class="card" href="cron/" data-k="cron Cron 表达式 粘一条 crontab 进来：先用中文说清它什么时候跑，再列出接下来 10 次的确切时间。 看人话 下次 10 次 五段" data-slug="cron">
       <div class="top"><span class="ico">⏰</span><span class="arrow">↗</span></div>
       <h2>Cron 表达式</h2>
       <p>粘一条 crontab 进来：先用中文说清它什么时候跑，再列出接下来 10 次的确切时间。</p>
       <div class="tags"><span>看人话</span><span>下次 10 次</span><span>五段</span></div>
     </a>
-    <a class="card" href="date/" data-k="date 日期计算 两个日子差多少天、多少个工作日；从某天往后推 N 天是几号，也能算。 相差天数 工作日 往后推">
+    <a class="card" href="date/" data-k="date 日期计算 两个日子差多少天、多少个工作日；从某天往后推 N 天是几号，也能算。 相差天数 工作日 往后推" data-slug="date">
       <div class="top"><span class="ico">日</span><span class="arrow">↗</span></div>
       <h2>日期计算</h2>
       <p>两个日子差多少天、多少个工作日；从某天往后推 N 天是几号，也能算。</p>
@@ -158,31 +189,31 @@
   </div>
   <div class="group">数字与金额</div>
   <div class="grid">
-    <a class="card" href="rmb/" data-k="rmb 金额大写 填金额出人民币大写，元角分整零按票据规范写；日期也能写成大写。 票据规范 日期大写">
+    <a class="card" href="rmb/" data-k="rmb 金额大写 填金额出人民币大写，元角分整零按票据规范写；日期也能写成大写。 票据规范 日期大写" data-slug="rmb">
       <div class="top"><span class="ico">¥</span><span class="arrow">↗</span></div>
       <h2>金额大写</h2>
       <p>填金额出人民币大写，元角分整零按票据规范写；日期也能写成大写。</p>
       <div class="tags"><span>票据规范</span><span>日期大写</span></div>
     </a>
-    <a class="card" href="unit/" data-k="unit 单位换算 一个数换出同一类量的全部单位，带市尺、斤两、亩，点一行就复制。 市制 批量 一键复制">
+    <a class="card" href="unit/" data-k="unit 单位换算 一个数换出同一类量的全部单位，带市尺、斤两、亩，点一行就复制。 市制 批量 一键复制" data-slug="unit">
       <div class="top"><span class="ico">↔</span><span class="arrow">↗</span></div>
       <h2>单位换算</h2>
       <p>一个数换出同一类量的全部单位，带市尺、斤两、亩，点一行就复制。</p>
       <div class="tags"><span>市制</span><span>批量</span><span>一键复制</span></div>
     </a>
-    <a class="card" href="color/" data-k="color 颜色工具箱 色值四种写法互转、9 档色阶、搭配色与对比度；拖张截图进来能点取色。 取色 色阶 对比度">
+    <a class="card" href="color/" data-k="color 颜色工具箱 色值四种写法互转、9 档色阶、搭配色与对比度；拖张截图进来能点取色。 取色 色阶 对比度" data-slug="color">
       <div class="top"><span class="ico">◐</span><span class="arrow">↗</span></div>
       <h2>颜色工具箱</h2>
       <p>色值四种写法互转、9 档色阶、搭配色与对比度；拖张截图进来能点取色。</p>
       <div class="tags"><span>取色</span><span>色阶</span><span>对比度</span></div>
     </a>
-    <a class="card" href="bases/" data-k="bases 进制转换 填一个数，二进制、八进制、十进制、十六进制一起出；还能按位看、算位运算。 2/8/10/16 进制 位运算 不限位数">
+    <a class="card" href="bases/" data-k="bases 进制转换 填一个数，二进制、八进制、十进制、十六进制一起出；还能按位看、算位运算。 2/8/10/16 进制 位运算 不限位数" data-slug="bases">
       <div class="top"><span class="ico">#</span><span class="arrow">↗</span></div>
       <h2>进制转换</h2>
       <p>填一个数，二进制、八进制、十进制、十六进制一起出；还能按位看、算位运算。</p>
       <div class="tags"><span>2/8/10/16 进制</span><span>位运算</span><span>不限位数</span></div>
     </a>
-    <a class="card" href="percent/" data-k="percent 百分比计算 打折省多少、涨了百分之几、占多少比例、加几成，填两个数就出结果。 打折 涨跌幅 占比">
+    <a class="card" href="percent/" data-k="percent 百分比计算 打折省多少、涨了百分之几、占多少比例、加几成，填两个数就出结果。 打折 涨跌幅 占比" data-slug="percent">
       <div class="top"><span class="ico">％</span><span class="arrow">↗</span></div>
       <h2>百分比计算</h2>
       <p>打折省多少、涨了百分之几、占多少比例、加几成，填两个数就出结果。</p>
@@ -191,13 +222,13 @@
   </div>
   <div class="group">网络与编码</div>
   <div class="grid">
-    <a class="card" href="cidr/" data-k="cidr 网段计算 贴一个 IP 或网段，算出网络地址、广播、可用主机范围和能放多少台；想切子网也行。 网络 / 广播 子网划分 在不在段内">
+    <a class="card" href="cidr/" data-k="cidr 网段计算 贴一个 IP 或网段，算出网络地址、广播、可用主机范围和能放多少台；想切子网也行。 网络 / 广播 子网划分 在不在段内" data-slug="cidr">
       <div class="top"><span class="ico">◫</span><span class="arrow">↗</span></div>
       <h2>网段计算</h2>
       <p>贴一个 IP 或网段，算出网络地址、广播、可用主机范围和能放多少台；想切子网也行。</p>
       <div class="tags"><span>网络 / 广播</span><span>子网划分</span><span>在不在段内</span></div>
     </a>
-    <a class="card" href="charset/" data-k="charset 乱码修复 一段乱码粘进来，按几种编码各试一遍，最像原文的排第一，点一下就复制。 编码还原 GBK / UTF-8 本地算">
+    <a class="card" href="charset/" data-k="charset 乱码修复 一段乱码粘进来，按几种编码各试一遍，最像原文的排第一，点一下就复制。 编码还原 GBK / UTF-8 本地算" data-slug="charset">
       <div class="top"><span class="ico">码</span><span class="arrow">↗</span></div>
       <h2>乱码修复</h2>
       <p>一段乱码粘进来，按几种编码各试一遍，最像原文的排第一，点一下就复制。</p>
@@ -206,34 +237,40 @@
   </div>
   <div class="group">图片</div>
   <div class="grid">
-    <a class="card" href="pic/" data-k="pic 图片压缩 图太大发不出去？拖进来定个长边和质量，直接下压缩好的，省了多少实时摆着。 本地压缩 不上传 质量可调">
+    <a class="card" href="pic/" data-k="pic 图片压缩 图太大发不出去？拖进来定个长边和质量，直接下压缩好的，省了多少实时摆着。 本地压缩 不上传 质量可调" data-slug="pic">
       <div class="top"><span class="ico">▣</span><span class="arrow">↗</span></div>
       <h2>图片压缩</h2>
       <p>图太大发不出去？拖进来定个长边和质量，直接下压缩好的，省了多少实时摆着。</p>
       <div class="tags"><span>本地压缩</span><span>不上传</span><span>质量可调</span></div>
     </a>
-    <a class="card" href="qr/" data-k="qr 二维码生成 贴一段字或链接，右边立刻出码，下载就是 PNG。中文长链接都认，本地算。 中文 下载 PNG 容错可调">
+    <a class="card" href="qr/" data-k="qr 二维码生成 贴一段字或链接，右边立刻出码，下载就是 PNG。中文长链接都认，本地算。 中文 下载 PNG 容错可调" data-slug="qr">
       <div class="top"><span class="ico">▦</span><span class="arrow">↗</span></div>
       <h2>二维码生成</h2>
       <p>贴一段字或链接，右边立刻出码，下载就是 PNG。中文长链接都认，本地算。</p>
       <div class="tags"><span>中文</span><span>下载 PNG</span><span>容错可调</span></div>
     </a>
-    <a class="card" href="datauri/" data-k="datauri 图片转 Data URI 把小图变成能直接贴进 HTML / CSS 的一长串，也能把一串还原成图片下载。 内嵌图标 反向还原 本地算">
+    <a class="card" href="datauri/" data-k="datauri 图片转 Data URI 把小图变成能直接贴进 HTML / CSS 的一长串，也能把一串还原成图片下载。 内嵌图标 反向还原 本地算" data-slug="datauri">
       <div class="top"><span class="ico">⟐</span><span class="arrow">↗</span></div>
       <h2>图片转 Data URI</h2>
       <p>把小图变成能直接贴进 HTML / CSS 的一长串，也能把一串还原成图片下载。</p>
       <div class="tags"><span>内嵌图标</span><span>反向还原</span><span>本地算</span></div>
     </a>
-    <a class="card" href="webp/" data-k="webp 图片转 WebP JPEG、PNG、BMP、AVIF、SVG 拖进来，一次全转成 WebP 下载；透明背景留着，图片不离开电脑。 批量 透明保留 本地转换">
+    <a class="card" href="webp/" data-k="webp 图片转 WebP JPEG、PNG、BMP、AVIF、SVG 拖进来，一次全转成 WebP 下载；透明背景留着，图片不离开电脑。 批量 透明保留 本地转换" data-slug="webp">
       <div class="top"><span class="ico">W</span><span class="arrow">↗</span></div>
       <h2>图片转 WebP</h2>
       <p>JPEG、PNG、BMP、AVIF、SVG 拖进来，一次全转成 WebP 下载；透明背景留着，图片不离开电脑。</p>
       <div class="tags"><span>批量</span><span>透明保留</span><span>本地转换</span></div>
     </a>
+    <a class="card" href="qrd/" data-k="qrd 二维码识别 截图或照片里有二维码？拖进来直接读出里面的文字和链接，读到的网址能一键打开。 截图识别 多张一起读 本地解码" data-slug="qrd">
+      <div class="top"><span class="ico">⌗</span><span class="arrow">↗</span></div>
+      <h2>二维码识别</h2>
+      <p>截图或照片里有二维码？拖进来直接读出里面的文字和链接，读到的网址能一键打开。</p>
+      <div class="tags"><span>截图识别</span><span>多张一起读</span><span>本地解码</span></div>
+    </a>
   </div>
   <div class="group">生成与随机</div>
   <div class="grid">
-    <a class="card" href="rand/" data-k="rand 随机生成 密码、UUID、随机串、随机数字，选好长度一次出一批，点一下就复制走。 密码 UUID 强度估算">
+    <a class="card" href="rand/" data-k="rand 随机生成 密码、UUID、随机串、随机数字，选好长度一次出一批，点一下就复制走。 密码 UUID 强度估算" data-slug="rand">
       <div class="top"><span class="ico">⁂</span><span class="arrow">↗</span></div>
       <h2>随机生成</h2>
       <p>密码、UUID、随机串、随机数字，选好长度一次出一批，点一下就复制走。</p>
@@ -243,7 +280,7 @@
 
   <footer>
     同一个仓库里长出来的东西：新工具加个目录、挂进这张表就行。需要后端的（短码暂存、天气、主机指标、资讯聚合）各自独立跑，不塞进这里。
-    <br>更新于 2026-11-07 · 共 27 个工具
+    <br>更新于 2026-11-08 · 共 31 个工具
   </footer>
 </div>
 <script src="assets/base.js"></script>
@@ -279,6 +316,46 @@
     }
   });
   apply();
+})();
+</script>
+
+<script>
+(function(){
+  var KEY = 'tb.recent.v1';
+  var box = document.getElementById('recent');
+  if (!box) return;
+  var cards = {};
+  [].forEach.call(document.querySelectorAll('a.card'), function(c){
+    var s = c.getAttribute('data-slug');
+    if (s) cards[s] = c;
+  });
+  function read(){
+    try { var a = JSON.parse(localStorage.getItem(KEY) || '[]'); return Array.isArray(a) ? a : []; }
+    catch (e) { return []; }
+  }
+  function save(a){ try { localStorage.setItem(KEY, JSON.stringify(a.slice(0, 8))); } catch (e) {} }
+  function paint(){
+    var list = read().filter(function(s){ return cards[s]; });
+    if (!list.length){ box.innerHTML = ''; return; }
+    var html = '<div class="group">最近用过</div><div class="chips">';
+    list.forEach(function(s){
+      var c = cards[s];
+      var t = c.querySelector('h2'), i = c.querySelector('.ico');
+      html += '<a class="chip" href="' + s + '/"><span class="ci">' + (i ? i.textContent : '') + '</span>' +
+              (t ? t.textContent : s) + '</a>';
+    });
+    box.innerHTML = html + '</div>';
+  }
+  document.addEventListener('click', function(e){
+    var a = e.target && e.target.closest ? e.target.closest('a.card') : null;
+    if (!a) return;
+    var s = a.getAttribute('data-slug');
+    if (!s) return;
+    var list = read().filter(function(x){ return x !== s; });
+    list.unshift(s);
+    save(list);
+  });
+  paint();
 })();
 </script>
 

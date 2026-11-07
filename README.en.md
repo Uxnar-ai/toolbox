@@ -1,6 +1,6 @@
-# toolbox — twenty-seven small tools that open and work
+# toolbox — thirty-one small tools that open and work
 
-> Twenty-seven tiny tools in one static site: JSON formatter, text tidier, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming-convention converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR codes, image compressor, image-to-WebP batch converter, base converter with bit ops, image-to-Data-URI, CSV-to-table, CJK/Latin spacing, word count, URL dissector, subnet calculator, mojibake repair and a Markdown preview. No backend, no ports.
+> Thirty-one tiny tools in one static site: JSON formatter, text tidier, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -49,7 +49,7 @@ Sixth round (twenty-four to twenty-seven):
 
 ## Features
 
-- Twenty tools in one static site, no backend and no ports
+- Thirty-one tools in one static site, no backend and no ports
 - One build script generates every page from its template
 - Text diff: line alignment, in-line character highlighting, foldable unchanged runs, copyable patch
 - QR: UTF-8 Chinese, L/M/Q/H correction, adjustable size, PNG download, fixed quiet zone
@@ -70,6 +70,11 @@ Sixth round (twenty-four to twenty-seven):
 - Percentage: discount, change, share and increase in four live panels
 - Mojibake repair: ranks the plausible UTF-8/GBK/Big5 reinterpretations, plus URL and escape decoding
 - Markdown preview: live rendering of headings, lists, tables and code, export to HTML
+- QR reader: drag a screenshot or paste it, decode text and links locally
+- Text redaction: six rule types, toggle each, keep head/tail or mask whole
+- Regex replace: live preview, group references, five presets, matches-only view
+- YAML / JSON both directions with line/column errors and downloadable output
+- Recently used tools pinned on the landing page, stored locally
 
 ## Stack
 

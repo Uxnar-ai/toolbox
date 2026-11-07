@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>正则查找替换</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); min-width:0}
+  .box h2{
+    margin:0; padding:8px 12px; font-size:12.5px; font-weight:600; letter-spacing:.3px;
+    color:var(--dim); border-bottom:1px solid var(--line); background:var(--soft);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .box .pad{padding:12px}
+  .panes{display:grid; gap:12px; margin-top:12px}
+  @media (min-width:900px){ .panes{grid-template-columns:1fr 1fr; align-items:start} }
+  .fields{display:grid; gap:8px}
+  @media (min-width:760px){ .fields{grid-template-columns:1fr 1fr} }
+  .f{display:flex; align-items:center; gap:8px; min-width:0}
+  .f span{font-size:12.5px; color:var(--dim); white-space:nowrap}
+  .f input{
+    flex:1 1 auto; min-width:0; padding:8px 11px; border-radius:8px; border:1px solid var(--line2, var(--line));
+    background:var(--card); color:var(--fg); font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  .f input:focus{outline:2px solid var(--accent); outline-offset:1px; border-color:transparent}
+  textarea{
+    width:100%; box-sizing:border-box; height:262px; min-height:130px; resize:vertical; padding:11px;
+    border-radius:9px; border:1px solid var(--line2, var(--line)); background:var(--card);
+    color:var(--fg); font:12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  textarea:focus{outline:2px solid var(--accent); outline-offset:1px; border-color:transparent}
+  .result{
+    border:1px solid var(--line); border-radius:9px; background:var(--soft); padding:11px;
+    font:12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--fg);
+    white-space:pre-wrap; word-break:break-all; height:262px; overflow:auto; box-sizing:border-box;
+  }
+  .result mark{
+    background:color-mix(in srgb, var(--accent) 22%, transparent);
+    color:var(--fg); border-radius:3px; padding:0 2px;
+  }
+  .result .cut{
+    display:inline-block; width:2px; height:1.05em; margin:0 1px; vertical-align:-2px;
+    background:var(--err); opacity:.55; border-radius:1px; cursor:help;
+  }
+  .result ins{
+    text-decoration:none; background:color-mix(in srgb, var(--ok) 20%, transparent);
+    border-radius:3px; padding:0 2px; box-shadow:inset 0 -1px 0 var(--ok);
+  }
+  .pills{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px}
+  .pill{
+    padding:5px 11px; border-radius:999px; border:1px solid var(--line2, var(--line));
+    background:transparent; color:var(--dim); font:600 12.5px/1 inherit; cursor:pointer; white-space:nowrap;
+  }
+  .pill.on{background:var(--accent); color:var(--accent-fg); border-color:var(--accent)}
+  .pill.p{color:var(--fg); border-style:dashed}
+  .pill.p:hover{border-color:var(--accent); color:var(--accent)}
+  .stats{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; min-height:20px}
+  .stats span{font-size:11.5px; color:var(--dim); background:var(--soft); border-radius:999px; padding:2px 9px}
+  .stats span b{color:var(--accent)}
+  .toolbar{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px}
+  .toolbar button{
+    padding:5px 11px; border-radius:999px; border:1px solid var(--line2, var(--line));
+    background:transparent; color:var(--fg); font:600 12.5px/1 inherit; cursor:pointer;
+  }
+  .toolbar button:hover{border-color:var(--accent); color:var(--accent)}
+  .err{color:var(--err); font-size:12.5px; margin-top:8px; min-height:17px}
+  .hint{font-size:12px; color:var(--dim); margin:10px 0 0; line-height:1.7}
+  .hint code{background:var(--soft); border-radius:4px; padding:1px 5px; font-size:11.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>正则查找替换</h1>
+      <p class="lede">一段文本、一条正则：边打边看替换后的样子，分组 $1 能直接用。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="box">
+    <h2><span>查找与替换</span><span id="hint2">不必写斜杠</span></h2>
+    <div class="pad">
+      <div class="fields">
+        <div class="f"><span>查找</span><input id="find" spellcheck="false" autocomplete="off" placeholder="例如 (\d{3})\d{4}(\d{4})"></div>
+        <div class="f"><span>换成</span><input id="rep" spellcheck="false" autocomplete="off" placeholder="例如 $1****$2"></div>
+      </div>
+      <div class="pills" id="flags"></div>
+      <div class="pills" id="presets"></div>
+    </div>
+  </div>
+
+  <div class="panes">
+    <div class="box">
+      <h2><span>原文</span><span id="insize">—</span></h2>
+      <div class="pad">
+        <textarea id="src" spellcheck="false" placeholder="把要处理的文本粘进来"></textarea>
+      </div>
+    </div>
+
+    <div class="box">
+      <h2><span>结果</span><span id="outsize">—</span></h2>
+      <div class="pad">
+        <div class="result" id="out"></div>
+        <div class="err" id="err"></div>
+        <div class="stats" id="stats"></div>
+        <div class="toolbar">
+          <button id="copy" type="button">复制结果</button>
+          <button id="copyAs" type="button">复制成字符串</button>
+          <button id="clear" type="button">清空原文</button>
+        </div>
+        <p class="hint">绿色是替换进去的内容。用 <code>$1</code> 引用分组，<code>$&amp;</code> 是整个匹配；替换里写 <code>\n</code> 会变真的换行。
+          只想看匹配、不想改文本？按「只看匹配」。</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>全在浏览器里算，文本不上传。语法就是浏览器自带的正则。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var src = document.getElementById('src'), out = document.getElementById('out'),
+      find = document.getElementById('find'), rep = document.getElementById('rep'),
+      flagsBox = document.getElementById('flags'), presetsBox = document.getElementById('presets'),
+      stats = document.getElementById('stats'), err = document.getElementById('err'),
+      insize = document.getElementById('insize'), outsize = document.getElementById('outsize'),
+      copyBtn = document.getElementById('copy'), copyAs = document.getElementById('copyAs');
+
+  var SAMPLE = [
+    'name: toolbox',
+    'port: 8899',
+    'owner: nix   ',
+    '',
+    '',
+    '',
+    '上面留了三行空行，行尾还带着空格   ',
+    '联系方式 13812345678，备用 13900002222'
+  ].join('\n');
+
+  var flags = {g: true, i: false, m: true, s: false};
+  var onlyMatch = false;
+
+  var PRESETS = [
+    {name: '去行尾空格', find: '[ \\t]+$', rep: '', f: {g: true, i: false, m: true, s: false}},
+    {name: '空行合一',   find: '\\n{3,}',  rep: '\\n\\n', f: {g: true, i: false, m: false, s: false}},
+    {name: '手机号打码', find: '(1[3-9]\\d)\\d{4}(\\d{4})', rep: '$1****$2', f: {g: true, i: false, m: false, s: false}},
+    {name: '键值转列表', find: '^([A-Za-z_]+):\\s*(.+?)\\s*$', rep: '- **$1**：$2', f: {g: true, i: false, m: true, s: false}},
+    {name: '空白合一',   find: '[ \\t]{2,}', rep: ' ', f: {g: true, i: false, m: false, s: false}}
+  ];
+
+  function esc(s){
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function flagStr(){
+    return (flags.g ? 'g' : '') + (flags.i ? 'i' : '') + (flags.m ? 'm' : '') + (flags.s ? 's' : '');
+  }
+
+  /* 手工展开替换串：$1..$9、$&、$$，再转 \n \t */
+  function expand(tpl, m){
+    var s = tpl.replace(/\$(\$|&|\d)/g, function(_, k){
+      if (k === '$') return '$';
+      if (k === '&') return m[0];
+      var v = m[+k];
+      return v === undefined ? '' : v;
+    });
+    return s.replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\\\/g, '\\');
+  }
+
+  function run(){
+    var s = src.value, f = find.value;
+    err.textContent = '';
+    insize.textContent = s.length + ' 字';
+
+    if (!f){
+      out.innerHTML = '<span style="color:var(--dim)">上面填一条正则，这里立刻出结果</span>';
+      stats.innerHTML = ''; outsize.textContent = '—';
+      copyBtn._plain = ''; copyAs._plain = '';
+      return;
+    }
+
+    var re;
+    try { re = new RegExp(f, flagStr()); }
+    catch (e){
+      err.textContent = '这条正则写错了：' + e.message.replace(/^Invalid regular expression:\s*/, '');
+      out.innerHTML = ''; stats.innerHTML = ''; outsize.textContent = '—';
+      return;
+    }
+
+    var html = '', plain = '', pos = 0, hits = [], guard = 0;
+
+    while (guard++ < 20000){
+      var m = re.exec(s);
+      if (!m) break;
+      if (m[0].length === 0){
+        re.lastIndex++;
+        if (re.lastIndex > s.length) break;
+        continue;
+      }
+      var newText = expand(rep.value, m);
+      html += esc(s.slice(pos, m.index));
+      plain += s.slice(pos, m.index);
+      if (onlyMatch){
+        html += '<mark>' + esc(m[0]) + '</mark>';
+        plain += m[0];
+      } else {
+        html += newText ? '<ins>' + esc(newText) + '</ins>' : '<span class="cut" title="删掉：' + esc(m[0]) + '"></span>';
+        plain += newText;
+      }
+      pos = m.index + m[0].length;
+      hits.push({at: m.index, from: m[0], to: newText});
+      if (!flags.g) break;
+    }
+
+    html += esc(s.slice(pos));
+    plain += s.slice(pos);
+
+    out.innerHTML = html || '<span style="color:var(--dim)">（结果为空）</span>';
+    copyBtn._plain = plain;
+    copyAs._plain = JSON.stringify(plain);
+
+    if (onlyMatch){
+      outsize.textContent = hits.length + ' 处匹配';
+      stats.innerHTML = hits.length
+        ? hits.slice(0, 12).map(function(h, i){
+            return '<span>#' + (i + 1) + ' 第 ' + (h.at + 1) + ' 字</span>';
+          }).join('') + (hits.length > 12 ? '<span>…共 ' + hits.length + ' 处</span>' : '')
+        : '<span>没有匹配</span>';
+    } else {
+      outsize.textContent = hits.length ? hits.length + ' 处已替换' : '没有匹配';
+      var diff = plain.length - s.length;
+      stats.innerHTML = hits.length
+        ? '<span>命中 <b>' + hits.length + '</b> 处</span><span>字数 ' + (diff >= 0 ? '+' : '') + diff + '</span><span>结果 ' + plain.length + ' 字</span>'
+        : '<span>这条正则在这个文本里没命中</span>';
+    }
+  }
+
+  // 开关
+  [['g', '全局'], ['i', '不分大小写'], ['m', '多行'], ['s', '点也匹配换行']].forEach(function(pair){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pill' + (flags[pair[0]] ? ' on' : '');
+    b.textContent = pair[1];
+    b.addEventListener('click', function(){
+      flags[pair[0]] = !flags[pair[0]];
+      b.className = 'pill' + (flags[pair[0]] ? ' on' : '');
+      run();
+    });
+    flagsBox.appendChild(b);
+  });
+
+  var onlyBtn = document.createElement('button');
+  onlyBtn.type = 'button';
+  onlyBtn.className = 'pill';
+  onlyBtn.textContent = '只看匹配';
+  onlyBtn.addEventListener('click', function(){
+    onlyMatch = !onlyMatch;
+    onlyBtn.className = 'pill' + (onlyMatch ? ' on' : '');
+    run();
+  });
+  flagsBox.appendChild(onlyBtn);
+
+  PRESETS.forEach(function(p){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'pill p';
+    b.textContent = p.name;
+    b.addEventListener('click', function(){
+      find.value = p.find;
+      rep.value = p.rep;
+      flags = JSON.parse(JSON.stringify(p.f));
+      syncFlags();
+      run();
+    });
+    presetsBox.appendChild(b);
+  });
+
+  function syncFlags(){
+    var keys = ['g', 'i', 'm', 's'];
+    [].forEach.call(flagsBox.children, function(b, i){
+      if (i >= keys.length) return;
+      b.className = 'pill' + (flags[keys[i]] ? ' on' : '');
+    });
+  }
+
+  src.addEventListener('input', run);
+  find.addEventListener('input', run);
+  rep.addEventListener('input', run);
+
+  copyBtn.addEventListener('click', function(){ copyText(copyBtn._plain || '', copyBtn, '复制结果'); });
+  copyAs.addEventListener('click', function(){ copyText(copyAs._plain || '""', copyAs, '复制成字符串'); });
+  document.getElementById('clear').addEventListener('click', function(){
+    src.value = '';
+    run();
+  });
+
+  src.value = SAMPLE;
+  find.value = PRESETS[0].find;
+  rep.value = PRESETS[0].rep;
+  run();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

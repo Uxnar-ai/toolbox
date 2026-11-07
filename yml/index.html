@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YAML 转 JSON</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); min-width:0}
+  .box h2{
+    margin:0; padding:8px 12px; font-size:12.5px; font-weight:600; letter-spacing:.3px;
+    color:var(--dim); border-bottom:1px solid var(--line); background:var(--soft);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .box .pad{padding:12px}
+  .bar{display:flex; gap:6px; flex-wrap:wrap; align-items:center}
+  .bar .sep{width:1px; height:16px; background:var(--line); margin:0 4px}
+  .pill{
+    padding:5px 11px; border-radius:999px; border:1px solid var(--line2, var(--line));
+    background:transparent; color:var(--dim); font:600 12.5px/1 inherit; cursor:pointer; white-space:nowrap;
+  }
+  .pill.on{background:var(--accent); color:var(--accent-fg); border-color:var(--accent)}
+  .panes{display:grid; gap:12px; margin-top:12px}
+  @media (min-width:900px){ .panes{grid-template-columns:1fr 1fr; align-items:start} }
+  textarea{
+    width:100%; box-sizing:border-box; height:300px; min-height:150px; resize:vertical; padding:11px;
+    border-radius:9px; border:1px solid var(--line2, var(--line)); background:var(--card);
+    color:var(--fg); font:12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  textarea:focus{outline:2px solid var(--accent); outline-offset:1px; border-color:transparent}
+  .result{
+    border:1px solid var(--line); border-radius:9px; background:var(--soft); padding:11px;
+    font:12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--fg);
+    white-space:pre-wrap; word-break:break-word; height:300px; overflow:auto; box-sizing:border-box;
+    margin:0;
+  }
+  .result .k{color:var(--accent)}
+  .err{color:var(--err); font-size:12.5px; margin-top:8px; min-height:18px; line-height:1.6}
+  .toolbar{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px}
+  .toolbar button{
+    padding:5px 11px; border-radius:999px; border:1px solid var(--line2, var(--line));
+    background:transparent; color:var(--fg); font:600 12.5px/1 inherit; cursor:pointer;
+  }
+  .toolbar button:hover{border-color:var(--accent); color:var(--accent)}
+  .hint{font-size:12px; color:var(--dim); margin:10px 0 0; line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>YAML 转 JSON</h1>
+      <p class="lede">配置文件两种写法互转：粘进来选方向就出结果，写错会告诉你在第几行。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="box">
+    <h2><span>方向</span><span id="state">YAML → JSON</span></h2>
+    <div class="pad">
+      <div class="bar">
+        <button class="pill on" id="y2j" type="button">YAML → JSON</button>
+        <button class="pill" id="j2y" type="button">JSON → YAML</button>
+        <span class="sep"></span>
+        <button class="pill on" id="ind2" type="button">缩进 2</button>
+        <button class="pill" id="ind4" type="button">缩进 4</button>
+        <span class="sep"></span>
+        <button class="pill" id="swap" type="button">把结果换到左边</button>
+        <button class="pill" id="sample" type="button">换回示例</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panes">
+    <div class="box">
+      <h2><span id="inTitle">YAML 原文</span><span id="insize">—</span></h2>
+      <div class="pad">
+        <textarea id="src" spellcheck="false"></textarea>
+        <p class="hint">YAML 里的注释在转成 JSON 时会丢掉，这是格式本身的差别，不是转错了。</p>
+      </div>
+    </div>
+
+    <div class="box">
+      <h2><span id="outTitle">JSON 结果</span><span id="outsize">—</span></h2>
+      <div class="pad">
+        <pre class="result" id="out"></pre>
+        <div class="err" id="err"></div>
+        <div class="toolbar">
+          <button id="copy" type="button">复制结果</button>
+          <button id="download" type="button">下载文件</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>全在浏览器里算，配置内容不上传。YAML 解析用的是开源 js-yaml。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script src="../assets/yml/js-yaml.js"></script>
+<script>
+(function(){
+  var src = document.getElementById('src'), out = document.getElementById('out'),
+      err = document.getElementById('err'), state = document.getElementById('state'),
+      inTitle = document.getElementById('inTitle'), outTitle = document.getElementById('outTitle'),
+      insize = document.getElementById('insize'), outsize = document.getElementById('outsize'),
+      copyBtn = document.getElementById('copy'), dlBtn = document.getElementById('download');
+
+  var YML_SAMPLE = [
+    '# 一个服务的配置示例',
+    'name: demo-app',
+    'port: 8080',
+    'hosts:',
+    '  - localhost',
+    '  - example.com',
+    'features:',
+    '  theme: auto',
+    '  fonts: MiSans',
+    '  debug: false',
+    'limits:',
+    '  cpu: 0.5',
+    '  memory: 256MB',
+    'tags: [small, fast]'
+  ].join('\n');
+
+  var mode = 'y2j';     // y2j | j2y
+  var indent = 2;
+
+  function esc(s){
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // JSON 高亮：只给行首的键名上色
+  function paintJson(text){
+    return text.split(String.fromCharCode(10)).map(function(line){
+      var m = /^(\s*)"([^"]+)":(\s?)([\s\S]*)$/.exec(line);
+      if (!m) return esc(line);
+      return esc(m[1]) + '<span class="k">"' + esc(m[2]) + '"</span>:' + esc(m[3] + m[4]);
+    }).join(String.fromCharCode(10));
+  }
+
+  function jsonPos(text, msg){
+    var m = /position\s+(\d+)/.exec(msg) || /at position (\d+)/i.exec(msg);
+    if (!m) return '';
+    var pos = +m[1];
+    var before = text.slice(0, pos);
+    var line = before.split('\n').length;
+    var col = pos - before.lastIndexOf('\n');
+    return '（第 ' + line + ' 行第 ' + col + ' 列附近）';
+  }
+
+  function run(){
+    var s = src.value;
+    insize.textContent = s.length + ' 字';
+    err.textContent = '';
+    out.textContent = '';
+
+    if (!s.trim()){
+      out.textContent = '左边是空的';
+      outsize.textContent = '—';
+      copyBtn._text = '';
+      return;
+    }
+
+    if (mode === 'y2j'){
+      var obj;
+      try { obj = jsyaml.load(s); }
+      catch (e){
+        var where = e.mark ? '（第 ' + (e.mark.line + 1) + ' 行第 ' + (e.mark.column + 1) + ' 列）' : '';
+        err.textContent = '这段 YAML 有问题' + where + '：' + (e.reason || e.message);
+        outsize.textContent = '—';
+        copyBtn._text = '';
+        return;
+      }
+      if (obj === undefined || obj === null){
+        out.textContent = '（空文档）';
+        outsize.textContent = '—';
+        copyBtn._text = '';
+        return;
+      }
+      var json = JSON.stringify(obj, null, indent);
+      out.innerHTML = paintJson(json);
+      copyBtn._text = json;
+      outsize.textContent = json.split('\n').length + ' 行 · ' + json.length + ' 字';
+    } else {
+      var data;
+      try { data = JSON.parse(s); }
+      catch (e){
+        err.textContent = '这段 JSON 有问题' + jsonPos(s, e.message) + '：' + e.message.replace(/^JSON.parse: /, '');
+        outsize.textContent = '—';
+        copyBtn._text = '';
+        return;
+      }
+      var yml = jsyaml.dump(data, {indent: indent, lineWidth: 120, noRefs: true, quotingType: '"'});
+      out.textContent = yml;
+      copyBtn._text = yml;
+      outsize.textContent = yml.split('\n').length + ' 行 · ' + yml.length + ' 字';
+    }
+  }
+
+  function setMode(m){
+    mode = m;
+    document.getElementById('y2j').className = 'pill' + (m === 'y2j' ? ' on' : '');
+    document.getElementById('j2y').className = 'pill' + (m === 'j2y' ? ' on' : '');
+    state.textContent = m === 'y2j' ? 'YAML → JSON' : 'JSON → YAML';
+    inTitle.textContent = m === 'y2j' ? 'YAML 原文' : 'JSON 原文';
+    outTitle.textContent = m === 'y2j' ? 'JSON 结果' : 'YAML 结果';
+    run();
+  }
+
+  function setIndent(n){
+    indent = n;
+    document.getElementById('ind2').className = 'pill' + (n === 2 ? ' on' : '');
+    document.getElementById('ind4').className = 'pill' + (n === 4 ? ' on' : '');
+    run();
+  }
+
+  document.getElementById('y2j').addEventListener('click', function(){ if (mode !== 'y2j') setMode('y2j'); });
+  document.getElementById('j2y').addEventListener('click', function(){ if (mode !== 'j2y') setMode('j2y'); });
+  document.getElementById('ind2').addEventListener('click', function(){ setIndent(2); });
+  document.getElementById('ind4').addEventListener('click', function(){ setIndent(4); });
+
+  document.getElementById('swap').addEventListener('click', function(){
+    var r = copyBtn._text || '';
+    if (!r){ err.textContent = '右边还没有结果'; return; }
+    src.value = r;
+    setMode(mode === 'y2j' ? 'j2y' : 'y2j');
+  });
+
+  document.getElementById('sample').addEventListener('click', function(){
+    setMode('y2j');
+    src.value = YML_SAMPLE;
+    run();
+  });
+
+  document.getElementById('download').addEventListener('click', function(){
+    var t = copyBtn._text || '';
+    if (!t){ err.textContent = '右边还没有结果'; return; }
+    var blob = new Blob([t], {type: 'text/plain;charset=utf-8'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = mode === 'y2j' ? 'config.json' : 'config.yaml';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  });
+
+  src.addEventListener('input', run);
+
+  src.value = YML_SAMPLE;
+  setMode('y2j');
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
