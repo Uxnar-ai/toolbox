@@ -53,11 +53,27 @@
   }
   .btn:hover{background:var(--accent); color:var(--accent-fg)}
   .empty{color:var(--dim); font-size:13px; padding:6px 2px}
+  .cmp{margin-top:12px; padding-top:10px; border-top:1px dashed var(--line)}
+  .cmpH{font-size:12px; color:var(--dim); margin-bottom:8px}
+  .cmpR{display:grid; gap:6px}
+  .crow{
+    display:grid; grid-template-columns:34px minmax(0,1fr) 74px auto; gap:8px; align-items:center;
+    border:1px solid var(--line); border-radius:8px; padding:5px 8px; font-size:12.5px; min-width:0;
+  }
+  .crow.cur{border-color:var(--accent); background:var(--soft)}
+  .crow .cq{font:600 12.5px ui-monospace,monospace; color:var(--dim)}
+  .crow.cur .cq{color:var(--accent)}
+  .crow .cs{font:12.5px ui-monospace,monospace; color:var(--fg); white-space:nowrap}
+  .crow .cd{font-weight:600; white-space:nowrap}
+  .crow .cd.save{color:var(--ok)}
+  .crow .cd.grow{color:var(--err)}
+  .crow .chip{padding:4px 9px; font-size:12px}
   @media (max-width:520px){
     .opt label{flex:0 0 54px}
     .row{padding:7px; gap:8px}
     .th{width:38px; height:38px}
     .btn{padding:7px 9px; font-size:12px}
+    .crow{grid-template-columns:30px minmax(0,1fr) 66px auto; gap:6px}
   }
 </style>
 </head>
@@ -105,6 +121,11 @@
         <button class="chip" id="all" type="button">全部下载</button>
         <button class="chip" id="clear" type="button">清空</button>
       </div>
+
+      <div class="cmp" id="cmp" hidden>
+        <div class="cmpH">第一张图换四档质量，体积差多少（点「用这档」直接套上）</div>
+        <div class="cmpR" id="cmpRows"></div>
+      </div>
     </div>
   </div>
 
@@ -126,7 +147,9 @@
       sum    = document.getElementById('sum'),
       qRange = document.getElementById('quality'),
       qN     = document.getElementById('qN'),
-      msSel  = document.getElementById('maxside');
+      msSel  = document.getElementById('maxside'),
+      cmp    = document.getElementById('cmp'),
+      cmpRows = document.getElementById('cmpRows');
 
   var items = [];       // {file, name, url, thumb, out, err, done}
   var busy = false;
@@ -182,6 +205,7 @@
   function convert(item){
     item.state = 'run';
     return pickLoader(item.file).then(function(img){
+      item.bmp = img;
       var w0 = img.width, h0 = img.height;
       var cap = +msSel.value;
       var k = cap ? Math.min(1, cap / Math.max(w0, h0)) : 1;
@@ -254,6 +278,68 @@
       ? ok.length + '/' + items.length + ' 已转好 · ' + kb(inB) + ' → ' + kb(outB)
       : '';
     document.getElementById('all').disabled = !ok.length;
+    scheduleCompare();
+  }
+
+  // ---------- 比体积：第一张图按四档质量各转一次，只看体积 ----------
+  var cmpSig = '', cmpRowsQ = [];
+
+  function scheduleCompare(){
+    var it = items[0];
+    if (!it || !it.bmp){ cmp.hidden = true; cmpSig = ''; return; }
+    var sig = shortName(it.name) + '|' + it.sizeIn + '|' + it.bmp.width + 'x' + it.bmp.height + '|' + msSel.value;
+    if (sig === cmpSig) return;
+    cmpSig = sig;
+    runCompare(it, sig);
+  }
+
+  function runCompare(it, sig){
+    var cap = +msSel.value, w0 = it.bmp.width, h0 = it.bmp.height;
+    var k = cap ? Math.min(1, cap / Math.max(w0, h0)) : 1;
+    var w = Math.max(1, Math.round(w0 * k)), h = Math.max(1, Math.round(h0 * k));
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    var x = c.getContext('2d');
+    x.imageSmoothingQuality = 'high';
+    x.drawImage(it.bmp, 0, 0, w, h);
+
+    var tiers = [60, 75, 85, 95];
+    var got = 0, out = [];
+    tiers.forEach(function(q, i){
+      c.toBlob(function(b){
+        out[i] = b ? b.size : 0;
+        if (++got < tiers.length) return;
+        if (cmpSig !== sig) return;      // 期间换了图或换了长边，丢弃这批结果
+        cmpRowsQ = tiers;
+        cmpRows.innerHTML = tiers.map(function(qq, j){
+          var d = it.sizeIn ? (1 - out[j] / it.sizeIn) * 100 : 0;
+          return '<div class="crow" data-q="' + qq + '">' +
+            '<span class="cq">' + qq + '</span>' +
+            '<span class="cs">' + kb(out[j]) + '</span>' +
+            '<span class="cd ' + (d > 0 ? 'save' : 'grow') + '">' + (d > 0 ? '省 ' + d.toFixed(0) + '%' : '大 ' + Math.abs(d).toFixed(0) + '%') + '</span>' +
+            '<button class="chip" type="button" data-q="' + qq + '">用这档</button></div>';
+        }).join('');
+        [].forEach.call(cmpRows.querySelectorAll('button'), function(b){
+          b.addEventListener('click', function(){
+            qRange.value = b.getAttribute('data-q');
+            qN.textContent = qRange.value;
+            markCur();
+            clearTimeout(timer); timer = setTimeout(redoAll, 60);
+          });
+        });
+        markCur();
+        cmp.hidden = false;
+      }, 'image/webp', q / 100);
+    });
+  }
+
+  function markCur(){
+    [].forEach.call(cmpRows.querySelectorAll('.crow'), function(row){
+      var on = row.getAttribute('data-q') === qRange.value;
+      row.className = 'crow' + (on ? ' cur' : '');
+      var b = row.querySelector('button');
+      if (b) b.textContent = on ? '在用' : '用这档';
+    });
   }
 
   // ---------- 队列：一张一张来，别把内存吃爆 ----------
@@ -284,6 +370,9 @@
   function clearAll(){
     items.forEach(function(i){ if (i.url) URL.revokeObjectURL(i.url); });
     items = [];
+    cmpSig = '';
+    cmp.hidden = true;
+    cmpRows.innerHTML = '';
     paint();
   }
 
@@ -362,6 +451,7 @@
   }
   qRange.addEventListener('input', function(){
     qN.textContent = qRange.value;
+    markCur();
     clearTimeout(timer); timer = setTimeout(redoAll, 260);
   });
   msSel.addEventListener('change', redoAll);

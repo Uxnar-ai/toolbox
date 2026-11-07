@@ -75,6 +75,8 @@ Sixth round (twenty-four to twenty-seven):
 - Regex replace: live preview, group references, five presets, matches-only view
 - YAML / JSON both directions with line/column errors and downloadable output
 - Recently used tools pinned on the landing page, stored locally
+- WebP quality comparison: size at 60/75/85/95 side by side, one click to apply
+- WebP quality comparison: size at 60/75/85/95 side by side, one click to apply
 
 ## Stack
 
