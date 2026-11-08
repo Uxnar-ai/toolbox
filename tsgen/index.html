@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JSON 转类型 · 一段 JSON 出 TypeScript / Go / Python 结构</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{align-items:start}
+  .pane textarea{height:386px}
+  .pane pre.out{height:386px}
+  .bar{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px}
+  .bar .grow{flex:1 1 auto}
+  .bar input[type=text]{width:120px}
+  .pane h2 .hint{font-weight:400; font-size:11.5px; color:var(--dim)}
+  .stats{margin-top:10px}
+  .err2{display:none; margin-top:8px; padding:9px 12px; border-radius:9px; font-size:13px;
+        background:rgba(192,57,43,.1); color:var(--err); border:1px solid rgba(192,57,43,.25)}
+  .err2.on{display:block}
+  .tip{font-size:12px; color:var(--dim); margin-top:8px; line-height:1.7}
+  @media (max-width:560px){
+    .pane textarea, .pane pre.out{height:260px}
+    .bar input[type=text]{width:96px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>JSON 转类型</h1>
+      <p class="lede">把一段接口返回的 JSON 贴进来，直接给出 TypeScript 接口、Go struct 或 Python dataclass。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="bar">
+    <button class="chip on" type="button" data-lang="ts">TypeScript</button>
+    <button class="chip" type="button" data-lang="go">Go</button>
+    <button class="chip" type="button" data-lang="py">Python</button>
+    <span class="sep"></span>
+    <span class="lbl">根类型名</span>
+    <input type="text" id="name" value="Root" spellcheck="false" autocomplete="off">
+    <span class="grow"></span>
+    <button class="chip" type="button" id="bCopy">复制结果</button>
+    <button class="chip" type="button" id="bSample">示例</button>
+    <button class="chip" type="button" id="bClear">清空</button>
+  </div>
+
+  <div class="panes">
+    <div class="pane">
+      <h2>接口返回的 JSON <span class="hint">改一个字就重算</span></h2>
+      <textarea id="src" spellcheck="false" autocomplete="off" placeholder='{"id": 1, "name": "demo"}'></textarea>
+    </div>
+    <div class="pane">
+      <h2><span id="langName">TypeScript</span> <span class="hint" id="note">数组里缺字段的会标成可选</span></h2>
+      <pre class="out" id="dst"></pre>
+    </div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+  <div class="err2" id="err"></div>
+  <div class="tip">
+    数字分不清整数和小数时按 <b>number</b> 处理；找不到值的字段（<code>null</code>）在 TypeScript 里写 <code>null</code>，在 Go / Python 里退成万能类型。
+    只读这段 JSON，不上传。
+  </div>
+
+  <footer>
+    同一个数组里第二项多出来的字段，会被标成可选（TS 加 <code>?</code>、Go 加 <code>omitempty</code>、Python 加 <code>Optional</code>）。
+  </footer>
+</div>
+<script src="../assets/base.js"></script>
+<script src="../assets/tsgen/typegen.js"></script>
+<script>
+(function(){
+  var src = document.getElementById('src');
+  var dst = document.getElementById('dst');
+  var stats = document.getElementById('stats');
+  var err = document.getElementById('err');
+  var nameIn = document.getElementById('name');
+  var langName = document.getElementById('langName');
+  var note = document.getElementById('note');
+  var lang = 'ts';
+  var timer = null;
+
+  var SAMPLE = '{\n  "id": 1024,\n  "name": "示例订单",\n  "paid": true,\n  "amount": 128.5,\n  "tags": ["加急", "大客户"],\n  "user": {\n    "id": 7,\n    "nickname": "老张",\n    "vip": false\n  },\n  "items": [\n    {"sku": "A-1", "qty": 2, "price": 39.9},\n    {"sku": "B-7", "qty": 1, "price": 48.7, "discount": 0.9}\n  ],\n  "remark": null\n}';
+
+  var LABEL = {ts: 'TypeScript', go: 'Go struct', py: 'Python dataclass'};
+  var TIP = {
+    ts: '数组里缺字段的会标成可选',
+    go: '字段名转大写，带 json tag',
+    py: 'dataclass，嵌套对象单独成类'
+  };
+
+  function run(){
+    var text = src.value.trim();
+    if (!text){ dst.textContent = ''; stats.innerHTML = ''; err.className = 'err2'; return; }
+    var data;
+    try { data = JSON.parse(text); }
+    catch (e){
+      dst.textContent = '';
+      stats.innerHTML = '';
+      err.textContent = 'JSON 有语法问题：' + e.message;
+      err.className = 'err2 on';
+      return;
+    }
+    err.className = 'err2';
+    var r = TypeGen.build(data, {name: nameIn.value.trim() || 'Root'});
+    dst.textContent = r[lang];
+    stats.innerHTML =
+      '字段 <b>' + r.stats.fields + '</b>　层级 <b>' + r.stats.depth + '</b>　节点 <b>' + r.stats.types + '</b>' +
+      '　输出 <b>' + r[lang].split('\n').length + '</b> 行';
+  }
+
+  function later(){ clearTimeout(timer); timer = setTimeout(run, 150); }
+
+  src.addEventListener('input', later);
+  nameIn.addEventListener('input', later);
+
+  [].forEach.call(document.querySelectorAll('[data-lang]'), function(b){
+    b.addEventListener('click', function(){
+      lang = b.getAttribute('data-lang');
+      [].forEach.call(document.querySelectorAll('[data-lang]'), function(x){
+        x.className = 'chip' + (x === b ? ' on' : '');
+      });
+      langName.textContent = LABEL[lang];
+      note.textContent = TIP[lang];
+      run();
+    });
+  });
+
+  document.getElementById('bCopy').addEventListener('click', function(){
+    copyText(dst.textContent, this, '复制结果');
+  });
+  document.getElementById('bSample').addEventListener('click', function(){
+    src.value = SAMPLE; nameIn.value = 'Order'; run();
+  });
+  document.getElementById('bClear').addEventListener('click', function(){
+    src.value = ''; run(); src.focus();
+  });
+
+  src.value = SAMPLE;
+  nameIn.value = 'Order';
+  run();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

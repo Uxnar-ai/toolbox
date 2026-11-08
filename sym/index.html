@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>特殊符号 · 点一下就复制，写文档够用了</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .search{display:flex; gap:10px; align-items:center; margin-bottom:14px}
+  .search input{
+    flex:1 1 auto; min-width:0; font:14px/1.5 inherit; padding:10px 13px;
+    border-radius:9px; border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  .search input:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .search span{font-size:12.5px; color:var(--dim); white-space:nowrap}
+
+  .grp{margin:0 0 18px}
+  .grp h2{
+    margin:0 0 8px; font-size:12.5px; font-weight:600; color:var(--dim); letter-spacing:.4px;
+  }
+  .cells{display:grid; gap:6px; grid-template-columns:repeat(auto-fill, minmax(56px, 1fr))}
+  .sb{
+    font:16px/1.2 inherit; cursor:pointer; text-align:center; padding:9px 4px 7px;
+    background:var(--card); border:1px solid var(--line); border-radius:9px; color:var(--fg);
+    transition:border-color .12s, transform .12s, background .12s;
+    overflow:hidden; white-space:nowrap;
+  }
+  .sb:hover{border-color:var(--accent); transform:translateY(-1px)}
+  .sb b{display:block; font-size:11px; font-weight:400; color:var(--dim); margin-top:4px;
+        overflow:hidden; text-overflow:ellipsis}
+  .sb.flash{background:var(--soft); border-color:var(--accent)}
+
+  .tray{
+    position:sticky; bottom:52px; margin-top:16px; background:var(--card);
+    border:1px solid var(--line); border-radius:var(--radius); padding:12px 13px;
+    box-shadow:0 -2px 14px rgba(0,0,0,.06);
+  }
+  .tray .hd{display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap}
+  .tray .hd b{font-size:12.5px; font-weight:600}
+  .tray .hd span{font-size:12px; color:var(--dim)}
+  .tray .hd .grow{flex:1 1 auto}
+  .tray textarea{
+    width:100%; height:56px; min-height:56px; padding:9px 11px; border-radius:8px;
+    border:1px solid var(--line); background:var(--bg); color:var(--fg);
+    font:14px/1.6 MiSans,system-ui,sans-serif; resize:vertical;
+  }
+  .tray textarea:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .none{padding:20px; color:var(--dim); font-size:13.5px; text-align:center; display:none}
+  .none.on{display:block}
+  @media (max-width:560px){
+    .cells{grid-template-columns:repeat(auto-fill, minmax(48px, 1fr)); gap:5px}
+    .sb{font-size:15px; padding:8px 3px 6px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>特殊符号</h1>
+      <p class="lede">箭头、对勾、数学符号、单位、序号、框线字符——点一下就复制，顺手攒到底下的收集区。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="search">
+    <input id="q" type="search" placeholder="搜符号名：箭头、对勾、度数、平方……" autocomplete="off">
+    <span id="qinfo"></span>
+  </div>
+
+  <div id="list"></div>
+  <div class="none" id="none">没有匹配的符号，换个词试试。</div>
+
+  <div class="tray">
+    <div class="hd">
+      <b>收集区</b>
+      <span id="cnt">0 个字符</span>
+      <span class="grow"></span>
+      <button class="chip" type="button" id="bCopyAll">复制全部</button>
+      <button class="chip" type="button" id="bUndo">删最后一个</button>
+      <button class="chip" type="button" id="bClear">清空</button>
+    </div>
+    <textarea id="tray" spellcheck="false" placeholder="点上面的符号，会攒到这里；也可以自己在这里改。"></textarea>
+  </div>
+
+  <footer>
+    都是字符本身，不依赖任何字体文件之外的资源（个别符号在老系统上可能显示成方框，换台设备就正常了）。
+  </footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var SYMS = [
+    ['常用', [
+      ['✓','对勾'],['✗','叉号'],['✔','粗对勾'],['✘','粗叉号'],['★','实心星'],['☆','空心星'],
+      ['●','实心圆'],['○','空心圆'],['■','实心方'],['□','空心方'],['▲','上三角'],['△','空上三角'],
+      ['▼','下三角'],['▽','空下三角'],['※','注意号'],['§','章节号'],['¶','段落号'],['†','剑号'],
+      ['°','度'],['℃','摄氏度'],['℉','华氏度'],['‰','千分号'],['№','编号'],['©','版权'],['®','注册商标'],['™','商标']
+    ]],
+    ['箭头', [
+      ['→','右箭头'],['←','左箭头'],['↑','上箭头'],['↓','下箭头'],['↔','左右箭头'],['↕','上下箭头'],
+      ['⇒','双线右'],['⇐','双线左'],['⇔','双线左右'],['➜','粗右箭头'],['➔','箭头'],['➡','实心右箭头'],
+      ['↖','左上'],['↗','右上'],['↘','右下'],['↙','左下'],['↩','回车箭头'],['↪','右钩箭头'],
+      ['⤴','上折'],['⤵','下折'],['⇄','对向箭头'],['⇅','上下对'],['⟶','长右箭头'],['⟵','长左箭头']
+    ]],
+    ['数学', [
+      ['±','正负'],['×','乘'],['÷','除'],['≠','不等于'],['≈','约等于'],['≤','小于等于'],['≥','大于等于'],
+      ['∞','无穷'],['∑','求和'],['∏','连乘'],['√','根号'],['∫','积分'],['∂','偏导'],['∆','增量'],
+      ['∇','梯度'],['∈','属于'],['∉','不属于'],['⊂','真包含'],['⊃','真包含于'],['⊆','包含'],['⊇','包含于'],
+      ['∪','并集'],['∩','交集'],['∅','空集'],['∴','所以'],['∵','因为'],['≡','恒等'],['∝','正比'],
+      ['⊥','垂直'],['∠','角'],['⌒','弧'],['∼','相似'],['≒','约等'],['⋯','省略号']
+    ]],
+    ['货币', [
+      ['¥','人民币'],['$','美元'],['€','欧元'],['£','英镑'],['₩','韩元'],['₽','卢布'],['₹','卢比'],
+      ['₺','里拉'],['฿','泰铢'],['₪','谢克尔'],['₦','奈拉'],['₱','比索'],['¢','美分'],['¤','通用货币']
+    ]],
+    ['序号', [
+      ['①','圈1'],['②','圈2'],['③','圈3'],['④','圈4'],['⑤','圈5'],['⑥','圈6'],['⑦','圈7'],['⑧','圈8'],
+      ['⑨','圈9'],['⑩','圈10'],['⑴','括号1'],['⑵','括号2'],['⑶','括号3'],['⒈','点1'],['⒉','点2'],
+      ['❶','实心圈1'],['❷','实心圈2'],['❸','实心圈3'],['Ⅰ','罗马1'],['Ⅱ','罗马2'],['Ⅲ','罗马3'],
+      ['Ⅳ','罗马4'],['Ⅴ','罗马5'],['Ⅵ','罗马6'],['Ⅶ','罗马7'],['Ⅷ','罗马8'],['Ⅸ','罗马9'],['Ⅹ','罗马10']
+    ]],
+    ['单位与量', [
+      ['Å','埃'],['Ω','欧姆'],['μ','微'],['π','派'],['ℓ','升'],['㎜','毫米'],['㎝','厘米'],['㎞','千米'],
+      ['㎏','千克'],['㎎','毫克'],['㎡','平方米'],['㎥','立方米'],['㎖','毫升'],['′','分'],['″','秒'],
+      ['‱','万分号'],['πr²','圆面积写法']
+    ]],
+    ['标点排版', [
+      ['—','长破折号'],['–','短破折号'],['‒','数字连接号'],['…','省略号'],['·','中点'],['•','圆点'],
+      ['‥','双点省略'],['「','直角引号开'],['」','直角引号闭'],['『','双直角开'],['』','双直角闭'],
+      ['【','方头括号开'],['】','方头括号闭'],['〔','六角开'],['〕','六角闭'],['《','书名号开'],['》','书名号闭'],
+      ['〈','尖括号开'],['〉','尖括号闭'],['“','左双引号'],['”','右双引号'],['‘','左单引号'],['’','右单引号'],
+      ['«','法式左引'],['»','法式右引'],['¡','倒感叹'],['¿','倒问号']
+    ]],
+    ['勾选框与标记', [
+      ['☑','已勾选'],['☐','空选框'],['☒','打叉框'],['✓','勾'],['✔','粗勾'],['✕','乘号叉'],['✖','粗叉'],
+      ['⚠','警告'],['☢','辐射'],['☣','生物危害'],['♻','回收'],['⚙','齿轮'],['⏱','秒表'],['⌘','Command'],
+      ['⌥','Option'],['⇧','Shift'],['⌫','删除键'],['⏎','回车'],['⎋','Esc'],['✎','铅笔'],['✂','剪刀'],['✉','信封']
+    ]],
+    ['装饰', [
+      ['✦','四角星'],['✧','空心四角星'],['✩','空心星'],['✪','圈中星'],['✫','星'],['✮','粗星'],
+      ['✰','六角星'],['❀','花'],['✿','实心花'],['❁','重花'],['❃','花'],['☀','太阳'],['☁','云'],
+      ['☂','伞'],['☃','雪人'],['☾','月牙'],['☽','月'],['♠','黑桃'],['♣','梅花'],['♥','红心'],['♦','方块'],
+      ['♪','音符'],['♫','双音符'],['♬','双连音符']
+    ]],
+    ['项目符号', [
+      ['•','圆点符'],['‣','三角点'],['⁃','连字符点'],['◦','空心点'],['∙','小点'],['▸','右三角点'],
+      ['▹','空心右三角'],['►','实心右箭'],['▻','空心右箭'],['▪','小实心方'],['▫','小空心方'],
+      ['—','破折号点'],['·','间隔点']
+    ]],
+    ['希腊字母', [
+      ['α','阿尔法'],['β','贝塔'],['γ','伽马'],['δ','德尔塔'],['ε','艾普西龙'],['ζ','泽塔'],['η','伊塔'],
+      ['θ','西塔'],['κ','卡帕'],['λ','兰姆达'],['μ','缪'],['ν','纽'],['ξ','克西'],['π','派'],['ρ','柔'],
+      ['σ','西格玛'],['τ','陶'],['φ','斐'],['χ','卡伊'],['ψ','普西'],['ω','欧米伽'],
+      ['Δ','大写德尔塔'],['Σ','大写西格玛'],['Ω','大写欧米伽'],['Π','大写派'],['Φ','大写斐']
+    ]],
+    ['表情', [
+      ['☺','笑脸'],['☻','实心笑脸'],['😀','开心'],['😂','笑哭'],['👍','点赞'],['👎','踩'],
+      ['🎉','庆祝'],['💡','灯泡'],['❤','红心'],['💔','心碎'],['✅','通过'],['❌','不通过'],
+      ['🔥','火'],['⭐','星标'],['📌','图钉'],['🚀','火箭'],['⏰','闹钟'],['💰','钱袋'],['📎','回形针']
+    ]]
+  ];
+
+  var list = document.getElementById('list');
+  var none = document.getElementById('none');
+  var q = document.getElementById('q');
+  var qinfo = document.getElementById('qinfo');
+  var tray = document.getElementById('tray');
+  var cnt = document.getElementById('cnt');
+
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function build(){
+    var html = '';
+    SYMS.forEach(function(g, gi){
+      html += '<div class="grp" data-g="' + gi + '"><h2>' + esc(g[0]) + '</h2><div class="cells">';
+      g[1].forEach(function(it){
+        html += '<button class="sb" type="button" data-c="' + esc(it[0]) + '" data-n="' + esc(it[1]) + '" title="' + esc(it[1]) + '">' +
+                esc(it[0]) + '<b>' + esc(it[1]) + '</b></button>';
+      });
+      html += '</div></div>';
+    });
+    list.innerHTML = html;
+  }
+
+  function filter(){
+    var key = q.value.trim().toLowerCase();
+    var hit = 0;
+    [].forEach.call(list.querySelectorAll('.grp'), function(g){
+      var n = 0;
+      [].forEach.call(g.querySelectorAll('.sb'), function(b){
+        var ok = !key || b.getAttribute('data-n').toLowerCase().indexOf(key) > -1 ||
+                 b.getAttribute('data-c').indexOf(key) > -1;
+        b.style.display = ok ? '' : 'none';
+        if (ok) n++;
+      });
+      g.style.display = n ? '' : 'none';
+      hit += n;
+    });
+    none.className = 'none' + (hit ? '' : ' on');
+    qinfo.textContent = key ? hit + ' 个匹配' : '';
+  }
+
+  function refresh(){
+    cnt.textContent = tray.value.length + ' 个字符';
+  }
+
+  list.addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('.sb') : null;
+    if (!b) return;
+    var c = b.getAttribute('data-c');
+    tray.value += c;
+    refresh();
+    copyText(c, null, '');
+    b.classList.add('flash');
+    setTimeout(function(){ b.classList.remove('flash'); }, 260);
+  });
+
+  tray.addEventListener('input', refresh);
+
+  document.getElementById('bCopyAll').addEventListener('click', function(){
+    copyText(tray.value, this, '复制全部');
+  });
+  document.getElementById('bUndo').addEventListener('click', function(){
+    var a = Array.from ? Array.from(tray.value) : tray.value.split('');
+    a.pop();
+    tray.value = a.join('');
+    refresh();
+  });
+  document.getElementById('bClear').addEventListener('click', function(){
+    tray.value = ''; refresh(); tray.focus();
+  });
+
+  q.addEventListener('input', filter);
+  document.addEventListener('keydown', function(e){
+    if (e.key === '/' && document.activeElement !== q && document.activeElement !== tray){
+      e.preventDefault(); q.focus();
+    }
+  });
+
+  build();
+  refresh();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

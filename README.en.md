@@ -1,6 +1,6 @@
-# toolbox — thirty-one small tools that open and work
+# toolbox — thirty-five small tools that open and work
 
-> Thirty-one tiny tools in one static site: JSON formatter, text tidier, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter. No backend, no ports.
+> Thirty-five tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -46,6 +46,15 @@ Sixth round (twenty-four to twenty-seven):
 - **Image to WebP**: drop JPG / PNG / BMP / AVIF / SVG (with explicit width and height) and every one is encoded in the browser through canvas — quality 50–100, optional maximum edge, automatic re-encode when you change either. Transparency is preserved instead of flattened to white, EXIF orientation is honoured via `imageOrientation: 'from-image'`, and the queue converts one file at a time so a 20 MP photo cannot blow up memory. Two sample images (a photo and a transparent circle) are drawn at load time so the size difference is visible immediately.
 - **Base converter**: one field understands `0x` / `0b` / `0o` / `#` prefixes and stores values as BigInt, so digit count is unbounded. Decimal gets thousands separators, binary is grouped in fours, and every row copies. A bit strip highlights the ones, and a row of bitwise operations (and, or, xor, shifts, unsigned 32-bit not) reports the result in decimal, hex and binary, appending the character when the code point lands somewhere printable.
 - **Image to Data URI**: small images become a string you can paste into HTML or CSS — four formats (full URI, bare base64, CSS background, img tag) with a copy button, the inflation factor spelled out and a warning past 30 KB. Going the other way, paste a data URI or bare base64 and it rebuilds the image for download, guessing JPEG / GIF / WebP / PNG from magic bytes when the prefix is missing.
+
+Eighth batch (31 → 35): three things you reach for while building, plus one for writing docs.
+
+- **SQL formatter**: paste a one-line query and it breaks at clauses (SELECT / FROM / WHERE / GROUP BY / JOIN / ON …), one column per line in select and group-by lists, keywords uppercased, indent 2 / 4 / none — or collapse everything back to one line and drop comments. A small tokenizer protects strings (with `''` escapes), backticks, line and block comments, `::` and `->>` before any reflow; the AND in `BETWEEN 1 AND 5` never becomes a line break, and `CREATE TABLE` puts one column per line.
+- **JSON to types**: paste an API response and get a TypeScript interface, a Go struct, or Python dataclasses. Objects inside arrays merge their keys, and fields missing from some elements become optional (`?` / `,omitempty` / `Optional[...]`); ints and floats are inferred separately (int64 / float64 in Go); Go names are exported with a `json` tag and an initialism table; Python output uses `from __future__ import annotations` with one class per nested object. Parse errors report the position.
+- **Number checker**: mainland ID cards (15 / 17 / 18 digits, short ones auto-padded), bank cards via Luhn, unified social credit codes, EAN-13 barcodes and ISBN-10 — one input, type detected automatically. ID cards report birth date, age, sex and province code; a wrong check digit tells you which one it should be.
+- **Symbol palette**: arrows, ticks, math, currency, circled numbers, units, punctuation, checkboxes, ornaments, bullets, Greek, emoji — twelve groups, 270+ characters, one click copies and appends to a scratch tray at the bottom.
+
+No server code this round: four pages plus three pure-calculation scripts, bundled into `assets/<tool>/` at build time. The site stays a static directory.
 
 ## Features
 
