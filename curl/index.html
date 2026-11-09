@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>curl 转代码 · 一条命令变 fetch / Python / Go / PowerShell</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .tabs{display:flex; gap:7px; flex-wrap:wrap; margin:0 0 12px}
+  .tabs button{
+    font:inherit; font-size:13px; padding:6px 14px; border-radius:999px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--dim);
+  }
+  .tabs button.on{background:var(--accent); color:var(--accent-fg); border-color:transparent; font-weight:600}
+  #src{height:300px}
+  #out{height:300px}
+  .meta{font-size:12px; color:var(--dim); display:flex; gap:12px; flex-wrap:wrap; margin-top:9px; align-items:center}
+  .meta b{color:var(--fg); font-weight:600}
+  .meta .tag{background:var(--soft); border-radius:999px; padding:2px 9px}
+  .tips{margin-top:10px; font-size:12.5px; color:var(--warn); line-height:1.8}
+  .tips div::before{content:"· "}
+  .clean{font-size:12.5px; color:var(--dim); margin-top:10px; line-height:1.8}
+  @media (max-width:560px){
+    #src, #out{height:240px}
+    .tabs button{font-size:12.5px; padding:5px 11px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>curl 转代码</h1>
+      <p class="lede">从浏览器开发者工具里复制出来的 curl 命令，粘进来就变成能直接跑的代码：fetch、Python requests、Go、PowerShell。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="tabs" id="tabs">
+    <button type="button" data-lang="fetch" class="on">JavaScript fetch</button>
+    <button type="button" data-lang="python">Python requests</button>
+    <button type="button" data-lang="go">Go</button>
+    <button type="button" data-lang="powershell">PowerShell</button>
+  </div>
+
+  <div class="row">
+    <span class="lbl">试一个：</span>
+    <button class="chip quick" type="button" data-demo="json">JSON 提交</button>
+    <button class="chip quick" type="button" data-demo="form">表单登录</button>
+    <button class="chip quick" type="button" data-demo="get">带 Cookie 的 GET</button>
+    <button class="chip quick" type="button" data-demo="line">多行续行</button>
+  </div>
+
+  <div class="panes">
+    <div class="pane">
+      <h2><span>curl 命令</span><span id="nIn">空</span></h2>
+      <textarea id="src" spellcheck="false" placeholder="curl 'https://api.example.com/v1/orders' -H 'Content-Type: application/json' -d '{&quot;a&quot;:1}'"></textarea>
+    </div>
+    <div class="pane">
+      <h2><span id="codeTitle">生成的代码</span><button id="copy" type="button">复制</button></h2>
+      <pre class="out" id="out"></pre>
+    </div>
+  </div>
+
+  <div class="meta" id="meta"></div>
+  <div class="tips" id="tips"></div>
+
+  <div class="clean">
+    单引号、双引号、反斜杠续行、`-d/--data/-H/-X/-u/-b/-F/--json` 都认；`-k -L -s -o` 这类只影响 curl 行为的参数不会写进代码。
+    生成的代码只是骨架，跑之前把 Bearer 令牌、密码这类东西换成你自己的。
+  </div>
+
+  <footer>
+    所有解析和生成都在浏览器里做，命令里的令牌不会离开这台电脑。Go 用标准库 net/http，Python 用 requests（`pip install requests`）。
+  </footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script src="../assets/curl/curl2code.js"></script>
+<script>
+(function(){
+  var src = document.getElementById('src');
+  var out = document.getElementById('out');
+  var copyBtn = document.getElementById('copy');
+  var meta = document.getElementById('meta');
+  var tips = document.getElementById('tips');
+  var nIn = document.getElementById('nIn');
+  var codeTitle = document.getElementById('codeTitle');
+  var lang = 'fetch';
+  var current = '';
+
+  var DEMO = {
+    json: "curl 'https://api.example.com/v1/orders?page=2' \\\n  -X POST \\\n  -H 'Content-Type: application/json' \\\n  -H 'Authorization: Bearer tk_live_9f2c41' \\\n  -d '{\"sku\":\"A-1032\",\"qty\":2,\"note\":\"尽快发货\"}'",
+    form: "curl -X POST https://api.example.com/login \\\n  -d 'user=demo@example.com' \\\n  -d 'pass=hunter2' \\\n  -d 'remember=1'",
+    get: "curl 'https://api.example.com/v1/me' \\\n  -H 'Cookie: sid=8f1a2c; lang=zh-CN' \\\n  -H 'Accept: application/json'",
+    line: "curl -sS \\\n  --url https://api.example.com/v1/report \\\n  --header 'Accept: text/csv' \\\n  -o report.csv"
+  };
+
+  var LANG_NAME = { fetch: 'JavaScript fetch', python: 'Python requests', go: 'Go', powershell: 'PowerShell' };
+
+  function paint(){
+    var cmd = src.value;
+    nIn.textContent = cmd.trim() ? cmd.trim().length + ' 字符' : '空';
+    codeTitle.textContent = LANG_NAME[lang] + ' 代码';
+    var r = Curl2Code.convert(cmd, lang);
+    current = r.code;
+    if (!cmd.trim()){
+      out.textContent = '把 curl 命令粘到左边。';
+      meta.innerHTML = '';
+      tips.innerHTML = '';
+      return;
+    }
+    if (!r.code){
+      out.textContent = '（没解析出可用的请求）';
+    } else {
+      out.textContent = r.code;
+    }
+    if (r.meta){
+      var tags = ['<span class="tag"><b>' + r.meta.method + '</b></span>'];
+      tags.push('<span>' + r.meta.headers + ' 个请求头</span>');
+      if (r.meta.body) tags.push('<span>请求体：' + (r.meta.body === 'json' ? 'JSON' : r.meta.body === 'form' ? '表单' : '原样文本') + '</span>');
+      if (r.meta.follow) tags.push('<span>原来带 -L（跟跳转）</span>');
+      meta.innerHTML = tags.join('');
+    } else {
+      meta.innerHTML = '';
+    }
+    tips.innerHTML = (r.warnings || []).map(function(w){ return '<div>' + w + '</div>'; }).join('');
+  }
+
+  src.addEventListener('input', paint);
+
+  [].forEach.call(document.querySelectorAll('#tabs button'), function(b){
+    b.addEventListener('click', function(){
+      lang = b.getAttribute('data-lang');
+      [].forEach.call(document.querySelectorAll('#tabs button'), function(x){ x.classList.toggle('on', x === b); });
+      paint();
+    });
+  });
+
+  [].forEach.call(document.querySelectorAll('[data-demo]'), function(b){
+    b.addEventListener('click', function(){
+      src.value = DEMO[b.getAttribute('data-demo')];
+      paint();
+    });
+  });
+
+  copyBtn.addEventListener('click', function(){
+    copyText(current);
+    copyBtn.textContent = '已复制';
+    setTimeout(function(){ copyBtn.textContent = '复制'; }, 1200);
+  });
+
+  src.value = DEMO.json;
+  paint();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

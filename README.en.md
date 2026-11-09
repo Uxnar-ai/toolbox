@@ -1,6 +1,6 @@
-# toolbox — thirty-five small tools that open and work
+# toolbox — thirty-nine small tools that open and work
 
-> Thirty-five tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation. No backend, no ports.
+> Thirty-nine tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -56,8 +56,19 @@ Eighth batch (31 → 35): three things you reach for while building, plus one fo
 
 No server code this round: four pages plus three pure-calculation scripts, bundled into `assets/<tool>/` at build time. The site stays a static directory.
 
+Ninth batch (35 -> 39): two things you need while building, one for config files, one for money.
+
+- **curl to code**: paste a "Copy as cURL" command and get fetch, Python requests, Go net/http or PowerShell. A small tokenizer handles single and double quotes, backslash / caret / backtick continuations, grouped short flags like `-sSL`, and `-X / -H / -d / --json / -F / -u / -b`; the body is classified as JSON (inlined as an object), form (URLSearchParams / dict) or raw text, and Content-Type is filled in when missing. Flags that only affect curl itself (`-k -L -s -o`) stay out of the generated code but are called out in a note.
+- **HTTP status codes**: 54 entries, the standard set plus nginx's own 499 / 444 and Cloudflare's 52x. Each carries a plain-language explanation, the usual cause and where to look next; search matches the number, the English name, the Chinese text and hidden tags.
+- **.gitignore generator**: 24 stacks in four groups, tick and the file appears. A rule appearing in several blocks is emitted once, comment headers stay, and negation rules are excluded from deduplication (getting that wrong silently ignores files that should be kept).
+- **Loan calculator**: amount, annual rate and term in; monthly payment, total interest, total repayment and a per-period schedule out. The equal-payment plan computes interest on the remaining balance each period and takes the balance as the final principal so rounding cannot leave a residue; the equal-principal plan keeps principal flat and lets interest fall.
+
 ## Features
 
+- curl to code: four languages, line continuations, grouped short flags, JSON inlined as an object
+- HTTP status codes: 54 entries with plain-language causes, including nginx and Cloudflare codes
+- .gitignore generator: 24 stacks merged without duplicates, negations preserved, copy or download
+- Loan calculator: equal-payment vs equal-principal, monthly payment, total interest, full schedule
 - Thirty-one tools in one static site, no backend and no ports
 - One build script generates every page from its template
 - Text diff: line alignment, in-line character highlighting, foldable unchanged runs, copyable patch

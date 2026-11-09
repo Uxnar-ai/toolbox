@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTTP 状态码速查 · 这个码到底什么意思、该查哪儿</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .search{display:flex; gap:10px; align-items:center; margin:0 0 10px}
+  .search input{
+    flex:1 1 auto; min-width:0; font:14px/1.5 inherit; padding:10px 13px; border-radius:9px;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+    -webkit-appearance:none; appearance:none;
+  }
+  .search input:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .search span{font-size:12.5px; color:var(--dim); white-space:nowrap}
+  .grp{margin:20px 0 8px; font-size:12.5px; font-weight:600; color:var(--dim); letter-spacing:.4px}
+  .grp:first-of-type{margin-top:14px}
+  .list{display:grid; gap:8px}
+  @media (min-width:760px){ .list{grid-template-columns:1fr 1fr} }
+  .item{
+    display:flex; gap:11px; align-items:flex-start; padding:11px 13px; cursor:pointer;
+    background:var(--card); border:1px solid var(--line); border-radius:10px; min-width:0;
+    transition:border-color .15s;
+  }
+  .item:hover{border-color:var(--accent)}
+  .item .c{
+    font:600 13px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    min-width:42px; text-align:center; padding:7px 6px; border-radius:7px; flex:0 0 auto;
+  }
+  .c.s1{background:rgba(107,112,118,.14); color:var(--dim)}
+  .c.s2{background:rgba(31,122,77,.12); color:var(--ok)}
+  .c.s3{background:rgba(180,83,9,.13); color:var(--warn)}
+  .c.s4{background:rgba(192,57,43,.11); color:var(--err)}
+  .c.s5{background:rgba(192,57,43,.2); color:var(--err)}
+  .item .t{min-width:0}
+  .item .n{font-size:13.5px; font-weight:600; line-height:1.4}
+  .item .n em{font-style:normal; font-weight:400; color:var(--dim); font-size:12px; margin-left:6px}
+  .item .d{font-size:12.5px; color:var(--dim); line-height:1.65; margin-top:3px}
+  .empty{padding:26px 4px; color:var(--dim); font-size:13.5px}
+  .ret{font-size:12.5px; color:var(--dim); margin-top:14px; line-height:1.8}
+  .ret b{color:var(--fg)}
+  @media (max-width:560px){
+    .item .c{min-width:38px; font-size:12px}
+    .item{padding:10px 11px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>HTTP 状态码速查</h1>
+      <p class="lede">看到 502 不知道查哪？搜一下：中文解释、最常见的原因、下一步该看什么。点一条能复制编号。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="search">
+    <input id="q" type="search" placeholder="搜编号或关键词：502、超时、跨域、限流、证书……" autocomplete="off">
+    <span id="qinfo"></span>
+  </div>
+
+  <div class="row" id="quick">
+    <span class="lbl">常遇到的：</span>
+    <button class="chip quick" type="button" data-code="404">404</button>
+    <button class="chip quick" type="button" data-code="401">401</button>
+    <button class="chip quick" type="button" data-code="429">429</button>
+    <button class="chip quick" type="button" data-code="502">502</button>
+    <button class="chip quick" type="button" data-code="504">504</button>
+    <button class="chip quick" type="button" data-code="304">304</button>
+  </div>
+
+  <div id="body"></div>
+
+  <div class="ret">
+    <b>四个数位是分段的：</b>1xx 还在协商、2xx 成了、3xx 让你去别处、4xx 是你的请求有问题、5xx 是服务器自己出了问题。
+    排查顺序：4xx 先看请求本身（参数、令牌、Content-Type），5xx 先看服务端和反向代理的日志。
+  </div>
+
+  <footer>
+    收录标准状态码，另加 nginx 自己记的 499 / 444 和 Cloudflare 的 52x 这几个实际会遇到的非标准码。数据写死在页面里，不联网。
+  </footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var DATA = [
+    ['100','Continue','继续','客户端先问了「我可以发正文吗」，服务器说可以。用 Expect: 100-continue 时临时出现，不用处理。','1'],
+    ['101','Switching Protocols','换协议','升级到 WebSocket 时出现，之后这条连接就不再是普通 HTTP 了。','1 websocket 升级'],
+    ['103','Early Hints','提前给点提示','服务器抢先把要预加载的资源列表给浏览器。看到它不代表请求结束。','1 预加载'],
+
+    ['200','OK','正常','请求成功，正文就是你要的数据。','2 成功'],
+    ['201','Created','已创建','POST 新建资源成功，Location 头里通常带新资源的地址。','2 新建 post'],
+    ['202','Accepted','已受理','请求收下了，但还在后台排队处理，不代表已经完成。','2 异步 队列'],
+    ['204','No Content','成功但没内容','典型是 DELETE、PUT 成功。前端容易在这里踩坑：204 没有正文，硬去解析 JSON 会报错。','2 空 delete'],
+    ['206','Partial Content','只给了一部分','断点续传、视频拖动进度时出现，配合 Range 头使用。','2 断点续传 分片 视频'],
+
+    ['301','Moved Permanently','永久搬家','浏览器会缓存这个跳转。换了域名之后旧链接靠它。POST 会被改成 GET。','3 重定向 永久 换域名'],
+    ['302','Found','临时跳转','常见于登录后跳回原页面。POST 同样会被改成 GET。','3 重定向 临时 登录'],
+    ['303','See Other','去另一个地址看结果','POST 提交完让你用 GET 去看结果，避免刷新重复提交。','3 重定向 post 表单'],
+    ['304','Not Modified','没变，用缓存','带 If-None-Match / If-Modified-Since 去问，服务器说内容没改。看到它说明缓存生效了，不是错误。','3 缓存 etag'],
+    ['307','Temporary Redirect','临时跳转（不改方法）','和 302 的区别是保持原来的请求方法和正文。','3 重定向 保持方法'],
+    ['308','Permanent Redirect','永久跳转（不改方法）','301 的严格版，同样保留请求方法。','3 重定向 永久'],
+
+    ['400','Bad Request','请求本身有毛病','参数缺了、类型不对、JSON 语法错、必填项空着。先看请求体。','4 参数 格式错误'],
+    ['401','Unauthorized','没登录 / 令牌不认','名字叫未授权，其实是未认证：没带令牌、令牌过期、签名不对。看 WWW-Authenticate 头。','4 登录 令牌 token 过期 认证'],
+    ['402','Payment Required','要付钱','少见，一般是付费接口额度用完。','4 付费'],
+    ['403','Forbidden','登录了但没权限','身份是认得的，但这个操作不允许；也可能是被 WAF / 防盗链拦在外面。和 401 的区别：重新登录没用。','4 权限 禁止 waf 防盗链'],
+    ['404','Not Found','找不到','地址拼错、路由没注册、静态文件路径不对。后端有、反代没转过去也会 404。','4 找不到 不存在 路径'],
+    ['405','Method Not Allowed','方法不允许','对只收 GET 的接口发了 POST。响应里的 Allow 头会告诉你支持哪些方法。','4 post get 方法'],
+    ['406','Not Acceptable','给不了你要的格式','请求头 Accept 要 JSON，服务器只会给 XML 之类。','4 accept 格式'],
+    ['407','Proxy Authentication Required','代理要密码','经过需要认证的代理时出现，本机代理软件配置不对也会。','4 代理 proxy'],
+    ['408','Request Timeout','你发得太慢','连接建立了但请求迟迟发不完，常见于网络很差的上传。','4 超时 上传'],
+    ['409','Conflict','冲突','并发写同一条记录、唯一键重复、版本号对不上（乐观锁）。','4 冲突 并发 唯一键'],
+    ['410','Gone','彻底没了','资源被永久删除，且不打算恢复。和 404 的区别是「确定不会再有了」。','4 删除'],
+    ['411','Length Required','必须说明多长','要求带 Content-Length，少见。','4 长度'],
+    ['412','Precondition Failed','前置条件不成立','If-Match / If-Unmodified-Since 对不上，多出现在并发控制。','4 条件 etag'],
+    ['413','Payload Too Large','请求体太大','上传超了限制。nginx 是 client_max_body_size，后端框架也有自己的上限。','4 太大 上传 限制 nginx'],
+    ['414','URI Too Long','网址太长','GET 参数塞太多，或者重定向死循环把地址越拼越长。','4 网址 参数'],
+    ['415','Unsupported Media Type','类型不支持','发了 JSON 但没写 Content-Type: application/json，后端不认。','4 content-type 类型'],
+    ['416','Range Not Satisfiable','要的范围不存在','断点续传时请求的区间超出文件大小。','4 范围 range'],
+    ['418','I\'m a teapot','我是茶壶','1998 年的愚人节彩蛋，现在偶尔被用来「礼貌地拒绝」。','4 彩蛋'],
+    ['422','Unprocessable Entity','格式对但内容不合法','JSON 能解析，但业务校验不过：手机号格式、金额为负、日期早于今天。','4 校验 参数'],
+    ['425','Too Early','来太早了','防重放攻击用，要求稍后重试。','4 重放'],
+    ['429','Too Many Requests','请求太频繁','被限流了。看 Retry-After 头等几秒再试，别原地重试加重惩罚。','4 限流 频率 爬虫'],
+    ['431','Request Header Fields Too Large','请求头太大','Cookie 攒太多最常见——清一下域名下的 Cookie。','4 请求头 cookie'],
+    ['451','Unavailable For Legal Reasons','因法律原因不可用','地区限制或内容下架。','4 法律 地区'],
+
+    ['500','Internal Server Error','服务器内部错误','后端代码抛了没接住的异常。看服务端日志的堆栈，这是唯一能定位到行号的地方。','5 报错 异常 后端'],
+    ['501','Not Implemented','功能没实现','服务器不认这个请求方法，或网关不支持。','5 未实现'],
+    ['502','Bad Gateway','网关拿不到后端的正常响应','后端进程没起来、崩了、端口写错、容器退出。反代（nginx）自己没问题，是它背后那位出事了。','5 网关 nginx 反代 后端挂了'],
+    ['503','Service Unavailable','服务暂时不可用','过载、在维护、连接池满了。带 Retry-After 就按它等。','5 不可用 维护 过载'],
+    ['504','Gateway Timeout','网关等后端等到超时','后端在跑但太慢：慢查询、外部接口卡住。nginx 默认 60s，proxy_read_timeout 可调。','5 超时 网关 nginx 慢查询'],
+    ['505','HTTP Version Not Supported','协议版本不支持','极少见。','5 版本'],
+    ['507','Insufficient Storage','装不下了','磁盘满、配额用完。','5 磁盘 空间'],
+    ['511','Network Authentication Required','先连网再说','连公共 WiFi 时被门户页拦住，就是这个码。','5 wifi 认证'],
+
+    ['499','Client Closed Request','客户端先挂了','nginx 自己记的：后端还没答完，浏览器就把连接关了。多见于用户等不及刷新，或是超时设置不一致。','nginx 非标准 断开'],
+    ['444','Connection Closed Without Response','直接掐断','nginx 特有：不回任何东西就关连接，常用来挡恶意请求。','nginx 非标准 拦截'],
+    ['520','Unknown Error','Cloudflare：未知错误','源站回了空响应或者不符合 HTTP 规范。','cloudflare 非标准'],
+    ['521','Web Server Is Down','Cloudflare：源站没起来','源站的 Web 服务没在监听，或者防火墙挡了 Cloudflare 的 IP。','cloudflare 非标准 源站'],
+    ['522','Connection Timed Out','Cloudflare：连不上源站','TCP 握手就超时，通常是源站防火墙丢包。','cloudflare 非标准 超时'],
+    ['523','Origin Is Unreachable','Cloudflare：源站不可达','路由层面就到不了，检查 IP 和线路。','cloudflare 非标准'],
+    ['524','A Timeout Occurred','Cloudflare：源站响应超时','连接通了但 100 秒内没回完，长任务要改成异步。','cloudflare 非标准 超时'],
+    ['525','SSL Handshake Failed','Cloudflare：SSL 握手失败','加密模式选错（比如源站只有 HTTP 却设成 Full）。','cloudflare 非标准 ssl'],
+    ['526','Invalid SSL Certificate','Cloudflare：证书无效','源站证书过期或自签，且开了严格校验。','cloudflare 非标准 证书 ssl']
+  ];
+
+  var body = document.getElementById('body');
+  var q = document.getElementById('q');
+  var qinfo = document.getElementById('qinfo');
+  var SEG = { '1': '1xx · 还在协商', '2': '2xx · 成功了', '3': '3xx · 去别处取', '4': '4xx · 请求有问题', '5': '5xx · 服务器出问题', 'c': '反代与 CDN 自己加的码' };
+
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  function segOf(c){
+    if (c === '499' || c === '444') return 'c';
+    if (c.charAt(0) === '5' && c !== '500' && parseInt(c, 10) >= 520) return 'c';
+    return c.charAt(0);
+  }
+
+  function render(key){
+    key = (key || '').trim().toLowerCase();
+    var groups = {}, order = [], hit = 0;
+    DATA.forEach(function(row){
+      var hay = (row[0] + ' ' + row[1] + ' ' + row[2] + ' ' + row[3] + ' ' + row[4]).toLowerCase();
+      if (key && hay.indexOf(key) < 0) return;
+      hit++;
+      var s = segOf(row[0]);
+      if (!groups[s]) { groups[s] = []; order.push(s); }
+      groups[s].push(row);
+    });
+    if (!hit){
+      body.innerHTML = '<div class="empty">没找到「' + esc(key) + '」。试试 502、超时、限流、证书、缓存。</div>';
+      qinfo.textContent = '0 条';
+      return;
+    }
+    var html = '';
+    order.forEach(function(s){
+      html += '<div class="grp">' + SEG[s] + '</div><div class="list">';
+      groups[s].forEach(function(row){
+        html += '<div class="item" data-copy="' + row[0] + ' ' + row[1] + '">' +
+          '<span class="c s' + (s === 'c' ? '5' : s) + '">' + row[0] + '</span>' +
+          '<span class="t"><span class="n">' + esc(row[2]) + '<em>' + esc(row[1]) + '</em></span>' +
+          '<span class="d">' + esc(row[3]) + '</span></span></div>';
+      });
+      html += '</div>';
+    });
+    body.innerHTML = html;
+    qinfo.textContent = key ? hit + ' 条匹配' : '共 ' + hit + ' 条';
+  }
+
+  q.addEventListener('input', function(){ render(q.value); });
+  document.addEventListener('keydown', function(e){
+    if (e.key === '/' && document.activeElement !== q){ e.preventDefault(); q.focus(); }
+    else if (e.key === 'Escape' && document.activeElement === q){ q.value = ''; render(''); q.blur(); }
+  });
+
+  [].forEach.call(document.querySelectorAll('[data-code]'), function(b){
+    b.addEventListener('click', function(){
+      var c = b.getAttribute('data-code');
+      q.value = (q.value === c) ? '' : c;
+      render(q.value);
+    });
+  });
+
+  body.addEventListener('click', function(e){
+    var it = e.target.closest ? e.target.closest('.item') : null;
+    if (!it) return;
+    copyText(it.getAttribute('data-copy'));
+    var n = it.querySelector('.n');
+    var old = n.innerHTML;
+    n.innerHTML = '已复制 ' + it.getAttribute('data-copy');
+    setTimeout(function(){ n.innerHTML = old; }, 900);
+  });
+
+  render('');
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

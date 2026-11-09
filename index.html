@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>工具台 toolbox</title>
-<meta name="description" content="一堆打开就能用的小工具：JSON、文本、CSV 表格、Markdown 预览、字数统计、中英混排、网址拆解、乱码修复、时间戳、对比、Cron、日期、命名转换、金额大写、百分比、单位、网段计算、颜色、图片压缩、二维码、哈希、编码、SQL 排版、JSON 转类型、号码校验、特殊符号。全在浏览器里算，不上传服务器。">
+<meta name="description" content="一堆打开就能用的小工具：JSON、文本、CSV 表格、Markdown 预览、字数统计、中英混排、网址拆解、乱码修复、时间戳、对比、Cron、日期、命名转换、金额大写、百分比、贷款计算、单位、网段计算、颜色、图片压缩、二维码、哈希、编码、SQL 排版、JSON 转类型、号码校验、curl 转代码、HTTP 状态码、.gitignore 生成、特殊符号。全在浏览器里算，不上传服务器。">
 <link rel="stylesheet" href="assets/theme.css">
 <style>
   .grid{display:grid; gap:12px; grid-template-columns:1fr}
@@ -192,6 +192,24 @@
       <p>身份证、银行卡、信用代码、商品条码粘进来，校验位对不对一眼看，顺带读出性别和卡组织。</p>
       <div class="tags"><span>身份证</span><span>银行卡 Luhn</span><span>条码</span></div>
     </a>
+    <a class="card" href="curl/" data-k="curl curl 转代码 从开发者工具复制的 curl 命令，粘进来就变成能直接跑的 fetch、Python、Go 或 PowerShell 代码。 四种语言 认多行续行 令牌不上传" data-slug="curl">
+      <div class="top"><span class="ico">⌘</span><span class="arrow">↗</span></div>
+      <h2>curl 转代码</h2>
+      <p>从开发者工具复制的 curl 命令，粘进来就变成能直接跑的 fetch、Python、Go 或 PowerShell 代码。</p>
+      <div class="tags"><span>四种语言</span><span>认多行续行</span><span>令牌不上传</span></div>
+    </a>
+    <a class="card" href="http/" data-k="http HTTP 状态码 502 到底该查哪儿？搜编号或关键词，看中文解释、最常见的原因和下一步。点一条复制编号。 中文解释 排查方向 含反代与 CDN" data-slug="http">
+      <div class="top"><span class="ico">5xx</span><span class="arrow">↗</span></div>
+      <h2>HTTP 状态码</h2>
+      <p>502 到底该查哪儿？搜编号或关键词，看中文解释、最常见的原因和下一步。点一条复制编号。</p>
+      <div class="tags"><span>中文解释</span><span>排查方向</span><span>含反代与 CDN</span></div>
+    </a>
+    <a class="card" href="ignore/" data-k="ignore .gitignore 生成 勾上语言、框架、编辑器、系统，直接出一份能用的忽略规则，复制或下载成 .gitignore。 按栈拼 自动去重 可下载" data-slug="ignore">
+      <div class="top"><span class="ico">⊘</span><span class="arrow">↗</span></div>
+      <h2>.gitignore 生成</h2>
+      <p>勾上语言、框架、编辑器、系统，直接出一份能用的忽略规则，复制或下载成 .gitignore。</p>
+      <div class="tags"><span>按栈拼</span><span>自动去重</span><span>可下载</span></div>
+    </a>
   </div>
   <div class="group">时间与任务</div>
   <div class="grid">
@@ -245,6 +263,12 @@
       <h2>百分比计算</h2>
       <p>打折省多少、涨了百分之几、占多少比例、加几成，填两个数就出结果。</p>
       <div class="tags"><span>打折</span><span>涨跌幅</span><span>占比</span></div>
+    </a>
+    <a class="card" href="loan/" data-k="loan 贷款计算 填金额、利率、年限，立刻看到月供、总利息和每期还款明细，等额本息与等额本金能对比。 月供 总利息 还款明细表" data-slug="loan">
+      <div class="top"><span class="ico">％</span><span class="arrow">↗</span></div>
+      <h2>贷款计算</h2>
+      <p>填金额、利率、年限，立刻看到月供、总利息和每期还款明细，等额本息与等额本金能对比。</p>
+      <div class="tags"><span>月供</span><span>总利息</span><span>还款明细表</span></div>
     </a>
   </div>
   <div class="group">网络与编码</div>
@@ -307,7 +331,7 @@
 
   <footer>
     同一个仓库里长出来的东西：新工具加个目录、挂进这张表就行。需要后端的（短码暂存、天气、主机指标、资讯聚合）各自独立跑，不塞进这里。
-    <br>更新于 2026-11-09 · 共 35 个工具
+    <br>更新于 2026-11-10 · 共 39 个工具
   </footer>
 </div>
 <script src="assets/base.js"></script>

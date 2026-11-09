@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>.gitignore 生成 · 勾几个技术栈，直接出一份能用的</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .picks{display:grid; gap:8px; margin-bottom:14px}
+  .picks h3{margin:16px 0 2px; font-size:12.5px; font-weight:600; color:var(--dim); letter-spacing:.4px}
+  .picks h3:first-child{margin-top:0}
+  .grid{display:grid; gap:7px; grid-template-columns:1fr 1fr}
+  @media (min-width:620px){ .grid{grid-template-columns:repeat(3,1fr)} }
+  @media (min-width:900px){ .grid{grid-template-columns:repeat(4,1fr)} }
+  .opt{
+    display:flex; align-items:center; gap:8px; padding:9px 11px; cursor:pointer; min-width:0;
+    background:var(--card); border:1px solid var(--line); border-radius:9px; font-size:13px;
+    transition:border-color .15s, background .15s;
+  }
+  .opt:hover{border-color:var(--accent)}
+  .opt input{accent-color:var(--accent); margin:0; flex:0 0 auto}
+  .opt.on{border-color:var(--accent); background:var(--soft)}
+  .opt span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+
+  .outbox{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .outbox h2{
+    margin:0; padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim);
+    background:var(--soft); border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .outbox h2 .btns{display:flex; gap:6px}
+  .outbox h2 button{
+    font:inherit; font-size:12px; padding:4px 10px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  #out{height:420px; margin:0; padding:12px 14px; overflow:auto;
+    font:12.5px/1.75 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    white-space:pre; color:var(--fg)}
+  .hint{font-size:12.5px; color:var(--dim); margin-top:12px; line-height:1.8}
+  @media (max-width:560px){ #out{height:320px; font-size:12px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>.gitignore 生成</h1>
+      <p class="lede">勾上你用的语言、框架、编辑器、系统，右边直接出内容。复制或下载成 .gitignore，省得每次凭记忆拼。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="picks" id="picks"></div>
+
+  <div class="row">
+    <span class="lbl">常用组合：</span>
+    <button class="chip quick" type="button" data-preset="web">前端 Node</button>
+    <button class="chip quick" type="button" data-preset="py">Python 后端</button>
+    <button class="chip quick" type="button" data-preset="full">全栈</button>
+    <span class="sep"></span>
+    <button class="chip" type="button" id="clear">全清</button>
+  </div>
+
+  <div class="outbox">
+    <h2><span id="info">已选 0 项</span>
+      <span class="btns"><button id="copy" type="button">复制</button><button id="dl" type="button">下载 .gitignore</button></span>
+    </h2>
+    <pre id="out"></pre>
+  </div>
+
+  <div class="hint">
+    生成的规则按技术栈分段，重复的写法只留一份。带 <code>/</code> 结尾的表示只忽略目录，带 <code>!</code> 开头的是「不要忽略」的反向规则。
+    已经提交过历史记录的文件，加进 .gitignore 之后还得 `git rm --cached` 才会真的从仓库里消失。
+  </div>
+
+  <footer>
+    模板来自各语言官方仓库与社区通用的写法，按需自己加几行永远比背规则省事。所有内容在本地拼成，不上传。
+  </footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var STACKS = [
+    { group: '语言与运行时', items: [
+      { id: 'node', name: 'Node.js', lines: [
+        '# 依赖', 'node_modules/', '.pnp.*', '.yarn/*', '!.yarn/patches', '!.yarn/releases', '!.yarn/plugins', '!.yarn/versions',
+        '', '# 构建产物', 'dist/', 'build/', '.next/', '.nuxt/', '.output/', '.cache/', '.parcel-cache/', 'coverage/',
+        '', '# 日志与临时文件', 'npm-debug.log*', 'yarn-debug.log*', 'yarn-error.log*', '.eslintcache', '*.tsbuildinfo',
+        '', '# 环境变量', '.env', '.env.*', '!.env.example'
+      ]},
+      { id: 'python', name: 'Python', lines: [
+        '__pycache__/', '*.py[cod]', '*.egg-info/', '.eggs/', 'build/', 'dist/', '.venv/', 'venv/', 'env/',
+        '.pytest_cache/', '.mypy_cache/', '.ruff_cache/', '.coverage', 'coverage.xml', 'htmlcov/',
+        '*.log', '.env', '.env.*', '!.env.example'
+      ]},
+      { id: 'java', name: 'Java', lines: [
+        '*.class', '*.jar', '*.war', 'target/', 'build/', '.gradle/', 'gradlew', 'gradlew.bat', 'out/', '.idea/'
+      ]},
+      { id: 'go', name: 'Go', lines: [
+        '*.exe', '*.exe~', '*.dll', '*.so', '*.dylib', '*.test', '*.out', 'vendor/', 'go.work.sum'
+      ]},
+      { id: 'rust', name: 'Rust', lines: [
+        'target/', '**/*.rs.bk', 'Cargo.lock.bak'
+      ]},
+      { id: 'c', name: 'C / C++', lines: [
+        '*.o', '*.obj', '*.a', '*.lib', '*.so', '*.so.*', '*.dylib', '*.exe', '*.out',
+        'cmake-build-*/', 'CMakeFiles/', 'CMakeCache.txt', 'Makefile', '.deps/', '*.gcda', '*.gcno'
+      ]},
+      { id: 'dotnet', name: 'C# / .NET', lines: [
+        'bin/', 'obj/', '*.user', '*.suo', '*.userprefs', '*.nupkg', 'packages/', '.vs/'
+      ]},
+      { id: 'php', name: 'PHP / Laravel', lines: [
+        '/vendor/', 'composer.lock', '.phpunit.result.cache', '/storage/*.key', '/storage/logs/*',
+        '/public/hot', '/public/storage', '.env', '.env.backup', '.phpactor.json'
+      ]},
+      { id: 'ruby', name: 'Ruby / Rails', lines: [
+        '/.bundle', '/vendor/bundle', '/log/*', '/tmp/*', '!/tmp/.keep', '/storage/*', '/public/assets',
+        '*.gem', '.rspec_status', 'config/master.key'
+      ]},
+      { id: 'flutter', name: 'Flutter / Dart', lines: [
+        '.dart_tool/', '.flutter-plugins', '.flutter-plugins-dependencies', 'build/', '.packages', 'pubspec.lock',
+        '*.iml', '.idea/', 'ios/Pods/', 'android/.gradle/'
+      ]},
+    ]},
+    { group: '前端框架与工具', items: [
+      { id: 'vue', name: 'Vue / Vite', lines: [
+        'dist/', 'dist-ssr/', '*.local', '.vite/', 'node_modules/', '.env.local', '.env.*.local'
+      ]},
+      { id: 'unity', name: 'Unity', lines: [
+        '[Ll]ibrary/', '[Tt]emp/', '[Oo]bj/', '[Bb]uild/', '[Bb]uilds/', '[Ll]ogs/', '[Uu]ser[Ss]ettings/',
+        '*.csproj', '*.sln', '*.user', '*.pidb', '*.booproj', '*.svd', '*.pdb', '*.mdb', 'sysinfo.txt'
+      ]},
+      { id: 'terraform', name: 'Terraform', lines: [
+        '.terraform/', '.terraform.lock.hcl', '*.tfstate', '*.tfstate.*', 'crash.log', '*.tfvars', '*.tfplan', 'override.tf'
+      ]},
+      { id: 'docker', name: 'Docker', lines: [
+        'docker-compose.override.yml', '.docker/', '*.pid'
+      ]},
+      { id: 'latex', name: 'LaTeX', lines: [
+        '*.aux', '*.log', '*.out', '*.toc', '*.lof', '*.lot', '*.fls', '*.fdb_latexmk', '*.synctex.gz', '*.bbl', '*.blg'
+      ]},
+      { id: 'ml', name: '机器学习 / 数据', lines: [
+        '*.ipynb_checkpoints/', '.ipynb_checkpoints/', '*.h5', '*.ckpt', '*.pt', '*.pth', '*.onnx',
+        'data/raw/', 'outputs/', 'runs/', 'wandb/', '.ipynb_checkpoints'
+      ]},
+    ]},
+    { group: '编辑器', items: [
+      { id: 'vscode', name: 'VS Code', lines: [
+        '.vscode/*', '!.vscode/settings.json', '!.vscode/extensions.json', '!.vscode/launch.json', '*.code-workspace'
+      ]},
+      { id: 'jetbrains', name: 'JetBrains', lines: [
+        '.idea/', '*.iml', '*.ipr', '*.iws', 'out/', '.idea_modules/'
+      ]},
+      { id: 'vim', name: 'Vim', lines: [
+        '*.swp', '*.swo', '*~', '.netrwhist', 'tags', 'Session.vim'
+      ]},
+      { id: 'sublime', name: 'Sublime', lines: ['*.sublime-workspace', '*.sublime-project'] },
+      { id: 'emacs', name: 'Emacs', lines: ['*~', '#*#', '.\\#*', '.emacs.desktop', '.org-id-locations'] },
+    ]},
+    { group: '操作系统', items: [
+      { id: 'macos', name: 'macOS', lines: ['.DS_Store', '.AppleDouble', '.LSOverride', 'Icon\r', '._*', '.DocumentRevisions-V100', '.Spotlight-V100', '.Trashes'] },
+      { id: 'windows', name: 'Windows', lines: ['Thumbs.db', 'ehthumbs.db', 'Desktop.ini', '$RECYCLE.BIN/', '*.lnk', '*.stackdump'] },
+      { id: 'linux', name: 'Linux', lines: ['*~', '.directory', '.fuse_hidden*', '.Trash-*', 'nohup.out'] },
+    ]}
+  ];
+
+  var PRESETS = {
+    web: ['node', 'vscode', 'macos', 'windows'],
+    py: ['python', 'vscode', 'macos', 'windows'],
+    full: ['node', 'python', 'vscode', 'jetbrains', 'macos', 'windows', 'docker']
+  };
+
+  var picks = document.getElementById('picks');
+  var out = document.getElementById('out');
+  var info = document.getElementById('info');
+  var selected = {};
+
+  // 建 UI
+  var html = '';
+  STACKS.forEach(function(g){
+    html += '<h3>' + g.group + '</h3><div class="grid">';
+    g.items.forEach(function(it){
+      html += '<label class="opt" id="opt-' + it.id + '"><input type="checkbox" value="' + it.id + '"><span>' + it.name + '</span></label>';
+    });
+    html += '</div>';
+  });
+  picks.innerHTML = html;
+
+  function labelOf(id){
+    for (var i = 0; i < STACKS.length; i++){
+      for (var j = 0; j < STACKS[i].items.length; j++){
+        if (STACKS[i].items[j].id === id) return STACKS[i].items[j];
+      }
+    }
+    return null;
+  }
+
+  function build(){
+    var ids = Object.keys(selected).filter(function(k){ return selected[k]; });
+    if (!ids.length){
+      out.textContent = '# 还没勾选任何技术栈\n# 上面点几下，这里会实时出现内容';
+      info.textContent = '已选 0 项';
+      return;
+    }
+    var seen = {}, parts = ['# .gitignore · 由工具箱生成', '# 勾选：' + ids.map(function(id){ return labelOf(id).name; }).join('、'), ''];
+    ids.forEach(function(id){
+      var it = labelOf(id);
+      var body = [];
+      it.lines.forEach(function(line){
+        if (line === '') { body.push(''); return; }
+        if (line.charAt(0) === '#') { body.push(line); return; }
+        if (seen[line]) return;
+        seen[line] = 1;
+        body.push(line);
+      });
+      while (body.length && body[body.length - 1] === '') body.pop();
+      if (!body.length) return;
+      parts.push('# ---- ' + it.name + ' ----');
+      parts = parts.concat(body);
+      parts.push('');
+    });
+    while (parts.length && parts[parts.length - 1] === '') parts.pop();
+    var text = parts.join('\n') + '\n';
+    out.textContent = text;
+    info.textContent = '已选 ' + ids.length + ' 项 · ' + text.split('\n').length + ' 行';
+    return text;
+  }
+
+  function sync(){
+    [].forEach.call(picks.querySelectorAll('input'), function(cb){
+      var on = !!selected[cb.value];
+      cb.checked = on;
+      cb.parentNode.classList.toggle('on', on);
+    });
+  }
+
+  picks.addEventListener('change', function(e){
+    var cb = e.target;
+    if (cb && cb.type === 'checkbox'){
+      selected[cb.value] = cb.checked;
+      sync();
+      build();
+    }
+  });
+
+  [].forEach.call(document.querySelectorAll('[data-preset]'), function(b){
+    b.addEventListener('click', function(){
+      selected = {};
+      PRESETS[b.getAttribute('data-preset')].forEach(function(id){ selected[id] = true; });
+      sync(); build();
+    });
+  });
+
+  document.getElementById('clear').addEventListener('click', function(){
+    selected = {};
+    sync(); build();
+  });
+
+  document.getElementById('copy').addEventListener('click', function(){
+    copyText(build() || '');
+    var b = this, old = b.textContent;
+    b.textContent = '已复制';
+    setTimeout(function(){ b.textContent = old; }, 1200);
+  });
+
+  document.getElementById('dl').addEventListener('click', function(){
+    var text = build() || '';
+    var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'gitignore.txt';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+  });
+
+  // 默认：Node + Python + VS Code + macOS + Windows
+  selected = { node: true, python: true, vscode: true, macos: true, windows: true };
+  sync();
+  build();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
