@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>网站图标生成 · 一张图出 ICO 和多种尺寸 PNG</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .cols{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:860px){ .cols{grid-template-columns:minmax(0,300px) minmax(0,1fr)} }
+
+  .drop{
+    display:block;
+    background:var(--card); border:1.5px dashed var(--line); border-radius:var(--radius);
+    padding:22px 16px; text-align:center; cursor:pointer; transition:border-color .15s, background .15s;
+  }
+  .drop:hover,.drop.on{border-color:var(--accent); background:var(--soft)}
+  .drop .big{font-size:26px; line-height:1; margin-bottom:9px; color:var(--accent)}
+  .drop b{display:block; font-size:14px; font-weight:600; margin-bottom:5px}
+  .drop small{font-size:12px; color:var(--dim); line-height:1.7; display:block}
+  .drop input{display:none}
+
+  .pane{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px}
+  .pane h2{margin:0 0 10px; font-size:12.5px; font-weight:600; color:var(--dim); letter-spacing:.3px}
+
+  .acts{display:grid; gap:8px; grid-template-columns:1fr 1fr; margin-top:12px}
+  .acts .wide{grid-column:1 / -1}
+  button.b{
+    font:500 13px/1.2 inherit; padding:10px 12px; border-radius:9px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); transition:border-color .15s,color .15s;
+  }
+  button.b:hover:not(:disabled){border-color:var(--accent); color:var(--accent)}
+  button.b.pri{background:var(--accent); border-color:var(--accent); color:#fff}
+  button.b.pri:hover:not(:disabled){opacity:.9; color:#fff}
+  button.b:disabled{opacity:.4; cursor:not-allowed}
+
+  .meta{font-size:12.5px; color:var(--dim); line-height:1.9; margin-top:12px}
+  .meta b{color:var(--fg); font-weight:600}
+
+  .prev{display:flex; flex-wrap:wrap; gap:10px}
+  .cell{
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:10px; width:104px; text-align:center;
+  }
+  .cell .box{
+    height:78px; display:flex; align-items:center; justify-content:center;
+    border-radius:8px; margin-bottom:8px; overflow:hidden;
+    background:
+      linear-gradient(45deg,#0000 25%,var(--soft) 25%,var(--soft) 75%,#0000 75%) 0 0/12px 12px,
+      linear-gradient(45deg,#0000 25%,var(--soft) 25%,var(--soft) 75%,#0000 75%) 6px 6px/12px 12px;
+  }
+  .cell canvas{image-rendering:pixelated; display:block}
+  .cell .sz{font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .cell .wt{font-size:11.5px; color:var(--dim); margin-top:4px}
+
+  .empty{
+    border:1px solid var(--line); border-radius:var(--radius); background:var(--card);
+    padding:40px 16px; text-align:center; color:var(--dim); font-size:13px;
+  }
+
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.9; margin-top:14px}
+  .hint code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; background:var(--soft); padding:1px 5px; border-radius:4px}
+  @media (max-width:520px){ .cell{width:calc(50% - 5px)} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>网站图标生成</h1>
+      <p class="lede">拖一张方形图进来，直接拿到能用的 .ico 和几种尺寸的 PNG，粘进站点就是标签页上那个小图标。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="cols">
+    <div>
+      <label class="drop" id="drop">
+        <div class="big">▣</div>
+        <b>拖图进来，或点这里选</b>
+        <small>PNG / JPG / WebP / SVG<br>建议 512×512 正方形，透明背景</small>
+        <input id="file" type="file" accept="image/*">
+      </label>
+
+      <div class="pane" style="margin-top:12px">
+        <h2>下载</h2>
+        <div class="acts">
+          <button class="b pri wide" id="dlIco" disabled>下载 .ico（六个尺寸）</button>
+          <button class="b" id="dl180" disabled>180×180 PNG</button>
+          <button class="b" id="dl512" disabled>512×512 PNG</button>
+          <button class="b wide" id="dlAll" disabled>逐个下载全部 PNG</button>
+        </div>
+        <div class="meta" id="meta">
+          还没选图。当前用的是示例图，换自己的就点上面的框。
+        </div>
+      </div>
+    </div>
+
+    <div class="pane">
+      <h2>各尺寸预览</h2>
+      <div class="prev" id="prev">
+        <div class="empty" style="width:100%">正在准备示例图…</div>
+      </div>
+      <div class="hint">
+        图标文件里塞了 16 / 32 / 48 / 64 / 128 / 256 六种大小：浏览器标签页用 16，任务栏和桌面快捷方式用 32–48，
+        高分屏会挑更大的那张，所以六个都要有才不会发虚。放好之后在网页里写：
+        <code>&lt;link rel="icon" href="/favicon.ico"&gt;</code>，
+        顺手再放一张 180×180 的当手机桌面图标。
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    图片在你自己电脑上缩放打包，一张都不上传。示例图是内置画的，不是外链。
+  </footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var drop = $('drop'), fileEl = $('file'), prev = $('prev'), meta = $('meta');
+  var dlIco = $('dlIco'), dl180 = $('dl180'), dl512 = $('dl512'), dlAll = $('dlAll');
+
+  var ICO_SIZES = [16, 32, 48, 64, 128, 256];
+  var img = null, imgName = 'favicon';
+
+  // 内置示例：一个蓝底圆角方块 + 白色小房子轮廓
+  var SAMPLE = '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">' +
+    '<rect width="512" height="512" rx="104" fill="#2f6bff"/>' +
+    '<path d="M256 132 L392 246 H340 V372 H296 V300 H216 V372 H172 V246 H120 Z" fill="#ffffff"/>' +
+    '</svg>';
+
+  function loadSample(){
+    var svg = new Blob([SAMPLE], {type: 'image/svg+xml'});
+    var url = URL.createObjectURL(svg);
+    var im = new Image();
+    im.onload = function(){ URL.revokeObjectURL(url); img = im; imgName = 'favicon'; render('示例图'); };
+    im.onerror = function(){ URL.revokeObjectURL(url); prev.innerHTML = '<div class="empty" style="width:100%">示例图没画出来，直接拖你的图吧。</div>'; };
+    im.src = url;
+  }
+
+  function drawCanvas(size){
+    var c = document.createElement('canvas');
+    c.width = size; c.height = size;
+    var ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.clearRect(0, 0, size, size);
+    var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    // 非正方形按短边居中裁成正方形，避免被拉变形
+    var side = Math.min(w, h);
+    ctx.drawImage(img, (w - side) / 2, (h - side) / 2, side, side, 0, 0, size, size);
+    return c;
+  }
+
+  function toBlob(canvas){
+    return new Promise(function(res){
+      canvas.toBlob(function(b){ res(b); }, 'image/png');
+    });
+  }
+
+  function u32(v, o, view){ view.setUint32(o, v, true); }
+
+  function buildIco(list){
+    // list: [{size, blob}] —— ICO 头 6 字节 + 每张 16 字节目录，图片数据全用 PNG
+    return new Promise(function(resolve){
+      var head = new DataView(new ArrayBuffer(6));
+      head.setUint16(0, 0, true);
+      head.setUint16(2, 1, true);
+      head.setUint16(4, list.length, true);
+      var dirs = [], offset = 6 + 16 * list.length;
+      for (var i = 0; i < list.length; i++){
+        var d = new DataView(new ArrayBuffer(16));
+        var s = list[i].size;
+        d.setUint8(0, s >= 256 ? 0 : s);
+        d.setUint8(1, s >= 256 ? 0 : s);
+        d.setUint8(2, 0);
+        d.setUint8(3, 0);
+        d.setUint16(4, 1, true);
+        d.setUint16(6, 32, true);
+        u32(list[i].blob.size, 8, d);
+        u32(offset, 12, d);
+        offset += list[i].blob.size;
+        dirs.push(d.buffer);
+      }
+      var parts = [head.buffer].concat(dirs, list.map(function(x){ return x.blob; }));
+      resolve(new Blob(parts, {type: 'image/x-icon'}));
+    });
+  }
+
+  function save(blob, name){
+    var a = document.createElement('a');
+    var url = URL.createObjectURL(blob);
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+  }
+
+  var current = [];   // [{size, blob, w}]
+
+  function render(label){
+    prev.innerHTML = '';
+    var jobs = ICO_SIZES.map(function(s){
+      return toBlob(drawCanvas(s)).then(function(b){ return {size: s, blob: b}; });
+    });
+    Promise.all(jobs).then(function(list){
+      current = list;
+      var total = 0;
+      list.forEach(function(it){
+        total += it.blob.size;
+        var cell = document.createElement('div');
+        cell.className = 'cell';
+        var box = document.createElement('div');
+        box.className = 'box';
+        var c = drawCanvas(it.size);
+        // 小尺寸放大到 64 显示，看得清形状
+        var show = Math.min(64, Math.max(it.size, 40));
+        c.style.width = show + 'px';
+        c.style.height = show + 'px';
+        box.appendChild(c);
+        var sz = document.createElement('div');
+        sz.className = 'sz'; sz.textContent = it.size + '×' + it.size;
+        var wt = document.createElement('div');
+        wt.className = 'wt'; wt.textContent = bytes(it.blob.size);
+        cell.appendChild(box); cell.appendChild(sz); cell.appendChild(wt);
+        prev.appendChild(cell);
+      });
+      var dims = img.naturalWidth && img.naturalHeight
+        ? (img.naturalWidth + '×' + img.naturalHeight)
+        : '矢量图';
+      meta.innerHTML = '当前：<b>' + label + '</b> · 原图 ' + dims +
+        '<br>六张合计 <b>' + bytes(total) + '</b>';
+      [dlIco, dl180, dl512, dlAll].forEach(function(b){ b.disabled = false; });
+    });
+  }
+
+  function pickFile(f){
+    if (!f) return;
+    if (!/^image\//.test(f.type)){ alert('这不是图片文件'); return; }
+    var url = URL.createObjectURL(f);
+    var im = new Image();
+    im.onload = function(){
+      URL.revokeObjectURL(url);
+      img = im;
+      imgName = (f.name || 'favicon').replace(/\.[^.]+$/, '') || 'favicon';
+      render(imgName + '（' + f.name + '）');
+    };
+    im.onerror = function(){ URL.revokeObjectURL(url); alert('这张图解不开，换一张试试'); };
+    im.src = url;
+  }
+
+  drop.addEventListener('click', function(e){
+    if (e.target !== fileEl) fileEl.click();
+  });
+  fileEl.addEventListener('change', function(){ pickFile(fileEl.files[0]); });
+
+  ['dragenter', 'dragover'].forEach(function(t){
+    drop.addEventListener(t, function(e){ e.preventDefault(); drop.classList.add('on'); });
+  });
+  ['dragleave', 'drop'].forEach(function(t){
+    drop.addEventListener(t, function(e){ e.preventDefault(); drop.classList.remove('on'); });
+  });
+  drop.addEventListener('drop', function(e){
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    pickFile(f);
+  });
+
+  dlIco.addEventListener('click', function(){
+    buildIco(current).then(function(b){ save(b, imgName + '.ico'); });
+  });
+  dl180.addEventListener('click', function(){
+    toBlob(drawCanvas(180)).then(function(b){ save(b, imgName + '-180.png'); });
+  });
+  dl512.addEventListener('click', function(){
+    toBlob(drawCanvas(512)).then(function(b){ save(b, imgName + '-512.png'); });
+  });
+  dlAll.addEventListener('click', function(){
+    // 逐个触发会同时下载，浏览器可能拦截；间隔 300ms 更稳
+    current.forEach(function(it, i){
+      setTimeout(function(){ save(it.blob, imgName + '-' + it.size + '.png'); }, i * 300);
+    });
+  });
+
+  // 自检钩子：打包结果要能在浏览器里逐字节验，页面本身不用它
+  window.__ico = { build: buildIco, current: function(){ return current; } };
+
+  loadSample();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

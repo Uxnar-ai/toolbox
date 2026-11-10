@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTML 转 Markdown · 粘网页内容，出干净的 Markdown</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .cols{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:900px){ .cols{grid-template-columns:1fr 1fr} }
+
+  .pane{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; display:flex; flex-direction:column}
+  .pane h2{
+    margin:0; padding:10px 14px; font-size:12.5px; font-weight:600; color:var(--dim);
+    background:var(--soft); border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .pane h2 .r{display:flex; gap:6px}
+  .pane h2 button{
+    font:inherit; font-size:12px; padding:4px 10px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  .pane h2 button:hover{border-color:var(--accent); color:var(--accent)}
+  .pane textarea{
+    width:100%; height:440px; resize:vertical; border:0; padding:13px 14px;
+    font:12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    background:transparent; color:var(--fg);
+  }
+  .pane textarea:focus{outline:0}
+  .pane textarea::placeholder{color:var(--dim)}
+  pre.out{height:440px; overflow:auto; padding:13px 14px; margin:0;
+    font:12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; white-space:pre-wrap; word-break:break-word}
+  .out.void{color:var(--dim)}
+
+  .bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px}
+  .bar .lbl{font-size:12.5px; color:var(--dim)}
+  .chip{
+    font:500 13px/1.2 inherit; padding:7px 13px; border-radius:999px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); transition:border-color .15s,color .15s;
+  }
+  .chip:hover{border-color:var(--accent); color:var(--accent)}
+  .chip.on{background:var(--accent); border-color:var(--accent); color:#fff}
+  .bar .grow{flex:1 1 auto}
+
+  .stat{font-size:12.5px; color:var(--dim); margin-top:12px; line-height:1.9}
+  .stat b{color:var(--fg); font-weight:600}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.9; margin-top:10px}
+  @media (max-width:640px){ .pane textarea, pre.out{height:260px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>HTML 转 Markdown</h1>
+      <p class="lede">从网页或编辑器里复制的内容直接粘进左边，右边就是干净的 Markdown，复制走就能用。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="bar">
+    <span class="lbl">试一个：</span>
+    <button class="chip" type="button" data-demo="article">一篇小文章</button>
+    <button class="chip" type="button" data-demo="table">带表格</button>
+    <button class="chip" type="button" data-demo="list">多级列表</button>
+    <span class="grow"></span>
+    <span class="lbl">列表符号：</span>
+    <button class="chip on" type="button" data-mark="-">-</button>
+    <button class="chip" type="button" data-mark="*">*</button>
+  </div>
+
+  <div class="cols">
+    <div class="pane">
+      <h2><span>HTML（从网页复制的原始内容）</span>
+        <span class="r"><button type="button" id="pasteDemo">填示例</button><button type="button" id="clear">清空</button></span>
+      </h2>
+      <textarea id="src" spellcheck="false" placeholder="在这里粘贴 HTML，或者直接从浏览器里 Ctrl+C 一段网页内容贴进来（会自动取富文本那一份）"></textarea>
+    </div>
+    <div class="pane">
+      <h2><span>Markdown</span>
+        <span class="r"><button type="button" id="copy">复制</button><button type="button" id="dl">下载 .md</button></span>
+      </h2>
+      <pre class="out void" id="out">左边一粘，这里就出结果</pre>
+    </div>
+  </div>
+
+  <div class="stat" id="stat"></div>
+  <div class="hint">
+    认得的标签：标题、段落、加粗斜体、行内代码、代码块（带语言）、有序无序多级列表、任务清单、链接、图片、引用、分隔线、表格、删除线。
+    其它标签会被拆掉只留文字，脚本和样式直接扔掉。整页源码贴进来也行，只会取 body 里的部分。
+  </div>
+
+  <footer>
+    全部在浏览器里转，粘的内容不上传。示例是页面内置的一段 HTML。
+  </footer>
+</div>
+
+<template id="demo-article"><article>
+  <h2>为什么小工具值得自己做</h2>
+  <p>手边总有几个重复的小动作：把一列数字改成逗号串、把时间戳换成本地时间。
+  花十分钟做个页面，之后每次都能省三分钟，<strong>而且不用把数据传到别人的服务器</strong>。</p>
+  <blockquote>能用浏览器算的，就别请求后端。</blockquote>
+  <p>需要看细节的可以读 <a href="https://example.com/notes">这份笔记</a>，
+  里面有个 <code>localStorage</code> 的小技巧。</p>
+  <h3>落地三步</h3>
+  <ol>
+    <li>先写清一句话用途</li>
+    <li>默认带示例数据，打开就有东西看</li>
+    <li>输入 → 一个按钮 → 结果，别加设置页</li>
+  </ol>
+  <pre><code class="language-js">const el = document.querySelector('#out');
+el.textContent = md;</code></pre>
+</article></template>
+
+<template id="demo-table"><h3>本周开销</h3>
+<table>
+  <thead><tr><th>项目</th><th>金额</th><th>备注</th></tr></thead>
+  <tbody>
+    <tr><td>地铁</td><td align="right">48</td><td>通勤</td></tr>
+    <tr><td>咖啡</td><td align="right">76</td><td>三杯</td></tr>
+    <tr><td>书</td><td align="right">129</td><td>技术书一本</td></tr>
+  </tbody>
+</table>
+<p>合计 <strong>253</strong> 元。</p></template>
+
+<template id="demo-list"><ul>
+  <li>前端
+    <ul>
+      <li>主题三态：跟随系统 / 浅 / 深</li>
+      <li>复制要有 http 兜底</li>
+    </ul>
+  </li>
+  <li>后端
+    <ol>
+      <li>只绑本机地址</li>
+      <li>对外走反代</li>
+    </ol>
+  </li>
+  <li><del>再开一个新域名</del> 进工具台就够了</li>
+</ul></template>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var src = $('src'), out = $('out'), stat = $('stat');
+  var mark = '-';
+
+  var SKIP = {SCRIPT:1, STYLE:1, NOSCRIPT:1, IFRAME:1, SVG:1, HEAD:1, META:1, LINK:1, TEMPLATE:1};
+
+  function txt(n){ return (n.nodeValue || '').replace(/\s+/g, ' '); }
+
+  function inline(n){
+    if (n.nodeType === 3) return txt(n);
+    if (n.nodeType !== 1) return '';
+    var tag = n.tagName;
+    if (SKIP[tag]) return '';
+    var inner = function(){ return [].map.call(n.childNodes, inline).join(''); };
+    var s;
+    switch (tag){
+      case 'BR': return '  \n';
+      case 'STRONG': case 'B':
+        s = inner().trim(); return s ? '**' + s + '**' : '';
+      case 'EM': case 'I':
+        s = inner().trim(); return s ? '*' + s + '*' : '';
+      case 'DEL': case 'S': case 'STRIKE':
+        s = inner().trim(); return s ? '~~' + s + '~~' : '';
+      case 'CODE':
+        s = (n.textContent || '').replace(/\n/g, ' ');
+        return s ? '`' + s.replace(/`/g, "'") + '`' : '';
+      case 'KBD':
+        s = (n.textContent || '').trim(); return s ? '`' + s + '`' : '';
+      case 'A': {
+        var t = inner().trim() || n.getAttribute('href') || '';
+        var href = n.getAttribute('href') || '';
+        if (!href || /^javascript:/i.test(href)) return t;
+        return '[' + t + '](' + href + ')';
+      }
+      case 'IMG': {
+        var alt = n.getAttribute('alt') || '';
+        var s2 = n.getAttribute('src') || '';
+        return s2 ? '![' + alt + '](' + s2 + ')' : '';
+      }
+      default: return inner();
+    }
+  }
+
+  function cellText(el){
+    return [].map.call(el.childNodes, inline).join('').replace(/\s+/g, ' ').replace(/\|/g, '\\|').trim();
+  }
+
+  function table(n){
+    var rows = [].slice.call(n.querySelectorAll('tr'));
+    var grid = [];
+    rows.forEach(function(tr){
+      var cells = [].filter.call(tr.children, function(c){ return c.tagName === 'TD' || c.tagName === 'TH'; });
+      if (cells.length) grid.push(cells.map(cellText));
+    });
+    if (!grid.length) return '';
+    var cols = 0;
+    grid.forEach(function(r){ cols = Math.max(cols, r.length); });
+    grid.forEach(function(r){ while (r.length < cols) r.push(''); });
+    var s = '| ' + grid[0].join(' | ') + ' |\n';
+    s += '|' + grid[0].map(function(){ return ' --- |'; }).join('') + '\n';
+    for (var i = 1; i < grid.length; i++) s += '| ' + grid[i].join(' | ') + ' |\n';
+    return s;
+  }
+
+  function list(n, depth){
+    var ordered = n.tagName === 'OL';
+    var start = parseInt(n.getAttribute('start') || '1', 10) || 1;
+    var pad = new Array(depth + 1).join('  ');
+    var lines = [], i = 0;
+    [].forEach.call(n.children, function(li){
+      if (li.tagName !== 'LI') return;
+      var own = '', subs = '';
+      [].forEach.call(li.childNodes, function(c){
+        if (c.nodeType === 1 && (c.tagName === 'UL' || c.tagName === 'OL')){
+          subs += '\n' + list(c, depth + 1);
+        } else if (c.nodeType === 1 && c.tagName === 'PRE'){
+          subs += '\n' + preBlock(c).trim().split('\n').map(function(l){ return pad + '  ' + l; }).join('\n') + '\n';
+        } else {
+          own += inline(c);
+        }
+      });
+      own = own.replace(/\s+/g, ' ').trim();
+      var mk = ordered ? (start + i) + '. ' : mark + ' ';
+      i++;
+      var box = null;
+      [].forEach.call(li.children, function(c){
+        if (!box && c.tagName === 'INPUT' && (c.getAttribute('type') || '').toLowerCase() === 'checkbox') box = c;
+      });
+      if (box) mk += (box.checked || box.hasAttribute('checked')) ? '[x] ' : '[ ] ';
+      lines.push(pad + mk + own + subs);
+    });
+    return lines.join('\n');
+  }
+
+  function preBlock(el){
+    var code = el.querySelector('code') || el;
+    var cls = (code.getAttribute('class') || '') + ' ' + (el.getAttribute('class') || '');
+    var m = cls.match(/(?:language|lang)-([\w+#.-]+)/);
+    var lang = m ? m[1] : '';
+    var raw = (code.textContent || '').replace(/\n+$/, '');
+    return '```' + lang + '\n' + raw + '\n```';
+  }
+
+  function block(n, depth){
+    var out = '';
+    [].forEach.call(n.childNodes, function(c){
+      if (c.nodeType === 3){
+        var t = txt(c).trim();
+        if (t) out += t + '\n\n';
+        return;
+      }
+      if (c.nodeType !== 1) return;
+      var tag = c.tagName;
+      if (SKIP[tag]) return;
+
+      if (/^H[1-6]$/.test(tag)){
+        var lv = '######'.slice(0, +tag.charAt(1));
+        out += lv + ' ' + inline(c).trim() + '\n\n';
+        return;
+      }
+      if (tag === 'P'){
+        var p = inline(c).trim();
+        if (p) out += p + '\n\n';
+        return;
+      }
+      if (tag === 'PRE'){ out += preBlock(c) + '\n\n'; return; }
+      if (tag === 'HR'){ out += '---\n\n'; return; }
+      if (tag === 'UL' || tag === 'OL'){ out += list(c, 0) + '\n\n'; return; }
+      if (tag === 'BLOCKQUOTE'){
+        var q = block(c, 0).trim();
+        if (q){
+          out += q.split('\n').map(function(l){ return l ? '> ' + l : '>'; }).join('\n') + '\n\n';
+        }
+        return;
+      }
+      if (tag === 'TABLE'){ out += table(c) + '\n'; return; }
+      if (tag === 'FIGCAPTION'){ out += '*' + inline(c).trim() + '*\n\n'; return; }
+      if (tag === 'BR'){ out += '\n'; return; }
+      if (tag === 'DL'){
+        [].forEach.call(c.children, function(d){
+          if (d.tagName === 'DT') out += '**' + inline(d).trim() + '**\n\n';
+          else if (d.tagName === 'DD') out += inline(d).trim() + '\n\n';
+        });
+        return;
+      }
+      if (/^(DIV|SECTION|ARTICLE|MAIN|HEADER|FOOTER|ASIDE|NAV|FORM|FIELDSET|DETAILS|SUMMARY|FIGURE|BODY)$/.test(tag)){
+        out += block(c, depth);
+        return;
+      }
+      var v = inline(c).trim();
+      if (v) out += v + '\n\n';
+    });
+    return out;
+  }
+
+  function tidy(s){
+    return s.replace(/[ \t]+\n/g, '\n')
+            .replace(/\n{3,}/g, '\n\n')
+            .replace(/\*\*\s*\*\*/g, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+  }
+
+  function convert(html){
+    if (!html || !html.trim()) return '';
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    var root = doc.body || doc.documentElement;
+    return tidy(block(root, 0));
+  }
+
+  function paint(){
+    var md = convert(src.value);
+    if (!md){
+      out.textContent = '左边一粘，这里就出结果';
+      out.classList.add('void');
+      stat.textContent = '';
+      return;
+    }
+    out.classList.remove('void');
+    out.textContent = md;
+    var lines = md.split('\n').length;
+    stat.innerHTML = '输出 <b>' + md.length + '</b> 字 · <b>' + lines + '</b> 行 · 标题 ' +
+      (md.match(/^#{1,6} /gm) || []).length + ' 个 · 链接 ' + (md.match(/\]\(/g) || []).length +
+      ' 个 · 代码块 ' + Math.floor((md.match(/```/g) || []).length / 2) + ' 个';
+  }
+
+  src.addEventListener('input', paint);
+  src.addEventListener('paste', function(e){
+    var cd = e.clipboardData;
+    if (!cd) return;
+    var html = cd.getData('text/html');
+    if (html && /<\/?[a-z][\s\S]*>/i.test(html)){
+      e.preventDefault();
+      src.value = html;
+      paint();
+    }
+  });
+
+  function loadDemo(key){
+    var el = $('demo-' + key);
+    if (!el) return;
+    src.value = el.innerHTML.trim();
+    paint();
+    [].forEach.call(document.querySelectorAll('[data-demo]'), function(b){
+      b.classList.toggle('on', b.getAttribute('data-demo') === key);
+    });
+  }
+
+  [].forEach.call(document.querySelectorAll('[data-demo]'), function(b){
+    b.addEventListener('click', function(){ loadDemo(b.getAttribute('data-demo')); });
+  });
+  $('pasteDemo').addEventListener('click', function(){ loadDemo('article'); });
+  $('clear').addEventListener('click', function(){
+    src.value = ''; paint();
+    [].forEach.call(document.querySelectorAll('[data-demo]'), function(b){ b.classList.remove('on'); });
+    src.focus();
+  });
+
+  [].forEach.call(document.querySelectorAll('[data-mark]'), function(b){
+    b.addEventListener('click', function(){
+      mark = b.getAttribute('data-mark');
+      [].forEach.call(document.querySelectorAll('[data-mark]'), function(x){
+        x.classList.toggle('on', x === b);
+      });
+      paint();
+    });
+  });
+
+  $('copy').addEventListener('click', function(){
+    var md = out.classList.contains('void') ? '' : out.textContent;
+    if (!md) return;
+    copyText(md, this, '复制');
+  });
+  $('dl').addEventListener('click', function(){
+    var md = out.classList.contains('void') ? '' : out.textContent;
+    if (!md) return;
+    var blob = new Blob([md], {type: 'text/markdown;charset=utf-8'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'note.md';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
+  });
+
+  loadDemo('article');
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

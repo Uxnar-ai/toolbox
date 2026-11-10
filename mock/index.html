@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>假数据生成 · 测试用的姓名、手机、地址、身份证</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .pane{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:14px}
+  .pane h2{margin:0 0 11px; font-size:12.5px; font-weight:600; color:var(--dim); letter-spacing:.3px}
+
+  .chips{display:flex; flex-wrap:wrap; gap:7px}
+  .chip{
+    font:500 13px/1.2 inherit; padding:7px 13px; border-radius:999px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); transition:border-color .15s,color .15s;
+  }
+  .chip:hover{border-color:var(--accent); color:var(--accent)}
+  .chip.on{background:var(--accent); border-color:var(--accent); color:#fff}
+
+  .bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:13px}
+  .bar .lbl{font-size:12.5px; color:var(--dim)}
+  .bar input[type=number]{
+    width:76px; font:600 14px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    padding:7px 9px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  .bar .grow{flex:1 1 auto}
+  button.b{
+    font:500 13px/1.2 inherit; padding:8px 14px; border-radius:9px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); transition:border-color .15s,color .15s;
+  }
+  button.b:hover{border-color:var(--accent); color:var(--accent)}
+  button.b.pri{background:var(--accent); border-color:var(--accent); color:#fff}
+  button.b.pri:hover{opacity:.9; color:#fff}
+
+  .tbl{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .tbl h2{
+    margin:0; padding:10px 14px; font-size:12.5px; font-weight:600; color:var(--dim);
+    background:var(--soft); border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .tbl h2 .r{display:flex; gap:6px}
+  .tbl h2 button{
+    font:inherit; font-size:12px; padding:4px 10px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  .tbl h2 button:hover{border-color:var(--accent); color:var(--accent)}
+  .scroll{overflow:auto; max-height:460px}
+  table{width:100%; border-collapse:collapse; font-size:12.5px}
+  th, td{padding:8px 12px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap}
+  th{position:sticky; top:0; background:var(--soft); color:var(--dim); font-weight:600; z-index:1}
+  tbody tr:hover td{background:var(--soft)}
+  td.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .empty{padding:34px 16px; text-align:center; color:var(--dim); font-size:13px}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.9; margin-top:12px}
+  @media (max-width:600px){ th, td{padding:7px 9px; font-size:12px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>假数据生成</h1>
+      <p class="lede">造测试数据用：勾要哪几列、要几行，一次出表格，直接复制进表格软件或导出 CSV。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="pane">
+    <h2>要哪几列（点一下开关）</h2>
+    <div class="chips" id="fields"></div>
+    <div class="bar">
+      <span class="lbl">行数</span>
+      <input id="rows" type="number" min="1" max="200" value="10">
+      <span class="lbl">最多 200</span>
+      <span class="grow"></span>
+      <button class="b" type="button" data-preset="basic">常用六列</button>
+      <button class="b" type="button" data-preset="user">用户表</button>
+      <button class="b" type="button" data-preset="order">订单表</button>
+      <button class="b pri" type="button" id="gen">生成</button>
+    </div>
+  </div>
+
+  <div class="tbl">
+    <h2><span id="title">预览</span>
+      <span class="r">
+        <button type="button" id="copyTsv">复制（贴进表格）</button>
+        <button type="button" id="copyJson">复制 JSON</button>
+        <button type="button" id="dlCsv">下载 CSV</button>
+      </span>
+    </h2>
+    <div class="scroll"><table id="tb"></table></div>
+  </div>
+
+  <div class="hint">
+    全是程序随机拼出来的，不对应任何真实的人或企业。邮箱统一用 <code>@example.com</code>（保留域名，永远不会撞到真人邮箱），
+    身份证和银行卡只保证「格式与校验位正确」，号段是随手编的，不能拿去实名验证。
+    拿去填测试环境、给设计稿撑内容都合适；别用它冒充真人。
+  </div>
+
+  <footer>
+    生成在浏览器里完成，一行数据都不上传，也不留记录。
+  </footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+
+  var SURNAME = '王李张刘陈杨黄赵吴周徐孙马朱胡郭何高林罗郑梁谢宋唐许韩冯邓曹彭曾肖田董袁潘于蒋蔡余杜叶程苏魏吕丁任沈姚卢姜崔钟谭陆汪范金石廖贾夏韦付方白邹孟熊秦邱江尹薛闫段雷侯龙史陶黎贺顾毛郝龚邵万钱严覃武戴莫孔向汤';
+  var GIVEN = ['伟','芳','娜','敏','静','丽','强','磊','军','洋','勇','艳','杰','娟','涛','明','超','秀英','霞','平','刚','桂英','建国','晓东','文博','雨桐','子涵','浩然','思远','嘉怡','一鸣','晨曦','书瑶','若辰','雅琴','知远','清和','月明','南乔','亦凡'];
+  var CITY = ['北京市','上海市','广州市','深圳市','杭州市','南京市','成都市','武汉市','西安市','重庆市','苏州市','天津市','长沙市','郑州市','青岛市','宁波市','厦门市','合肥市','昆明市','大连市'];
+  var ROAD = ['中山路','人民路','解放路','建设街','科技大道','文化路','长江路','黄河路','新华街','望江路','环城北路','学府街','延安路','滨河东路','创业大道','天河路'];
+  var BIZ = ['云启','恒昌','明远','天工','合众','万象','新元','弘毅','拓维','光年','启明','明德','行远','致远','中鼎','安泰'];
+  var IND = ['网络科技','信息技术','智能装备','文化传媒','电子商务','供应链管理','医疗器械','新能源','建筑设计','教育咨询'];
+  var SUF = ['有限公司','股份有限公司','（集团）有限公司'];
+  var JOB = ['产品经理','前端工程师','后端工程师','测试工程师','设计师','运营专员','数据分析师','客户经理','项目经理','行政助理','财务专员','内容编辑'];
+  var WORD = ['方案','流程','接口','文档','预算','版本','排期','验收','复盘','排班','素材','报表','权限','日志','备份','指标'];
+  var PHRASE = ['今天先把主要问题讲清楚','这个改动下周上线','先把数据对齐再讨论方案','按上一次的结论执行','细节等评审时再定','先小范围试用两周'];
+
+  function ri(n){ return Math.floor(Math.random() * n); }
+  function pick(a){ return a[ri(a.length)]; }
+  function digits(n){ var s = ''; for (var i = 0; i < n; i++) s += ri(10); return s; }
+  function pad(n, w){ n = '' + n; while (n.length < w) n = '0' + n; return n; }
+
+  var FIELDS = [
+    {k:'name',  t:'姓名',   gen: function(){ return pick(SURNAME.split('')) + pick(GIVEN); }},
+    {k:'phone', t:'手机号', gen: function(){ return '1' + pick(['3','5','6','7','8','9']) + digits(9); }},
+    {k:'email', t:'邮箱',   gen: function(){ return 'user' + digits(3) + '@example.com'; }},
+    {k:'company', t:'公司', gen: function(){ return pick(CITY).replace('市','') + pick(BIZ) + pick(IND) + pick(SUF); }},
+    {k:'job',   t:'职位',   gen: function(){ return pick(JOB); }},
+    {k:'city',  t:'城市',   gen: function(){ return pick(CITY); }},
+    {k:'addr',  t:'地址',   gen: function(){ return pick(CITY) + pick(ROAD) + (1 + ri(300)) + '号' + (1 + ri(28)) + '层' + ri(10) + '0' + ri(9) + '室'; }},
+    {k:'id',    t:'身份证', gen: function(){
+        var zone = pick(['110101','310104','440305','330106','510107','420106','610113','500103']);
+        var y = 1975 + ri(30), m = 1 + ri(12), d = 1 + ri(28);
+        var body = zone + y + pad(m, 2) + pad(d, 2) + digits(3);
+        var w = [7,9,10,5,8,4,2,1,6,3,7,9,10,5,8,4,2], sum = 0;
+        for (var i = 0; i < 17; i++) sum += (+body.charAt(i)) * w[i];
+        return body + '10X98765432'.charAt(sum % 11);
+    }},
+    {k:'card',  t:'银行卡', gen: function(){
+        var b = '6222' + digits(11);
+        var sum = 0, alt = true;
+        for (var i = b.length - 1; i >= 0; i--){
+          var n = +b.charAt(i);
+          if (alt){ n *= 2; if (n > 9) n -= 9; }
+          sum += n; alt = !alt;
+        }
+        return b + ((10 - sum % 10) % 10);
+    }},
+    {k:'date',  t:'日期',   gen: function(){
+        var t = Date.now() - ri(365) * 86400000;
+        var d = new Date(t);
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1, 2) + '-' + pad(d.getDate(), 2);
+    }},
+    {k:'amount', t:'金额',  gen: function(){ return (ri(1000000) / 100).toFixed(2); }},
+    {k:'url',   t:'网址',   gen: function(){ return 'https://example.com/' + pick(['p','item','doc','post']) + '/' + digits(5); }},
+    {k:'uuid',  t:'UUID',   gen: function(){
+        var h = '0123456789abcdef', s = '';
+        for (var i = 0; i < 32; i++) s += h.charAt(ri(16));
+        return s.slice(0,8) + '-' + s.slice(8,12) + '-4' + s.slice(13,16) + '-a' + s.slice(17,20) + '-' + s.slice(20,32);
+    }},
+    {k:'sentence', t:'一句话', gen: function(){ return pick(PHRASE) + '，' + pick(WORD) + pick(['要跟上','先别动','再确认一次','这块归我']); }},
+    {k:'num',   t:'整数',   gen: function(){ return '' + ri(9999); }},
+    {k:'flag',  t:'是否',   gen: function(){ return Math.random() < 0.6 ? '是' : '否'; }}
+  ];
+
+  var PRESETS = {
+    basic: ['name','phone','email','company','city','date'],
+    user:  ['name','phone','email','id','city','addr','flag'],
+    order: ['uuid','name','amount','date','flag']
+  };
+  var chosen = PRESETS.basic.slice();
+
+  var fbox = $('fields');
+  FIELDS.forEach(function(f){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip' + (chosen.indexOf(f.k) > -1 ? ' on' : '');
+    b.textContent = f.t;
+    b.setAttribute('data-k', f.k);
+    b.addEventListener('click', function(){
+      var i = chosen.indexOf(f.k);
+      if (i > -1){ chosen.splice(i, 1); b.classList.remove('on'); }
+      else { chosen.push(f.k); b.classList.add('on'); }
+      gen();   // 勾一下就重算，别让人再点一次「生成」
+    });
+    fbox.appendChild(b);
+  });
+
+  function syncChips(){
+    [].forEach.call(fbox.children, function(b){
+      b.classList.toggle('on', chosen.indexOf(b.getAttribute('data-k')) > -1);
+    });
+  }
+
+  var TB = $('tb'), title = $('title');
+  var data = [], cols = [];
+
+  function gen(){
+    var n = Math.max(1, Math.min(200, parseInt($('rows').value, 10) || 10));
+    $('rows').value = n;
+    cols = FIELDS.filter(function(f){ return chosen.indexOf(f.k) > -1; });
+    if (!cols.length){ TB.innerHTML = '<tbody><tr><td class="empty">先在上面勾至少一列</td></tr></tbody>'; title.textContent = '预览'; data = []; return; }
+    data = [];
+    for (var i = 0; i < n; i++){
+      var row = {};
+      cols.forEach(function(f){ row[f.k] = f.gen(); });
+      data.push(row);
+    }
+    paint();
+  }
+
+  function paint(){
+    var html = '<thead><tr><th>#</th>' + cols.map(function(f){ return '<th>' + f.t + '</th>'; }).join('') + '</tr></thead><tbody>';
+    data.forEach(function(r, i){
+      html += '<tr><td class="mono" style="color:var(--dim)">' + (i + 1) + '</td>' +
+        cols.map(function(f){
+          var v = r[f.k];
+          var mono = /^(phone|id|card|uuid|date|amount|num|url)$/.test(f.k);
+          return '<td' + (mono ? ' class="mono"' : '') + '>' + v + '</td>';
+        }).join('') + '</tr>';
+    });
+    html += '</tbody>';
+    TB.innerHTML = html;
+    title.textContent = data.length + ' 行 × ' + cols.length + ' 列';
+  }
+
+  function tsv(){
+    var head = cols.map(function(f){ return f.t; }).join('\t');
+    var body = data.map(function(r){ return cols.map(function(f){ return r[f.k]; }).join('\t'); });
+    return [head].concat(body).join('\n');
+  }
+
+  $('gen').addEventListener('click', gen);
+  $('rows').addEventListener('change', gen);
+  [].forEach.call(document.querySelectorAll('[data-preset]'), function(b){
+    b.addEventListener('click', function(){
+      chosen = PRESETS[b.getAttribute('data-preset')].slice();
+      syncChips(); gen();
+    });
+  });
+
+  $('copyTsv').addEventListener('click', function(){
+    if (!data.length) return;
+    copyText(tsv(), this, '复制（贴进表格）');
+  });
+  $('copyJson').addEventListener('click', function(){
+    if (!data.length) return;
+    copyText(JSON.stringify(data, null, 2), this, '复制 JSON');
+  });
+  $('dlCsv').addEventListener('click', function(){
+    if (!data.length) return;
+    var q = function(v){ return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var csv = '\ufeff' + [cols.map(function(f){ return q(f.t); }).join(',')]
+      .concat(data.map(function(r){ return cols.map(function(f){ return q(r[f.k]); }).join(','); }))
+      .join('\r\n');
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv;charset=utf-8'}));
+    a.download = 'mock-data.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
+  });
+
+  gen();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

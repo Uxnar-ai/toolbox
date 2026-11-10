@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>时区对照 · 一个时间看遍各地几点</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .pane{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:14px}
+  .bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .bar .lbl{font-size:12.5px; color:var(--dim)}
+  .bar input[type=datetime-local]{
+    font:600 15px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    padding:9px 11px; border-radius:9px; border:1px solid var(--line);
+    background:var(--card); color:var(--fg); color-scheme:light dark;
+  }
+  .bar .grow{flex:1 1 auto}
+  button.b{
+    font:500 13px/1.2 inherit; padding:8px 14px; border-radius:9px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); transition:border-color .15s,color .15s;
+  }
+  button.b:hover{border-color:var(--accent); color:var(--accent)}
+  button.b.on{background:var(--accent); border-color:var(--accent); color:#fff}
+
+  .tbl{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .tbl h2{
+    margin:0; padding:10px 14px; font-size:12.5px; font-weight:600; color:var(--dim);
+    background:var(--soft); border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .tbl h2 button{
+    font:inherit; font-size:12px; padding:4px 10px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  .tbl h2 button:hover{border-color:var(--accent); color:var(--accent)}
+  table{width:100%; border-collapse:collapse; font-size:13px}
+  th, td{padding:9px 13px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap}
+  th{background:var(--soft); color:var(--dim); font-weight:600; font-size:12.5px}
+  tbody tr:hover td{background:var(--soft)}
+  tbody tr.home td{background:color-mix(in srgb, var(--accent) 8%, transparent)}
+  tbody tr.home td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+  td.t{font:600 14.5px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; letter-spacing:-.2px}
+  td.d{color:var(--dim); font-size:12.5px}
+  td.z{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; color:var(--dim)}
+  .dot{display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:7px; vertical-align:1px}
+  .s-work{background:#22a06b}
+  .s-off{background:#d19a1f}
+  .s-sleep{background:#7d848d}
+  .st{font-size:12.5px; color:var(--dim)}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.9; margin-top:12px}
+  @media (max-width:560px){
+    th, td{padding:8px 9px; font-size:12px}
+    td.t{font-size:13px}
+    .hide-s{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>时区对照</h1>
+      <p class="lede">定一个时间，一眼看到十几个城市各是几点、差几个小时、对面在不在上班。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="pane">
+    <div class="bar">
+      <span class="lbl">你这边的时间</span>
+      <input id="when" type="datetime-local" step="60">
+      <button class="b" type="button" id="now">现在</button>
+      <span class="grow"></span>
+      <button class="b on" type="button" data-scope="common">常用</button>
+      <button class="b" type="button" data-scope="all">全部</button>
+    </div>
+  </div>
+
+  <div class="tbl">
+    <h2><span id="title">各地时间</span><span class="st" id="sub"></span></h2>
+    <table>
+      <thead><tr><th>城市</th><th>当地时间</th><th class="hide-s">日期</th><th class="hide-s">时差</th><th>那边</th></tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+  </div>
+
+  <div class="hint">
+    时差按当天真实规则算，夏令时自动跟着变（欧洲三月底到十月底、北美三月到十一月）。
+    绿色是 9 点到 18 点的工作时间，黄色是早晚，灰色是深夜 —— 挑时间开会前瞄一眼颜色，比记时区靠谱。
+  </div>
+
+  <footer>
+    用浏览器自带的时区数据换算，不联网、不发请求。刷新页面前时间是「现在」，改了就一直按你定的那个时刻算。
+  </footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var whenEl = $('when'), tb = $('tb'), sub = $('sub'), title = $('title');
+
+  var CITIES = [
+    {n:'北京',      tz:'Asia/Shanghai',     common:true},
+    {n:'香港',      tz:'Asia/Hong_Kong',    common:false},
+    {n:'东京',      tz:'Asia/Tokyo',        common:true},
+    {n:'首尔',      tz:'Asia/Seoul',        common:false},
+    {n:'新加坡',    tz:'Asia/Singapore',    common:true},
+    {n:'曼谷',      tz:'Asia/Bangkok',      common:false},
+    {n:'孟买',      tz:'Asia/Kolkata',      common:false},
+    {n:'迪拜',      tz:'Asia/Dubai',        common:false},
+    {n:'莫斯科',    tz:'Europe/Moscow',     common:false},
+    {n:'柏林',      tz:'Europe/Berlin',     common:true},
+    {n:'巴黎',      tz:'Europe/Paris',      common:false},
+    {n:'伦敦',      tz:'Europe/London',     common:true},
+    {n:'纽约',      tz:'America/New_York',  common:true},
+    {n:'芝加哥',    tz:'America/Chicago',   common:false},
+    {n:'丹佛',      tz:'America/Denver',    common:false},
+    {n:'洛杉矶',    tz:'America/Los_Angeles', common:true},
+    {n:'圣保罗',    tz:'America/Sao_Paulo', common:false},
+    {n:'悉尼',      tz:'Australia/Sydney',  common:true},
+    {n:'奥克兰',    tz:'Pacific/Auckland',  common:false},
+    {n:'檀香山',    tz:'Pacific/Honolulu',  common:false}
+  ];
+  var scope = 'common';
+  var LOCAL_TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Shanghai';
+  var following = true;
+
+  function pad(n){ return n < 10 ? '0' + n : '' + n; }
+  function toLocalInput(d){
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+           'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  // 某时区在某一时刻的 UTC 偏移（毫秒）
+  function offsetOf(tz, date){
+    var dtf = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+    var p = {};
+    dtf.formatToParts(date).forEach(function(x){ p[x.type] = x.value; });
+    var asUTC = Date.UTC(+p.year, +p.month - 1, +p.day, (+p.hour) % 24, +p.minute, +p.second);
+    return asUTC - Math.floor(date.getTime() / 1000) * 1000;
+  }
+
+  function partsOf(tz, date){
+    var dtf = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz, hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', weekday: 'short'
+    });
+    var p = {};
+    dtf.formatToParts(date).forEach(function(x){ p[x.type] = x.value; });
+    return {
+      y: +p.year, m: +p.month, d: +p.day,
+      hh: (+p.hour) % 24, mm: +p.minute, wd: p.weekday
+    };
+  }
+
+  var WD = {Mon:'周一', Tue:'周二', Wed:'周三', Thu:'周四', Fri:'周五', Sat:'周六', Sun:'周日'};
+
+  function diffLabel(minutes){
+    if (minutes === 0) return '同步';
+    var sign = minutes > 0 ? '+' : '−';
+    var a = Math.abs(minutes);
+    var h = Math.floor(a / 60), m = a % 60;
+    return sign + h + (m ? ':' + pad(m) : '') + ' 小时';
+  }
+
+  function paint(){
+    var base = new Date(whenEl.value);
+    if (isNaN(base.getTime())) base = new Date();
+    var localOff = offsetOf(LOCAL_TZ, base);
+    var lp = partsOf(LOCAL_TZ, base);
+    var localDay = lp.y * 10000 + lp.m * 100 + lp.d;
+
+    var list = CITIES.filter(function(c){ return scope === 'all' || c.common; });
+    var html = '';
+    list.forEach(function(c){
+      var p = partsOf(c.tz, base);
+      var off = offsetOf(c.tz, base);
+      var delta = Math.round((off - localOff) / 60000);
+      var day = p.y * 10000 + p.m * 100 + p.d;
+      var dayTag = day === localDay ? '' : (day > localDay ? '明天' : '昨天');
+      var cls = 's-sleep', st = '深夜';
+      if (p.hh >= 9 && p.hh < 18){ cls = 's-work'; st = '上班时间'; }
+      else if (p.hh >= 7 && p.hh < 9){ cls = 's-off'; st = '清早'; }
+      else if (p.hh >= 18 && p.hh < 23){ cls = 's-off'; st = '晚上'; }
+      var isHome = c.tz === LOCAL_TZ || c.n === '北京';
+      html += '<tr' + (isHome ? ' class="home"' : '') + '>' +
+        '<td>' + c.n + (c.tz === LOCAL_TZ ? ' <span class="st">（你在这）</span>' : '') + '</td>' +
+        '<td class="t">' + pad(p.hh) + ':' + pad(p.mm) + '</td>' +
+        '<td class="d hide-s">' + (p.m * 1) + '月' + p.d + '日 ' + (WD[p.wd] || '') +
+          (dayTag ? ' <b style="color:var(--accent)">' + dayTag + '</b>' : '') + '</td>' +
+        '<td class="z hide-s">' + diffLabel(delta) + '</td>' +
+        '<td><span class="dot ' + cls + '"></span><span class="st">' + st + '</span></td>' +
+        '</tr>';
+    });
+    tb.innerHTML = html;
+
+    var work = 0;
+    list.forEach(function(c){
+      var p = partsOf(c.tz, base);
+      if (p.hh >= 9 && p.hh < 18) work++;
+    });
+    title.textContent = '各地时间';
+    sub.textContent = '你这边 ' + lp.y + '-' + pad(lp.m) + '-' + pad(lp.d) + ' ' +
+      pad(lp.hh) + ':' + pad(lp.mm) + ' · ' + work + '/' + list.length + ' 个城市在上班';
+  }
+
+  whenEl.value = toLocalInput(new Date());
+  whenEl.addEventListener('input', function(){ following = false; paint(); });
+  $('now').addEventListener('click', function(){
+    following = true;
+    whenEl.value = toLocalInput(new Date());
+    paint();
+  });
+  [].forEach.call(document.querySelectorAll('[data-scope]'), function(b){
+    b.addEventListener('click', function(){
+      scope = b.getAttribute('data-scope');
+      [].forEach.call(document.querySelectorAll('[data-scope]'), function(x){
+        x.classList.toggle('on', x === b);
+      });
+      paint();
+    });
+  });
+
+  // 停在「现在」时每分钟刷一次，别让页面显示过期时间
+  setInterval(function(){
+    if (!following) return;
+    whenEl.value = toLocalInput(new Date());
+    paint();
+  }, 30000);
+
+  paint();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

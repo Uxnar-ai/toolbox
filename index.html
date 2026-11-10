@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>工具台 toolbox</title>
-<meta name="description" content="一堆打开就能用的小工具：JSON、文本、CSV 表格、Markdown 预览、字数统计、中英混排、网址拆解、乱码修复、时间戳、对比、Cron、日期、命名转换、金额大写、百分比、贷款计算、单位、网段计算、颜色、图片压缩、二维码、哈希、编码、SQL 排版、JSON 转类型、号码校验、curl 转代码、HTTP 状态码、.gitignore 生成、特殊符号。全在浏览器里算，不上传服务器。">
+<meta name="description" content="一堆打开就能用的小工具：JSON、文本、CSV 表格、Markdown 预览、字数统计、中英混排、网址拆解、乱码修复、时间戳、对比、Cron、日期、命名转换、金额大写、百分比、贷款计算、单位、网段计算、颜色、图片压缩、二维码、哈希、编码、SQL 排版、JSON 转类型、号码校验、curl 转代码、HTTP 状态码、.gitignore 生成、网站图标、HTML 转 Markdown、假数据生成、时区对照、特殊符号。全在浏览器里算，不上传服务器。">
 <link rel="stylesheet" href="assets/theme.css">
 <style>
   .grid{display:grid; gap:12px; grid-template-columns:1fr}
@@ -171,6 +171,12 @@
       <p>配置文件两种写法互转：粘进来点方向就出结果，写错会告诉你在第几行，注释会提示会丢。</p>
       <div class="tags"><span>双向互转</span><span>报错定位</span><span>可下载</span></div>
     </a>
+    <a class="card" href="htmlmd/" data-k="htmlmd HTML 转 Markdown 从网页复制的内容粘进来，右边就是干净的 Markdown：标题、列表、代码块、表格都还在。 粘网页即转 认表格 可下载 .md" data-slug="htmlmd">
+      <div class="top"><span class="ico">M←</span><span class="arrow">↗</span></div>
+      <h2>HTML 转 Markdown</h2>
+      <p>从网页复制的内容粘进来，右边就是干净的 Markdown：标题、列表、代码块、表格都还在。</p>
+      <div class="tags"><span>粘网页即转</span><span>认表格</span><span>可下载 .md</span></div>
+    </a>
   </div>
   <div class="group">开发与校验</div>
   <div class="grid">
@@ -210,6 +216,12 @@
       <p>勾上语言、框架、编辑器、系统，直接出一份能用的忽略规则，复制或下载成 .gitignore。</p>
       <div class="tags"><span>按栈拼</span><span>自动去重</span><span>可下载</span></div>
     </a>
+    <a class="card" href="mock/" data-k="mock 假数据生成 勾几列、填行数，一次出姓名、手机、地址、身份证的测试数据，能直接贴进表格或导出 CSV。 测试数据 CSV 导出 校验位正确" data-slug="mock">
+      <div class="top"><span class="ico">⋯</span><span class="arrow">↗</span></div>
+      <h2>假数据生成</h2>
+      <p>勾几列、填行数，一次出姓名、手机、地址、身份证的测试数据，能直接贴进表格或导出 CSV。</p>
+      <div class="tags"><span>测试数据</span><span>CSV 导出</span><span>校验位正确</span></div>
+    </a>
   </div>
   <div class="group">时间与任务</div>
   <div class="grid">
@@ -230,6 +242,12 @@
       <h2>日期计算</h2>
       <p>两个日子差多少天、多少个工作日；从某天往后推 N 天是几号，也能算。</p>
       <div class="tags"><span>相差天数</span><span>工作日</span><span>往后推</span></div>
+    </a>
+    <a class="card" href="tz/" data-k="tz 时区对照 定一个时间，一眼看到十几个城市各是几点、差几个小时、对面在不在上班。 夏令时自动 上班时段 二十个城市" data-slug="tz">
+      <div class="top"><span class="ico">⊕</span><span class="arrow">↗</span></div>
+      <h2>时区对照</h2>
+      <p>定一个时间，一眼看到十几个城市各是几点、差几个小时、对面在不在上班。</p>
+      <div class="tags"><span>夏令时自动</span><span>上班时段</span><span>二十个城市</span></div>
     </a>
   </div>
   <div class="group">数字与金额</div>
@@ -318,6 +336,12 @@
       <p>截图或照片里有二维码？拖进来直接读出里面的文字和链接，读到的网址能一键打开。</p>
       <div class="tags"><span>截图识别</span><span>多张一起读</span><span>本地解码</span></div>
     </a>
+    <a class="card" href="ico/" data-k="ico 网站图标生成 拖一张方形图进来，直接拿到能用的 .ico 和几种尺寸的 PNG，粘进站点就是标签页上的小图标。 ICO 六种尺寸 本地打包" data-slug="ico">
+      <div class="top"><span class="ico">▣</span><span class="arrow">↗</span></div>
+      <h2>网站图标生成</h2>
+      <p>拖一张方形图进来，直接拿到能用的 .ico 和几种尺寸的 PNG，粘进站点就是标签页上的小图标。</p>
+      <div class="tags"><span>ICO</span><span>六种尺寸</span><span>本地打包</span></div>
+    </a>
   </div>
   <div class="group">生成与随机</div>
   <div class="grid">
@@ -331,7 +355,7 @@
 
   <footer>
     同一个仓库里长出来的东西：新工具加个目录、挂进这张表就行。需要后端的（短码暂存、天气、主机指标、资讯聚合）各自独立跑，不塞进这里。
-    <br>更新于 2026-11-10 · 共 39 个工具
+    <br>更新于 2026-11-11 · 共 43 个工具
   </footer>
 </div>
 <script src="assets/base.js"></script>

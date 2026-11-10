@@ -1,6 +1,6 @@
-# toolbox — thirty-nine small tools that open and work
+# toolbox — forty-three small tools that open and work
 
-> Thirty-nine tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator. No backend, no ports.
+> Forty-three tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -62,6 +62,14 @@ Ninth batch (35 -> 39): two things you need while building, one for config files
 - **HTTP status codes**: 54 entries, the standard set plus nginx's own 499 / 444 and Cloudflare's 52x. Each carries a plain-language explanation, the usual cause and where to look next; search matches the number, the English name, the Chinese text and hidden tags.
 - **.gitignore generator**: 24 stacks in four groups, tick and the file appears. A rule appearing in several blocks is emitted once, comment headers stay, and negation rules are excluded from deduplication (getting that wrong silently ignores files that should be kept).
 - **Loan calculator**: amount, annual rate and term in; monthly payment, total interest, total repayment and a per-period schedule out. The equal-payment plan computes interest on the remaining balance each period and takes the balance as the final principal so rounding cannot leave a residue; the equal-principal plan keeps principal flat and lets interest fall.
+
+Tenth batch (39 → 43): two for building sites, one for generating test data, one for reading clocks.
+
+- **Favicon maker**: drop one square image in, get a `.ico` bundling 16 / 32 / 48 / 64 / 128 / 256 plus single PNGs at 180 and 512. The ICO stores PNG slices rather than BMP, an order of magnitude smaller; non-square images are centre-cropped to a square instead of being squashed. The container is assembled by hand: 6-byte header, 16-byte directory entry per image (256 written as 0 per spec), then contiguous image data with running offsets.
+- **HTML to Markdown**: paste what you copied from a page (the rich-text flavour is preferred on paste) and Markdown comes out. Headings, bold/italic, strikethrough, inline code, fenced code with language, nested ordered/unordered lists, task items, links, images, quotes, rules and tables are understood; scripts and styles are dropped whole, and pasting a full page only takes the body.
+- **Mock data**: tick the columns, set the row count, get a table you can copy as TSV, copy as JSON or export as CSV. Seventeen field types; ID numbers carry a correct check digit and card numbers pass Luhn; emails use `@example.com` so they can never reach a real person.
+- **Timezone table**: pick an instant and see twenty cities' local time, offset, day shift and whether they are inside working hours. Offsets are computed live through `Intl.DateTimeFormat` rather than from a table, so DST follows automatically; half-hour zones (Mumbai +5:30) are kept to the minute.
+
 
 ## Features
 
