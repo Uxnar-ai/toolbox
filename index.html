@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>工具台 toolbox</title>
-<meta name="description" content="一堆打开就能用的小工具：JSON、文本、CSV 表格、Markdown 预览、字数统计、中英混排、网址拆解、乱码修复、时间戳、对比、Cron、日期、命名转换、金额大写、百分比、贷款计算、单位、网段计算、颜色、图片压缩、二维码、哈希、编码、SQL 排版、JSON 转类型、号码校验、curl 转代码、HTTP 状态码、.gitignore 生成、网站图标、HTML 转 Markdown、假数据生成、时区对照、特殊符号。全在浏览器里算，不上传服务器。">
+<meta name="description" content="一堆打开就能用的小工具：JSON、文本、CSV 表格、Markdown 预览、字数统计、中英混排、网址拆解、乱码修复、时间戳、对比、Cron、日期、命名转换、金额大写、百分比、贷款计算、单位、网段计算、颜色、图片压缩、二维码、哈希、编码、SQL 排版、JSON 转类型、号码校验、curl 转代码、HTTP 状态码、.gitignore 生成、网站图标、HTML 转 Markdown、假数据生成、时区对照、特殊符号、隐藏字符体检、表格对齐、阴影与圆角、JSON 树。全在浏览器里算，不上传服务器。">
 <link rel="stylesheet" href="assets/theme.css">
 <style>
   .grid{display:grid; gap:12px; grid-template-columns:1fr}
@@ -177,6 +177,18 @@
       <p>从网页复制的内容粘进来，右边就是干净的 Markdown：标题、列表、代码块、表格都还在。</p>
       <div class="tags"><span>粘网页即转</span><span>认表格</span><span>可下载 .md</span></div>
     </a>
+    <a class="card" href="invis/" data-k="invis 隐藏字符体检 字看着一样但代码报错？粘进来，零宽字符、不间断空格、全角空格、BOM 全现形，一键清掉。 零宽字符 NBSP / 全角空格 一键清理" data-slug="invis">
+      <div class="top"><span class="ico">◌</span><span class="arrow">↗</span></div>
+      <h2>隐藏字符体检</h2>
+      <p>字看着一样但代码报错？粘进来，零宽字符、不间断空格、全角空格、BOM 全现形，一键清掉。</p>
+      <div class="tags"><span>零宽字符</span><span>NBSP / 全角空格</span><span>一键清理</span></div>
+    </a>
+    <a class="card" href="mdtable/" data-k="mdtable 表格对齐 对不齐的 Markdown 表格贴进来，按中英文实际宽度排整齐；从 Excel 复制的格子也能直接转。 自动对齐 Tab 转表格 可下载" data-slug="mdtable">
+      <div class="top"><span class="ico">⊟</span><span class="arrow">↗</span></div>
+      <h2>表格对齐</h2>
+      <p>对不齐的 Markdown 表格贴进来，按中英文实际宽度排整齐；从 Excel 复制的格子也能直接转。</p>
+      <div class="tags"><span>自动对齐</span><span>Tab 转表格</span><span>可下载</span></div>
+    </a>
   </div>
   <div class="group">开发与校验</div>
   <div class="grid">
@@ -221,6 +233,18 @@
       <h2>假数据生成</h2>
       <p>勾几列、填行数，一次出姓名、手机、地址、身份证的测试数据，能直接贴进表格或导出 CSV。</p>
       <div class="tags"><span>测试数据</span><span>CSV 导出</span><span>校验位正确</span></div>
+    </a>
+    <a class="card" href="shadow/" data-k="shadow 阴影与圆角 拖滑块调卡片投影和圆角，右边就是能直接粘走的 CSS；顺手能看深底下的效果。 实时预览 复制 CSS 深底对比" data-slug="shadow">
+      <div class="top"><span class="ico">◧</span><span class="arrow">↗</span></div>
+      <h2>阴影与圆角</h2>
+      <p>拖滑块调卡片投影和圆角，右边就是能直接粘走的 CSS；顺手能看深底下的效果。</p>
+      <div class="tags"><span>实时预览</span><span>复制 CSS</span><span>深底对比</span></div>
+    </a>
+    <a class="card" href="jsontree/" data-k="jsontree JSON 树 一大坨接口返回折叠着看，搜键名直接定位，点一下复制路径或值。 折叠浏览 搜键名 复制路径" data-slug="jsontree">
+      <div class="top"><span class="ico">⤷</span><span class="arrow">↗</span></div>
+      <h2>JSON 树</h2>
+      <p>一大坨接口返回折叠着看，搜键名直接定位，点一下复制路径或值。</p>
+      <div class="tags"><span>折叠浏览</span><span>搜键名</span><span>复制路径</span></div>
     </a>
   </div>
   <div class="group">时间与任务</div>
@@ -355,7 +379,7 @@
 
   <footer>
     同一个仓库里长出来的东西：新工具加个目录、挂进这张表就行。需要后端的（短码暂存、天气、主机指标、资讯聚合）各自独立跑，不塞进这里。
-    <br>更新于 2026-11-11 · 共 43 个工具
+    <br>更新于 2026-11-12 · 共 47 个工具
   </footer>
 </div>
 <script src="assets/base.js"></script>

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>隐藏字符体检 · 看见空格、零宽和 BOM</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .bar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px}
+  button.b{
+    font:500 13px/1.2 inherit; padding:8px 14px; border-radius:9px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+    transition:border-color .15s,color .15s;
+  }
+  button.b:hover{border-color:var(--accent); color:var(--accent)}
+  button.b.main{background:var(--accent); border-color:var(--accent); color:var(--accent-fg)}
+  button.b.main:hover{color:var(--accent-fg); opacity:.92}
+  .panes.always{grid-template-columns:1fr}
+  @media (min-width:900px){ .panes.always{grid-template-columns:1fr 1fr} }
+  textarea{height:400px}
+  .view{
+    height:400px; overflow:auto; padding:12px 14px; margin:0;
+    font:14px/1.85 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    white-space:pre-wrap; word-break:break-all;
+  }
+  .view .m{border-radius:3px; padding:0 1px; font-style:normal}
+  .sp{color:var(--dim); opacity:.55}
+  .tab{color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, transparent)}
+  .nbsp,.wide{color:var(--warn); background:color-mix(in srgb, var(--warn) 14%, transparent); font-size:11px; padding:1px 3px !important}
+    .zw{color:var(--err); background:color-mix(in srgb, var(--err) 14%, transparent); font-size:11px; padding:1px 3px !important}
+  .ctl{color:var(--err); background:color-mix(in srgb, var(--err) 14%, transparent); font-size:11px; padding:1px 3px !important}
+  .eol{color:var(--dim); font-size:11px; opacity:.7}
+  .stats{display:flex; gap:6px 16px; flex-wrap:wrap; font-size:12.5px; color:var(--dim); margin-top:10px}
+  .stats b{color:var(--fg); font-weight:600}
+  .stats .hi b{color:var(--err)}
+  .stats .mid b{color:var(--warn)}
+  .score{
+    display:flex; align-items:center; gap:10px; padding:11px 14px; margin-bottom:12px;
+    border-radius:10px; border:1px solid var(--line); background:var(--card); font-size:13.5px;
+  }
+  .score .dot{width:9px; height:9px; border-radius:50%; flex:0 0 auto}
+  .score.ok .dot{background:var(--ok)}
+  .score.warn .dot{background:var(--warn)}
+  .score.bad .dot{background:var(--err)}
+  .score b{font-weight:600}
+  .legend{font-size:12.5px; color:var(--dim); line-height:2; margin-top:12px}
+  .legend i{font-style:normal; border-radius:3px; padding:1px 4px; margin:0 2px}
+  @media (max-width:560px){ textarea,.view{height:300px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>隐藏字符体检</h1>
+      <p class="lede">字看着一样，代码却报错？把这段粘进来，零宽字符、不间断空格、全角空格、BOM 全现形，一键清掉。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="score ok" id="score"><span class="dot"></span><span id="scoreText">正在检查…</span></div>
+
+  <div class="bar">
+    <button class="b main" id="clean">整理干净</button>
+    <button class="b" id="zwonly">只去零宽字符</button>
+    <button class="b" id="copy">复制干净文本</button>
+    <span class="sep"></span>
+    <button class="b" id="pick">查一个文件</button>
+    <input type="file" id="file" accept=".txt,.md,.csv,.json,.log,.html,.yml,.yaml" style="display:none">
+    <span class="grow"></span>
+    <button class="b" id="sample">看示例</button>
+    <button class="b" id="clear">清空</button>
+  </div>
+
+  <div class="panes always">
+    <div class="pane">
+      <h2><span>原文</span><span id="cnt">0 字符</span></h2>
+      <textarea id="src" spellcheck="false" placeholder="把要检查的文字粘到这里…"></textarea>
+    </div>
+    <div class="pane">
+      <h2><span>看见的样子</span><span id="cnt2">· 是空格 → 是制表符</span></h2>
+      <pre class="view" id="view"></pre>
+    </div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="legend">
+    记号：
+    <i class="sp">·</i>普通空格
+    <i class="tab">→</i>制表符
+    <i class="nbsp">NBSP</i>不间断空格（NBSP，中文排版里最常混进来的假空格）
+    <i class="wide">全角</i>全角空格（U+3000）
+    <i class="zw">ZWSP</i>零宽字符（看不见但算一个字）
+    <i class="eol">⏎ CRLF</i>Windows 换行
+    <br>
+    「整理干净」会做四件事：去掉零宽字符与 BOM、把 NBSP 和全角空格换成普通空格、换行统一成 LF、去掉每行末尾多余的空格。
+    <br>
+    一个提醒：粘进输入框的文字，浏览器会把 Windows 换行统一成 LF，所以这里看不出 CRLF。想知道某个文件到底用什么换行，点「查一个文件」选它，读的是原始字节。
+  </div>
+
+  <footer>
+    全部在浏览器里算，文字不会离开你的电脑。粘贴用 Ctrl+V，手机上长按粘贴。
+  </footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var srcEl = $('src'), viewEl = $('view'), statsEl = $('stats');
+  var scoreEl = $('score'), scoreText = $('scoreText'), cntEl = $('cnt');
+
+  // 用转义构造示例，避免编辑器把看不见的字符规范化掉
+  var SAMPLE = '\uFEFF名称\t数量\n苹果\u00A0\u00A0箱\u200B\t3\n香蕉\u3000箱\t12   \n橙\u200D子\t5\r\n总计\t20';
+
+  var NAMES = {
+    0x200B: 'ZWSP', 0x200C: 'ZWNJ', 0x200D: 'ZWJ', 0x200E: 'LRM', 0x200F: 'RLM',
+    0xFEFF: 'BOM', 0x2060: 'WJ', 0x00AD: 'SHY', 0x202A: 'LRE', 0x202B: 'RLE',
+    0x202C: 'PDF', 0x202D: 'LRO', 0x202E: 'RLO', 0x2028: 'LS', 0x2029: 'PS',
+    0x00A0: 'NBSP', 0x3000: 'IDSP'
+  };
+
+  var counts = {space:0, tab:0, nbsp:0, wide:0, zw:0, ctl:0, crlf:0, lf:0, cr:0, bom:0};
+  // 读文件时把原始文本放在这里：textarea 的 value 会把 CRLF 统一成 LF，看不出真实换行
+  var cur = null;
+  function source(){ return cur !== null ? cur : srcEl.value; }
+
+  function esc(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function classify(ch, code){
+    if (code === 0x20) return 'sp';
+    if (code === 0x09) return 'tab';
+    if (code === 0x00A0) return 'nbsp';
+    if (code === 0x3000) return 'wide';
+    if (code === 0xFEFF) return 'bom';
+    if (NAMES[code] && code !== 0x00A0 && code !== 0x3000) return 'zw';
+    if (code < 0x20 && code !== 0x0A && code !== 0x0D) return 'ctl';
+    if (code === 0x7F) return 'ctl';
+    return '';
+  }
+
+  function render(){
+    var t = source();
+    var out = [], i = 0, n = t.length;
+    counts = {space:0, tab:0, nbsp:0, wide:0, zw:0, ctl:0, crlf:0, lf:0, cr:0, bom:0};
+
+    while (i < n){
+      var code = t.charCodeAt(i);
+      // 换行：区分 CRLF / LF / CR
+      if (code === 0x0D){
+        if (t.charCodeAt(i+1) === 0x0A){ out.push('<span class="eol">⏎</span>\n'); counts.crlf++; i += 2; continue; }
+        out.push('<span class="eol">⏎</span>\n'); counts.cr++; i++; continue;
+      }
+      if (code === 0x0A){ out.push('\n'); counts.lf++; i++; continue; }
+
+      var k = classify(t[i], code);
+      if (k === 'sp'){ out.push('<i class="m sp">·</i>'); counts.space++; }
+      else if (k === 'tab'){ out.push('<i class="m tab">→</i>'); counts.tab++; }
+      else if (k === 'nbsp'){ out.push('<i class="m nbsp">NBSP</i>'); counts.nbsp++; }
+      else if (k === 'wide'){ out.push('<i class="m wide">全角</i>'); counts.wide++; }
+      else if (k === 'bom'){ out.push('<i class="m zw">BOM</i>'); counts.zw++; counts.bom++; }
+      else if (k === 'zw'){ out.push('<i class="m zw">' + NAMES[code] + '</i>'); counts.zw++; }
+      else if (k === 'ctl'){
+        out.push('<i class="m ctl">\\x' + ('0' + code.toString(16).toUpperCase()).slice(-2) + '</i>');
+        counts.ctl++;
+      }
+      else {
+        // 成对代理项一次输出，避免拆开
+        if (code >= 0xD800 && code <= 0xDBFF && i + 1 < n){
+          out.push(esc(t.substr(i, 2))); i += 2; continue;
+        }
+        out.push(esc(t[i]));
+      }
+      i++;
+    }
+
+    viewEl.innerHTML = out.join('') || '<span style="color:var(--dim)">左边粘一段文字，这里立刻标出看不见的字符。</span>';
+    cntEl.textContent = n + ' 字符';
+
+    var total = counts.nbsp + counts.wide + counts.zw + counts.ctl;
+    var parts = [];
+    parts.push('普通空格 <b>' + counts.space + '</b>');
+    parts.push('制表符 <b>' + counts.tab + '</b>');
+    if (counts.nbsp) parts.push('<span class="mid">不间断空格 <b>' + counts.nbsp + '</b></span>');
+    if (counts.wide) parts.push('<span class="mid">全角空格 <b>' + counts.wide + '</b></span>');
+    if (counts.zw) parts.push('<span class="hi">零宽 / BOM <b>' + counts.zw + '</b></span>');
+    if (counts.ctl) parts.push('<span class="hi">控制字符 <b>' + counts.ctl + '</b></span>');
+    var eol = [];
+    if (counts.crlf) eol.push('CRLF ' + counts.crlf);
+    if (counts.lf) eol.push('LF ' + counts.lf);
+    if (counts.cr) eol.push('CR ' + counts.cr);
+    if (eol.length) parts.push('换行 ' + eol.join(' / '));
+    statsEl.innerHTML = parts.join('');
+
+    // 结论
+    var mixed = (counts.crlf ? 1 : 0) + (counts.lf ? 1 : 0) + (counts.cr ? 1 : 0) > 1;
+    scoreEl.className = 'score ' + (total ? (counts.zw || counts.ctl ? 'bad' : 'warn') : (mixed ? 'warn' : 'ok'));
+    if (!n) scoreText.innerHTML = '还没有内容 —— 左边粘一段文字，或者点「看示例」。';
+    else if (total) scoreText.innerHTML = '发现 <b>' + total + '</b> 处看不见的字符' + (mixed ? '，换行符也不统一' : '') + '。点「整理干净」一键处理。';
+    else if (mixed) scoreText.innerHTML = '没有隐藏字符，但换行符混用了（Windows 与 Unix 混着来），提交代码前最好统一。';
+    else scoreText.innerHTML = '干净：没有零宽字符、没有 NBSP、换行统一。';
+  }
+
+  function normalize(t, zeroOnly){
+    var s = t.replace(/^\uFEFF/, '');
+    s = s.replace(/[\u200B\u200C\u200D\u200E\u200F\u2060\u00AD\u202A-\u202E\u2028\u2029\uFEFF]/g, '');
+    if (!zeroOnly){
+      s = s.replace(/[\u00A0\u3000]/g, ' ');
+      s = s.replace(/\r\n?/g, '\n');
+      s = s.replace(/[ \t]+$/gm, '');
+    }
+    return s;
+  }
+
+  srcEl.addEventListener('input', function(){ cur = null; render(); });
+  $('clean').addEventListener('click', function(){
+    var s = normalize(source(), false);
+    cur = null; srcEl.value = s; render();
+  });
+  $('zwonly').addEventListener('click', function(){
+    var s = normalize(source(), true);
+    cur = null; srcEl.value = s; render();
+  });
+  $('copy').addEventListener('click', function(){
+    copyText(normalize(source(), false));
+  });
+  $('sample').addEventListener('click', function(){ cur = null; srcEl.value = SAMPLE; render(); });
+  $('clear').addEventListener('click', function(){ cur = null; srcEl.value = ''; render(); srcEl.focus(); });
+  $('pick').addEventListener('click', function(){ $('file').click(); });
+  $('file').addEventListener('change', function(){
+    var f = this.files && this.files[0];
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function(){
+      cur = String(r.result);
+      srcEl.value = cur;      // 这里只为显示，浏览器会把 CRLF 变成 LF
+      render();
+      if (f.size > 400000) scoreText.innerHTML = '文件有点大（' + Math.round(f.size/1024) + ' KB），只显示了前面能处理的部分，统计仍按全文算。';
+      $('cnt').textContent = f.name + ' · ' + cur.length + ' 字符';
+    };
+    r.readAsText(f);
+    this.value = '';
+  });
+
+  srcEl.value = SAMPLE;
+  render();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

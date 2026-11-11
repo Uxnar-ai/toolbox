@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>阴影与圆角 · 拖滑块出 CSS</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .bar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px}
+  button.b{
+    font:500 13px/1.2 inherit; padding:8px 14px; border-radius:9px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+    transition:border-color .15s,color .15s;
+  }
+  button.b:hover{border-color:var(--accent); color:var(--accent)}
+  button.b.main{background:var(--accent); border-color:var(--accent); color:var(--accent-fg)}
+  button.b.main:hover{opacity:.92; color:var(--accent-fg)}
+
+  .cols{display:grid; gap:12px; grid-template-columns:1fr}
+  @media (min-width:900px){ .cols{grid-template-columns:340px 1fr} }
+
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px}
+  .panel h2{
+    margin:0 0 12px; font-size:12.5px; font-weight:600; letter-spacing:.3px; color:var(--dim);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .fld{margin-bottom:13px}
+  .fld:last-child{margin-bottom:0}
+  .fld .top{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px}
+  .fld .top span{font-size:12.5px; color:var(--dim)}
+  .fld .top b{font:600 13px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  input[type=range]{
+    -webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:3px;
+    background:var(--line); outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+    background:var(--accent); border:2px solid var(--card); cursor:pointer;
+    box-shadow:0 0 0 1px var(--line);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:14px; height:14px; border-radius:50%; background:var(--accent);
+    border:2px solid var(--card); cursor:pointer;
+  }
+  .inline{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  input[type=color]{
+    width:38px; height:30px; padding:2px; border-radius:7px; border:1px solid var(--line);
+    background:var(--card); cursor:pointer;
+  }
+  input[type=text]{
+    width:88px; font:13px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; padding:7px 8px;
+  }
+  .chk{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--dim); cursor:pointer; user-select:none}
+  .chk input{accent-color:var(--accent); width:15px; height:15px}
+
+  .stage{
+    background:var(--soft); border:1px solid var(--line); border-radius:var(--radius);
+    padding:44px 24px; display:flex; align-items:center; justify-content:center;
+    min-height:250px; transition:background .2s;
+  }
+  .stage.dark{background:#151a24}
+  .demo{
+    width:min(320px,100%); background:var(--card); padding:22px 22px 20px;
+    transition:box-shadow .06s linear, border-radius .06s linear;
+  }
+  .stage.dark .demo{background:#232a36; color:#e8ebf0}
+  .demo h3{margin:0 0 6px; font-size:15px; font-weight:600}
+  .demo p{margin:0 0 14px; font-size:12.5px; color:var(--dim); line-height:1.7}
+  .demo .fake{
+    display:inline-block; padding:7px 14px; border-radius:8px; font-size:12.5px; font-weight:500;
+    background:var(--accent); color:var(--accent-fg);
+  }
+
+  .codebox{
+    margin-top:12px; background:var(--soft); border:1px solid var(--line); border-radius:10px;
+    padding:12px 14px; font:13px/1.9 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    white-space:pre-wrap; word-break:break-all; position:relative;
+  }
+  .codebox .k{color:var(--accent)}
+  .codebox .v{color:var(--fg)}
+  .codebox .c{color:var(--dim)}
+  .stats{font-size:12.5px; color:var(--dim); margin-top:10px; display:flex; gap:14px; flex-wrap:wrap}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.9; margin-top:12px}
+  @media (max-width:560px){ .stage{padding:30px 16px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>阴影与圆角</h1>
+      <p class="lede">拖几个滑块，卡片当场变色变柔，右边就是能直接粘走的 CSS。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="bar" id="presets">
+    <span class="lbl">常用</span>
+    <button class="chip on" data-p="card">卡片轻投影</button>
+    <button class="chip" data-p="float">浮起来</button>
+    <button class="chip" data-p="sticker">硬边贴纸</button>
+    <button class="chip" data-p="inset">内凹</button>
+    <button class="chip" data-p="glow">外发光</button>
+    <span class="grow"></span>
+    <button class="chip" id="bgToggle">深底看效果</button>
+  </div>
+
+  <div class="cols">
+    <div class="panel">
+      <h2><span>参数</span><span id="mode">外阴影</span></h2>
+
+      <div class="fld">
+        <div class="top"><span>水平偏移 X</span><b id="vx">0px</b></div>
+        <input type="range" id="x" min="-40" max="40" value="0">
+      </div>
+      <div class="fld">
+        <div class="top"><span>垂直偏移 Y</span><b id="vy">8px</b></div>
+        <input type="range" id="y" min="-40" max="40" value="8">
+      </div>
+      <div class="fld">
+        <div class="top"><span>模糊半径</span><b id="vb">26px</b></div>
+        <input type="range" id="b" min="0" max="80" value="26">
+      </div>
+      <div class="fld">
+        <div class="top"><span>扩散</span><b id="vs">-6px</b></div>
+        <input type="range" id="s" min="-30" max="30" value="-6">
+      </div>
+      <div class="fld">
+        <div class="top"><span>圆角</span><b id="vr">14px</b></div>
+        <input type="range" id="r" min="0" max="40" value="14">
+      </div>
+
+      <div class="fld">
+        <div class="top"><span>阴影颜色</span><b id="vo">18%</b></div>
+        <div class="inline">
+          <input type="color" id="c" value="#0f172a">
+          <input type="text" id="hex" value="#0f172a" spellcheck="false">
+          <input type="range" id="o" min="0" max="100" value="18" style="flex:1 1 80px">
+        </div>
+      </div>
+
+      <div class="fld">
+        <label class="chk"><input type="checkbox" id="inset"> 内阴影（凹陷效果）</label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2><span>效果</span><button class="b" id="copy" style="padding:5px 11px;font-size:12px">复制 CSS</button></h2>
+      <div class="stage" id="stage">
+        <div class="demo" id="demo">
+          <h3>示例卡片</h3>
+          <p>这块就是拿去用的样子 —— 阴影会在下面留出空间，别把父容器的 padding 设成 0。</p>
+          <span class="fake">主要操作</span>
+        </div>
+      </div>
+      <div class="codebox" id="code"></div>
+      <div class="stats" id="stats"></div>
+    </div>
+  </div>
+
+  <div class="hint">
+    <b>一点经验</b>：真实界面里的卡片阴影通常是「大模糊 + 负扩散 + 低透明度」（比如 <code>0 8px 26px -6px rgba(15,23,42,.18)</code>），
+    看起来很轻但有层次；扩散写正数会变成发光的边，只适合强调态。深色界面上阴影几乎看不见，用浅色描边或提亮底色更有效 —— 点「深底看效果」自己比一下。
+  </div>
+
+  <footer>
+    纯 CSS，没有图片、没有依赖；复制走的两行直接粘进样式表就能用。
+  </footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var st = {x:0, y:8, b:26, s:-6, r:14, c:'#0f172a', o:18, inset:false};
+
+  var PRESETS = {
+    card:    {x:0, y:8,  b:26, s:-6, r:14, c:'#0f172a', o:18, inset:false},
+    float:   {x:0, y:18, b:40, s:-10, r:18, c:'#0b1220', o:26, inset:false},
+    sticker: {x:0, y:4,  b:0,  s:0,  r:6,  c:'#0f172a', o:24, inset:false},
+    inset:   {x:0, y:2,  b:8,  s:0,  r:10, c:'#0f172a', o:16, inset:true},
+    glow:    {x:0, y:0,  b:0,  s:6,  r:12, c:'#2f6df6', o:30, inset:false}
+  };
+
+  function hex2rgb(h){
+    h = h.replace('#','');
+    if (h.length === 3) h = h.split('').map(function(c){ return c + c; }).join('');
+    var n = parseInt(h, 16);
+    if (isNaN(n) || h.length !== 6) return [15,23,42];
+    return [(n>>16)&255, (n>>8)&255, n&255];
+  }
+
+  function shadowCss(){
+    var rgb = hex2rgb(st.c);
+    var a = (st.o/100).toFixed(2).replace(/0$/,'').replace(/\.$/,'');
+    if (a === '' || a === '0') a = '0';
+    return (st.inset ? 'inset ' : '') + st.x + 'px ' + st.y + 'px ' + st.b + 'px ' + st.s + 'px ' +
+           'rgba(' + rgb.join(', ') + ', ' + a + ')';
+  }
+
+  function apply(){
+    var sh = shadowCss();
+    $('demo').style.boxShadow = sh;
+    $('demo').style.borderRadius = st.r + 'px';
+    $('mode').textContent = st.inset ? '内阴影' : '外阴影';
+
+    $('vx').textContent = st.x + 'px';
+    $('vy').textContent = st.y + 'px';
+    $('vb').textContent = st.b + 'px';
+    $('vs').textContent = st.s + 'px';
+    $('vr').textContent = st.r + 'px';
+    $('vo').textContent = st.o + '%';
+
+    var a = (st.o/100).toFixed(2);
+    var rgb = hex2rgb(st.c);
+    $('code').innerHTML =
+      '<span class="k">box-shadow</span>: <span class="v">' + sh + '</span>;\n' +
+      '<span class="k">border-radius</span>: <span class="v">' + st.r + 'px</span>;\n' +
+      '<span class="c">/* ' + (st.inset ? '内阴影' : '外阴影') + ' · rgba(' + rgb.join(',') + ',' + a + ') */</span>';
+
+    $('stats').innerHTML =
+      '偏移 <b>' + st.x + ', ' + st.y + '</b> · 模糊 ' + st.b + ' · 扩散 ' + st.s +
+      ' · 透明度 ' + Math.round(st.o) + '%';
+  }
+
+  function syncInputs(){
+    ['x','y','b','s','r','o'].forEach(function(k){
+      $(k === 'b' ? 'b' : k).value = st[k];
+    });
+    $('c').value = st.c;
+    $('hex').value = st.c;
+    $('inset').checked = st.inset;
+  }
+
+  ['x','y','b','s','r','o'].forEach(function(k){
+    $(k).addEventListener('input', function(){ st[k] = parseInt(this.value, 10) || 0; apply(); });
+  });
+
+  $('c').addEventListener('input', function(){
+    st.c = this.value; $('hex').value = this.value; apply();
+  });
+  $('hex').addEventListener('input', function(){
+    var v = this.value.trim();
+    if (/^#?[0-9a-fA-F]{6}$/.test(v)){ st.c = (v.charAt(0) === '#' ? v : '#' + v); $('c').value = st.c; apply(); }
+  });
+  $('inset').addEventListener('change', function(){ st.inset = this.checked; apply(); });
+
+  document.querySelectorAll('.chip[data-p]').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.chip[data-p]').forEach(function(x){ x.classList.remove('on'); });
+      b.classList.add('on');
+      var p = PRESETS[b.getAttribute('data-p')];
+      for (var k in p) st[k] = p[k];
+      syncInputs(); apply();
+    });
+  });
+
+  $('bgToggle').addEventListener('click', function(){
+    $('stage').classList.toggle('dark');
+    var d = $('stage').classList.contains('dark');
+    this.classList.toggle('on', d);
+    this.textContent = d ? '浅底看效果' : '深底看效果';
+  });
+
+  $('copy').addEventListener('click', function(){
+    copyText('box-shadow: ' + shadowCss() + ';\nborder-radius: ' + st.r + 'px;');
+  });
+
+  syncInputs();
+  apply();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

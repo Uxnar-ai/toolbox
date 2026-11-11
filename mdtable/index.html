@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>表格对齐 · 把乱掉的 Markdown 表格排整齐</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .bar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px}
+  button.b{
+    font:500 13px/1.2 inherit; padding:8px 14px; border-radius:9px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+    transition:border-color .15s,color .15s;
+  }
+  button.b:hover{border-color:var(--accent); color:var(--accent)}
+  button.b.main{background:var(--accent); border-color:var(--accent); color:var(--accent-fg)}
+  button.b.main:hover{opacity:.92; color:var(--accent-fg)}
+  textarea{height:420px}
+  pre.out{height:420px}
+  .stats{display:flex; gap:6px 16px; flex-wrap:wrap; font-size:12.5px; color:var(--dim); margin-top:10px}
+  .stats b{color:var(--fg); font-weight:600}
+  .stats .hi b{color:var(--warn)}
+  .err{margin-bottom:12px}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.9; margin-top:12px}
+  @media (max-width:560px){ textarea, pre.out{height:320px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>表格对齐</h1>
+      <p class="lede">粘一坨对不齐的 Markdown 表格（或从 Excel 复制的格子），右边立刻变成边线整齐、中英文不歪的表格。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="bar">
+    <span class="lbl">对齐</span>
+    <button class="chip on" data-a="auto">自动</button>
+    <button class="chip" data-a="left">全左</button>
+    <button class="chip" data-a="center">全中</button>
+    <button class="chip" data-a="right">全右</button>
+    <span class="sep"></span>
+    <button class="b main" id="copyMd">复制表格</button>
+    <button class="b" id="copyCsv">复制 CSV</button>
+    <span class="grow"></span>
+    <button class="b" id="sample">看示例</button>
+    <button class="b" id="clear">清空</button>
+  </div>
+
+  <div class="err" id="err"></div>
+
+  <div class="panes">
+    <div class="pane">
+      <h2><span>原始表格</span><span id="cnt">0 行</span></h2>
+      <textarea id="src" spellcheck="false" placeholder="| 名字 | 数量 |
+| --- | --- |
+| 苹果 | 3 |"></textarea>
+    </div>
+    <div class="pane">
+      <h2><span>对齐之后</span><button id="dl">下载 .md</button></h2>
+      <pre class="out" id="out"></pre>
+    </div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="hint">
+    一行一个表格行；带 <code>|</code> 按竖线切，不带竖线但带 Tab 的按制表符切（Excel、飞书表格直接复制就是这种）。
+    「自动」会让纯数字的列靠右、文字列靠左，这也是大多数文档里看着最舒服的排法。单元格里的 <code>|</code> 会自动转义，不会把表格撑破。
+    补空格是按「一个中文算两格」算的，所以在等宽字体里看中文列会显得略宽一点 —— 渲染成 Markdown 之后就是齐的。
+  </div>
+
+  <footer>
+    全部在浏览器里算 —— 表格里有客户名单、有金额也没关系，不会上传。中文按两个字符宽算，所以对齐后不会一列一列歪。
+  </footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var srcEl = $('src'), outEl = $('out'), statsEl = $('stats'), errEl = $('err'), cntEl = $('cnt');
+  var alignMode = 'auto';
+
+  var SAMPLE = [
+    '| 型号 | 数量 | 单价 | 备注 |',
+    '| --- | --- | --- | --- |',
+    '| A-100 | 3 | 129.00 | 现货 |',
+    '| B-2000 | 12 | 8.50 |',
+    '| 长一点的型号名 C-3 | 1 | 1299 | 订货 2 周 |',
+    '| D-4 | 240 | 0.9 | 促销价，月底结束 |'
+  ].join('\n');
+
+  function isWide(c){
+    return (c >= 0x1100 && c <= 0x115F) ||
+           (c >= 0x2E80 && c <= 0xA4CF) ||
+           (c >= 0xAC00 && c <= 0xD7A3) ||
+           (c >= 0xF900 && c <= 0xFAFF) ||
+           (c >= 0xFE30 && c <= 0xFE4F) ||
+           (c >= 0xFF00 && c <= 0xFF60) ||
+           (c >= 0xFFE0 && c <= 0xFFE6) ||
+           (c >= 0x1F300 && c <= 0x1FAFF) ||
+           (c >= 0x20000 && c <= 0x3FFFD);
+  }
+
+  function dw(s){
+    var w = 0;
+    for (var i = 0; i < s.length; i++){
+      var c = s.codePointAt(i);
+      if (c > 0xFFFF) i++;
+      w += isWide(c) ? 2 : 1;
+    }
+    return w;
+  }
+
+  function splitPipe(line){
+    var s = line.trim();
+    if (s.charAt(0) === '|') s = s.slice(1);
+    if (s.charAt(s.length - 1) === '|' && s.charAt(s.length - 2) !== '\\') s = s.slice(0, -1);
+    var cells = [], cur = '', i = 0;
+    while (i < s.length){
+      var ch = s.charAt(i);
+      if (ch === '\\' && s.charAt(i + 1) === '|'){ cur += '|'; i += 2; continue; }
+      if (ch === '|'){ cells.push(cur); cur = ''; i++; continue; }
+      cur += ch; i++;
+    }
+    cells.push(cur);
+    return cells;
+  }
+
+  function isSep(cells){
+    if (!cells.length) return false;
+    for (var i = 0; i < cells.length; i++){
+      if (!/^:?-{2,}:?$/.test(cells[i].trim())) return false;
+    }
+    return true;
+  }
+
+  function parse(text){
+    var lines = text.replace(/\r\n?/g, '\n').split('\n');
+    var rows = [], skipped = 0, sepSeen = 0, sepRow = -1;
+    lines.forEach(function(line){
+      if (!line.trim()) return;
+      var cells = null;
+      if (line.indexOf('|') >= 0) cells = splitPipe(line);
+      else if (line.indexOf('\t') >= 0) cells = line.split('\t');
+      if (!cells){ skipped++; return; }
+      cells = cells.map(function(c){ return c.trim().replace(/\s+/g, ' '); });
+      if (isSep(cells)){ sepSeen++; if (sepRow < 0) sepRow = rows.length; return; }
+      rows.push(cells);
+    });
+    return {rows: rows, skipped: skipped, sep: sepRow, sepCount: sepSeen};
+  }
+
+  function isNum(c){
+    if (!c) return false;
+    return /^[-+]?[\d,]+(\.\d+)?%?$/.test(c) || /^[¥$€£]?[-+]?[\d,]+(\.\d+)?$/.test(c);
+  }
+
+  function build(){
+    var parsed = parse(srcEl.value);
+    var rows = parsed.rows;
+    cntEl.textContent = rows.length + ' 行';
+    if (!rows.length){
+      outEl.textContent = '左边粘表格，右边出结果。';
+      statsEl.innerHTML = '';
+      return;
+    }
+    if (parsed.sepCount > 1){
+      errEl.className = 'err on';
+      errEl.textContent = '有 ' + parsed.sepCount + ' 行看起来都是分隔行（只有 --- 那种），只跳过它们、按数据行处理了。';
+    } else { errEl.className = 'err'; }
+
+    var cols = 0;
+    rows.forEach(function(r){ if (r.length > cols) cols = r.length; });
+    var padded = 0;
+    rows = rows.map(function(r){
+      if (r.length < cols){ padded += cols - r.length; }
+      while (r.length < cols) r.push('');
+      return r;
+    });
+
+    // 每列对齐方式
+    var aligns = [];
+    for (var c = 0; c < cols; c++){
+      if (alignMode === 'left'){ aligns.push('left'); continue; }
+      if (alignMode === 'right'){ aligns.push('right'); continue; }
+      if (alignMode === 'center'){ aligns.push('center'); continue; }
+      var num = 0, filled = 0;
+      for (var r = 1; r < rows.length; r++){
+        if (rows[r][c] !== ''){ filled++; if (isNum(rows[r][c])) num++; }
+      }
+      aligns.push(filled && num === filled ? 'right' : 'left');
+    }
+
+    // 列宽（显示宽度）
+    var widths = [];
+    for (c = 0; c < cols; c++){
+      var w = 3;
+      rows.forEach(function(r){ var d = dw(r[c]); if (d > w) w = d; });
+      widths.push(w);
+    }
+
+    function padCell(s, w, a){
+      var gap = w - dw(s);
+      if (gap <= 0) return s;
+      if (a === 'right') return ' '.repeat(gap) + s;
+      if (a === 'center'){
+        var l = Math.floor(gap / 2), r2 = gap - l;
+        return ' '.repeat(l) + s + ' '.repeat(r2);
+      }
+      return s + ' '.repeat(gap);
+    }
+
+    var out = [];
+    for (var i = 0; i < rows.length; i++){
+      var cells = [];
+      for (c = 0; c < cols; c++){
+        cells.push(padCell(rows[i][c], widths[c], aligns[c]));
+      }
+      out.push('| ' + cells.join(' | ') + ' |');
+      if (i === 0){
+        var sl = [];
+        for (c = 0; c < cols; c++){
+          var w2 = widths[c];
+          var a = aligns[c];
+          var body = '-'.repeat(Math.max(3, w2 - (a === 'center' ? 2 : 1)));
+          var cell = a === 'center' ? ':' + body + ':' : (a === 'right' ? body + ':' : ':' + body);
+          cell = padCell(cell, w2, a);
+          sl.push(cell);
+        }
+        out.push('| ' + sl.join(' | ') + ' |');
+      }
+    }
+    var md = out.join('\n');
+    outEl.textContent = md;
+
+    var bits = [];
+    bits.push('尺寸 <b>' + cols + ' 列 × ' + rows.length + ' 行</b>');
+    bits.push('输出 <b>' + dw(md) + '</b> 字符宽');
+    if (padded) bits.push('<span class="hi">补齐 <b>' + padded + '</b> 个空格子</span>');
+    if (parsed.skipped) bits.push('<span class="hi">跳过 <b>' + parsed.skipped + '</b> 行没分隔符的内容</span>');
+    if (parsed.sep >= 0) bits.push('原表的分隔行已重写');
+    statsEl.innerHTML = bits.join('');
+  }
+
+  function toCsv(){
+    var parsed = parse(srcEl.value);
+    return parsed.rows.map(function(r){
+      return r.map(function(c){
+        return /[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c;
+      }).join(',');
+    }).join('\n');
+  }
+
+  document.querySelectorAll('.chip[data-a]').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.chip[data-a]').forEach(function(x){ x.classList.remove('on'); });
+      b.classList.add('on');
+      alignMode = b.getAttribute('data-a');
+      build();
+    });
+  });
+
+  srcEl.addEventListener('input', build);
+  $('copyMd').addEventListener('click', function(){ copyText(outEl.textContent); });
+  $('copyCsv').addEventListener('click', function(){ copyText(toCsv()); });
+  $('dl').addEventListener('click', function(){
+    var blob = new Blob([outEl.textContent], {type: 'text/markdown;charset=utf-8'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'table.md';
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
+  });
+  $('sample').addEventListener('click', function(){ srcEl.value = SAMPLE; build(); });
+  $('clear').addEventListener('click', function(){ srcEl.value = ''; build(); srcEl.focus(); });
+
+  srcEl.value = SAMPLE;
+  build();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

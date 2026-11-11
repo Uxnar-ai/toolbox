@@ -1,6 +1,6 @@
-# toolbox — forty-three small tools that open and work
+# toolbox — forty-seven small tools that open and work
 
-> Forty-three tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table. No backend, no ports.
+> Forty-seven tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table, whitespace detective, table aligner, shadow generator, JSON tree. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -70,14 +70,25 @@ Tenth batch (39 → 43): two for building sites, one for generating test data, o
 - **Mock data**: tick the columns, set the row count, get a table you can copy as TSV, copy as JSON or export as CSV. Seventeen field types; ID numbers carry a correct check digit and card numbers pass Luhn; emails use `@example.com` so they can never reach a real person.
 - **Timezone table**: pick an instant and see twenty cities' local time, offset, day shift and whether they are inside working hours. Offsets are computed live through `Intl.DateTimeFormat` rather than from a table, so DST follows automatically; half-hour zones (Mumbai +5:30) are kept to the minute.
 
+Batch eleven (43 → 47), four things you need while writing docs, styling a card, or reading an API response:
+
+- **Whitespace detective**: marks every invisible character in place — plain spaces as dots, tabs as arrows, NBSP and ideographic spaces with their own badges, zero-width characters (ZWSP / ZWJ / BOM / RLM and friends) spelled out by name. Text copied from web pages often carries NBSP, and zero-width characters in code are nearly impossible to spot. One click cleans it: strip zero-width and BOM, turn NBSP and ideographic spaces into plain spaces, normalise to LF, drop trailing spaces. Since a textarea normalises CRLF to LF by itself, the "check a file" button reads raw bytes through FileReader so you can actually see which line ending a file uses.
+- **Table aligner**: pads Markdown table cells by real display width (a CJK character counts as two), right-aligns numeric columns and left-aligns the rest, rewrites the separator row. Tabs-only data copied from a spreadsheet becomes a table; pipes inside cells are escaped so the table never breaks.
+- **Shadow generator**: five sliders plus colour and opacity with a live card, five presets (soft card, floating, hard sticker, inset, glow), and a dark-background preview — on dark UI a shadow is usually invisible and a border works better. Copy two CSS lines when done.
+- **JSON tree**: folds a large payload, expands two levels by default, searches keys and values with ancestors auto-expanded and non-matches hidden, and copies `$.data.list[0].id` style paths on click or the raw value. Parse errors report line and column and can jump the caret straight to the broken spot.
+
 
 ## Features
 
+- Whitespace detective: zero-width, BOM, NBSP, ideographic spaces and tabs marked per character, one click to clean
+- Table aligner: pads by display width, right-aligns numeric columns automatically, TSV to Markdown table
+- Shadow generator: live box-shadow and border-radius from sliders, dark-background preview, copy two CSS lines
+- JSON tree: fold big payloads, search a key and ancestors expand, click a key to copy its $.a.b[0] path
 - curl to code: four languages, line continuations, grouped short flags, JSON inlined as an object
 - HTTP status codes: 54 entries with plain-language causes, including nginx and Cloudflare codes
 - .gitignore generator: 24 stacks merged without duplicates, negations preserved, copy or download
 - Loan calculator: equal-payment vs equal-principal, monthly payment, total interest, full schedule
-- Thirty-one tools in one static site, no backend and no ports
+- Forty-seven tools in one static site, no backend and no ports
 - One build script generates every page from its template
 - Text diff: line alignment, in-line character highlighting, foldable unchanged runs, copyable patch
 - QR: UTF-8 Chinese, L/M/Q/H correction, adjustable size, PNG download, fixed quiet zone
@@ -93,7 +104,7 @@ Tenth batch (39 → 43): two for building sites, one for generating test data, o
 - CJK/Latin spacing: insert spaces, full-width to half-width, highlight the changes
 - Word count: Chinese characters, English words, paragraphs, reading time, five platform limits
 - URL dissector: live param edits, one-click tracking removal, params to JSON
-- Instant search on the landing page across all twenty tools
+- Instant search on the landing page across all tools
 - Subnet calculator: network/broadcast/host range/mask conversion, subnet splitting, membership test
 - Percentage: discount, change, share and increase in four live panels
 - Mojibake repair: ranks the plausible UTF-8/GBK/Big5 reinterpretations, plus URL and escape decoding
@@ -103,7 +114,6 @@ Tenth batch (39 → 43): two for building sites, one for generating test data, o
 - Regex replace: live preview, group references, five presets, matches-only view
 - YAML / JSON both directions with line/column errors and downloadable output
 - Recently used tools pinned on the landing page, stored locally
-- WebP quality comparison: size at 60/75/85/95 side by side, one click to apply
 - WebP quality comparison: size at 60/75/85/95 side by side, one click to apply
 
 ## Stack
