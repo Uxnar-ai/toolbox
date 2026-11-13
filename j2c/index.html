@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JSON 转表格 · 粘 JSON 出 CSV / Markdown / SQL</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{grid-template-columns:1fr}
+  @media (min-width:900px){ .panes{grid-template-columns:1fr 1fr} }
+  textarea{height:300px}
+  .prev{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; margin-bottom:12px}
+  .prev h2{margin:0; padding:10px 14px; font-size:12.5px; font-weight:600; color:var(--dim);
+    background:var(--soft); border-bottom:1px solid var(--line); display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+  .prev h2 .sp{flex:1 1 auto}
+  .scroll{overflow:auto; max-height:420px}
+  table{width:100%; border-collapse:collapse; font-size:12.5px}
+  th,td{padding:8px 11px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; white-space:nowrap; max-width:280px; overflow:hidden; text-overflow:ellipsis}
+  th{background:var(--soft); color:var(--dim); font-weight:600; position:sticky; top:0; z-index:1}
+  td{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  tbody tr:hover td{background:var(--soft)}
+  tbody tr:last-child td{border-bottom:0}
+  .num{color:var(--accent)}
+  .more{padding:9px 14px; font-size:12px; color:var(--dim); border-top:1px solid var(--line); background:var(--soft)}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.85; margin-top:12px}
+  @media (max-width:560px){ textarea{height:220px} th,td{padding:7px 8px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>JSON 转表格</h1>
+      <p class="lede">粘一坨接口返回，右边出表格，再一键变成 CSV、Markdown 表格或建表用的 SQL。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="row">
+    <span class="lbl">输出格式：</span>
+    <button class="chip on" type="button" data-fmt="csv">CSV</button>
+    <button class="chip" type="button" data-fmt="tsv">TSV（贴 Excel）</button>
+    <button class="chip" type="button" data-fmt="md">Markdown 表格</button>
+    <button class="chip" type="button" data-fmt="sql">SQL 插入</button>
+    <span class="sep"></span>
+    <button class="chip quick" type="button" id="btnFlat" data-on="1">展开嵌套字段</button>
+  </div>
+
+  <div class="panes">
+    <div class="pane">
+      <h2>JSON 原文</h2>
+      <textarea id="src" spellcheck="false" placeholder="在这里粘 JSON…"></textarea>
+      <div class="stats" id="stats"><span>—</span></div>
+    </div>
+    <div class="pane">
+      <h2>转换结果 · <span id="fmtName">CSV</span>
+        <span style="flex:1 1 auto"></span>
+        <button type="button" id="btnCopy">复制</button>
+        <button type="button" id="btnDl">下载</button>
+      </h2>
+      <textarea id="out" spellcheck="false" readonly></textarea>
+      <div class="stats" id="outStats"><span>—</span></div>
+    </div>
+  </div>
+
+  <div class="prev">
+    <h2><span>表格预览</span><span class="sp"></span><span id="prevInfo"></span></h2>
+    <div class="scroll"><table>
+      <thead><tr id="thead"></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table></div>
+    <div class="more" id="more" style="display:none"></div>
+  </div>
+
+  <div class="hint">
+    支持三种形状：对象数组（最常见）、对象、以及「一行一个」的 JSON Lines。嵌套的对象会拆成 <code>user.name</code> 这样的列，
+    数组按逗号连成一格。CSV 带 BOM，Excel 打开不乱码。SQL 里数字不加引号，其余都按字符串转义。
+  </div>
+
+  <footer>
+    全部在浏览器里转换，粘的东西不会离开这台电脑。
+  </footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<template id="demo-json">[
+  {"id": 1, "name": "小林", "dept": "研发", "salary": 24000, "active": true,
+   "address": {"city": "杭州", "district": "西湖区"},
+   "tags": ["后端", "Go"]},
+  {"id": 2, "name": "阿May", "dept": "设计", "salary": 19500, "active": true,
+   "address": {"city": "深圳", "district": "南山区"},
+   "tags": ["交互", "品牌"]},
+  {"id": 3, "name": "老周", "dept": "运营", "salary": 16800, "active": false,
+   "address": {"city": "成都", "district": "武侯区"},
+   "tags": ["活动"]}
+]</template>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var srcEl = $('src'), outEl = $('out'), thead = $('thead'), tbody = $('tbody');
+  var stats = $('stats'), outStats = $('outStats'), more = $('more'), prevInfo = $('prevInfo');
+  var fmt = 'csv', flat = true, cols = [], rows = [], tableName = 'data';
+
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function cellVal(v){
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'object') return JSON.stringify(v);
+    return String(v);
+  }
+  function flatten(obj, prefix, out){
+    Object.keys(obj).forEach(function(k){
+      var v = obj[k];
+      var key = prefix ? prefix + '.' + k : k;
+      if (v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length){
+        flatten(v, key, out);
+      } else if (Array.isArray(v)){
+        out[key] = v.every(function(x){ return x === null || typeof x !== 'object'; })
+          ? v.join(', ') : JSON.stringify(v);
+      } else {
+        out[key] = cellVal(v);
+      }
+    });
+    return out;
+  }
+
+  function parseInput(text){
+    var t = text.trim();
+    if (!t) return { ok: false, msg: '还没粘东西' };
+    var data;
+    try {
+      data = JSON.parse(t);
+    } catch (e){
+      // 试试 JSON Lines
+      var lines = t.split(/\n+/).filter(function(x){ return x.trim(); });
+      var arr = [];
+      try {
+        lines.forEach(function(l){ arr.push(JSON.parse(l)); });
+        data = arr;
+      } catch (e2){
+        return { ok: false, msg: '不是合法 JSON：' + (e.message || '格式有误') };
+      }
+    }
+    return { ok: true, data: data };
+  }
+
+  function toTable(data){
+    var list;
+    if (Array.isArray(data)) {
+      list = data;
+    } else if (data && typeof data === 'object') {
+      // 单个对象：如果只有一个键且值是数组，拆开；否则当成一行
+      var ks = Object.keys(data);
+      if (ks.length === 1 && Array.isArray(data[ks[0]])) list = data[ks[0]];
+      else list = [data];
+    } else {
+      list = [data];
+    }
+    if (!list.length) return { cols: [], rows: [] };
+
+    // 全是基本类型 → 单列
+    var allPrim = list.every(function(x){ return x === null || typeof x !== 'object' || Array.isArray(x) && x.every(function(y){ return y === null || typeof y !== 'object'; }); });
+    var out = [], seen = {}, order = [];
+
+    list.forEach(function(item){
+      var row = {};
+      if (item === null || typeof item !== 'object' || Array.isArray(item)){
+        var v = Array.isArray(item) ? item.map(cellVal).join(' | ') : cellVal(item);
+        row['值'] = v;
+        if (!seen['值']){ seen['值'] = 1; order.push('值'); }
+      } else {
+        var o = flat ? flatten(item, '', {}) : {};
+        if (!flat){
+          Object.keys(item).forEach(function(k){ o[k] = cellVal(item[k]); });
+        }
+        Object.keys(o).forEach(function(k){ if (!(k in seen)){ seen[k] = 1; order.push(k); } });
+        row = o;
+      }
+      out.push(row);
+    });
+    return { cols: order, rows: out };
+  }
+
+  function csvCell(v, sep){
+    var s = v === undefined || v === null ? '' : String(v);
+    if (s.indexOf('"') > -1 || s.indexOf(sep) > -1 || s.indexOf('\n') > -1 || s.indexOf('\r') > -1){
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+  }
+  function toCSV(sep){
+    var lines = [cols.map(function(c){ return csvCell(c, sep); }).join(sep)];
+    rows.forEach(function(r){
+      lines.push(cols.map(function(c){ return csvCell(r[c], sep); }).join(sep));
+    });
+    return lines.join('\r\n');
+  }
+  function toMD(){
+    var head = '| ' + cols.join(' | ') + ' |';
+    var sep = '| ' + cols.map(function(){ return '---'; }).join(' | ') + ' |';
+    var body = rows.map(function(r){
+      return '| ' + cols.map(function(c){
+        return String(r[c] === undefined ? '' : r[c]).replace(/\|/g, '\\|').replace(/\n/g, ' ');
+      }).join(' | ') + ' |';
+    });
+    return [head, sep].concat(body).join('\n');
+  }
+  function sqlVal(v){
+    if (v === undefined || v === null || v === '') return 'NULL';
+    if (/^-?\d+(\.\d+)?$/.test(String(v))) return String(v);
+    return "'" + String(v).replace(/'/g, "''").replace(/\n/g, ' ') + "'";
+  }
+  function toSQL(){
+    var names = cols.map(function(c){ return '`' + String(c).replace(/[`.\s]/g, '_') + '`'; });
+    return rows.map(function(r){
+      return 'INSERT INTO ' + tableName + ' (' + names.join(', ') + ') VALUES (' +
+        cols.map(function(c){ return sqlVal(r[c]); }).join(', ') + ');';
+    }).join('\n');
+  }
+
+  function renderPreview(){
+    var show = rows.slice(0, 30);
+    thead.innerHTML = '<th style="width:34px">#</th>' + cols.map(function(c){ return '<th>' + esc(c) + '</th>'; }).join('');
+    tbody.innerHTML = show.map(function(r, i){
+      return '<tr><td>' + (i + 1) + '</td>' + cols.map(function(c){
+        var v = r[c] === undefined ? '' : String(r[c]);
+        var cls = /^-?\d+(\.\d+)?$/.test(v) ? ' class="num"' : '';
+        return '<td' + cls + ' title="' + esc(v) + '">' + esc(v) + '</td>';
+      }).join('') + '</tr>';
+    }).join('');
+    prevInfo.textContent = rows.length + ' 行 × ' + cols.length + ' 列';
+    if (rows.length > 30){
+      more.style.display = '';
+      more.textContent = '表格只显示前 30 行，导出的文件是全部 ' + rows.length + ' 行。';
+    } else {
+      more.style.display = 'none';
+    }
+  }
+
+  function paint(){
+    var p = parseInput(srcEl.value);
+    if (!p.ok){
+      cols = []; rows = [];
+      outEl.value = '';
+      thead.innerHTML = ''; tbody.innerHTML = '';
+      stats.innerHTML = '<span class="warn">' + esc(p.msg) + '</span>';
+      outStats.innerHTML = '<span>—</span>';
+      prevInfo.textContent = '';
+      more.style.display = 'none';
+      return;
+    }
+    var t = toTable(p.data);
+    cols = t.cols; rows = t.rows;
+
+    var text = '';
+    if (fmt === 'csv') text = toCSV(',');
+    else if (fmt === 'tsv') text = toCSV('\t');
+    else if (fmt === 'md') text = toMD();
+    else text = toSQL();
+    outEl.value = text;
+
+    stats.innerHTML = '<span>对象 <b>' + (Array.isArray(p.data) ? p.data.length : 1) + '</b> 个</span>' +
+                      '<span>识别成 <b>' + rows.length + '</b> 行 × <b>' + cols.length + '</b> 列</span>';
+    outStats.innerHTML = '<span><b>' + text.split('\n').length + '</b> 行</span><span><b>' + text.length + '</b> 字符</span>';
+    renderPreview();
+  }
+
+  var FMTS = { csv: 'CSV', tsv: 'TSV', md: 'Markdown 表格', sql: 'SQL 插入' };
+  [].forEach.call(document.querySelectorAll('[data-fmt]'), function(b){
+    b.addEventListener('click', function(){
+      fmt = b.getAttribute('data-fmt');
+      [].forEach.call(document.querySelectorAll('[data-fmt]'), function(x){ x.classList.toggle('on', x === b); });
+      $('fmtName').textContent = FMTS[fmt];
+      paint();
+    });
+  });
+
+  $('btnFlat').addEventListener('click', function(){
+    flat = !flat;
+    this.classList.toggle('on', flat);
+    this.textContent = flat ? '展开嵌套字段' : '保留嵌套原样';
+    paint();
+  });
+
+  $('btnCopy').addEventListener('click', function(){
+    var btn = this, old = btn.textContent;
+    copyText(outEl.value).then(function(){ btn.textContent = '已复制'; setTimeout(function(){ btn.textContent = old; }, 1200); });
+  });
+
+  $('btnDl').addEventListener('click', function(){
+    if (!outEl.value) return;
+    var ext = fmt === 'csv' ? 'csv' : fmt === 'tsv' ? 'tsv' : fmt === 'md' ? 'md' : 'sql';
+    var body = fmt === 'csv' ? '\ufeff' + outEl.value : outEl.value;
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([body], { type: 'text/plain;charset=utf-8' }));
+    a.download = 'table.' + ext;
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
+  });
+
+  srcEl.addEventListener('input', paint);
+  srcEl.value = $('demo-json').innerHTML.trim();
+  paint();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

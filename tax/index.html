@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>个税与到手 · 每月到手多少钱</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .form{display:grid; gap:12px; grid-template-columns:1fr; margin-bottom:12px}
+  @media (min-width:700px){ .form{grid-template-columns:1fr 1fr} }
+  @media (min-width:980px){ .form{grid-template-columns:1fr 1fr 1fr 1fr} }
+  .fld{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:12px 13px}
+  .fld label{display:block; font-size:12.5px; color:var(--dim); margin-bottom:7px}
+  .fld input{
+    width:100%; font:600 19px/1.3 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    padding:6px 2px; border:0; border-bottom:1px solid var(--line); background:transparent; color:var(--fg);
+  }
+  .fld input:focus{outline:0; border-bottom-color:var(--accent)}
+  .fld .unit{font-size:12px; color:var(--dim); margin-top:6px}
+
+  .sums{display:grid; gap:10px; grid-template-columns:1fr 1fr; margin-bottom:12px}
+  @media (min-width:760px){ .sums{grid-template-columns:repeat(4,1fr)} }
+  .sum{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px}
+  .sum .k{font-size:12.5px; color:var(--dim); margin-bottom:5px}
+  .sum .v{font:600 22px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; letter-spacing:-.3px; word-break:break-all}
+  .sum .s{font-size:12px; color:var(--dim); margin-top:5px}
+  .sum.hero{border-color:var(--accent)}
+  .sum.hero .v{color:var(--accent)}
+
+  .tbl{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; margin-bottom:12px}
+  .tbl h2{margin:0; padding:10px 14px; font-size:12.5px; font-weight:600; color:var(--dim);
+    background:var(--soft); border-bottom:1px solid var(--line); display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+  .scroll{overflow:auto}
+  table{width:100%; border-collapse:collapse; font-size:12.5px}
+  th,td{padding:8px 12px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap}
+  th{background:var(--soft); color:var(--dim); font-weight:600; position:sticky; top:0; z-index:1}
+  th:first-child, td:first-child{text-align:left}
+  td{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  tbody tr:hover td{background:var(--soft)}
+  tbody tr:last-child td{border-bottom:0}
+
+  .bonus{display:grid; gap:10px; grid-template-columns:1fr; margin-bottom:12px}
+  @media (min-width:700px){ .bonus{grid-template-columns:1fr 1fr} }
+  .bcard{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px}
+  .bcard.best{border-color:var(--ok)}
+  .bcard .k{font-size:12.5px; color:var(--dim); margin-bottom:6px}
+  .bcard .v{font:600 20px/1.3 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .bcard .s{font-size:12px; color:var(--dim); margin-top:6px; line-height:1.7}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.85; margin-top:12px}
+  @media (max-width:560px){
+    .fld input{font-size:17px}
+    .sum .v{font-size:18px}
+    th,td{padding:7px 8px; font-size:12px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>个税与到手</h1>
+      <p class="lede">填税前月薪和五险一金，算出每月实际到手、一年交多少税，顺带比一比年终奖怎么发更省。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="form">
+    <div class="fld">
+      <label>税前月薪（元）</label>
+      <input id="salary" type="text" inputmode="decimal" value="20000" autocomplete="off">
+      <div class="unit" id="salaryCn">年薪 24 万</div>
+    </div>
+    <div class="fld">
+      <label>五险一金（元/月）</label>
+      <input id="ins" type="text" inputmode="decimal" placeholder="留空按比例算" autocomplete="off">
+      <div class="unit" id="insCn"></div>
+    </div>
+    <div class="fld">
+      <label>专项附加扣除（元/月）</label>
+      <input id="extra" type="text" inputmode="decimal" value="2000" autocomplete="off">
+      <div class="unit">子女教育、房贷、赡养老人等</div>
+    </div>
+    <div class="fld">
+      <label>年终奖（元，可不填）</label>
+      <input id="bonus" type="text" inputmode="decimal" value="30000" autocomplete="off">
+      <div class="unit" id="bonusCn"></div>
+    </div>
+  </div>
+
+  <div class="row" id="insRateRow">
+    <span class="lbl">五险一金比例：</span>
+    <button class="chip on" type="button" data-rate="0.222">22.2% 常见</button>
+    <button class="chip" type="button" data-rate="0.105">10.5% 只交五险</button>
+    <button class="chip" type="button" data-rate="0.32">32% 高公积金</button>
+    <span class="sep"></span>
+    <span class="lbl">试一个：</span>
+    <button class="chip quick" type="button" data-demo="8k">月薪 8 千</button>
+    <button class="chip quick" type="button" data-demo="20k">月薪 2 万</button>
+    <button class="chip quick" type="button" data-demo="45k">月薪 4.5 万</button>
+  </div>
+
+  <div class="sums" id="sums"></div>
+  <div class="bonus" id="bonusBox" style="display:none"></div>
+
+  <div class="tbl">
+    <h2><span>每月扣税与到手（累计预扣法）</span></h2>
+    <div class="scroll"><table>
+      <thead><tr><th>月份</th><th>累计应税</th><th>累计个税</th><th>本月扣税</th><th>本月到手</th></tr></thead>
+      <tbody id="tb"></tbody>
+    </table></div>
+  </div>
+
+  <div class="hint">
+    起征点按每月 5000 元。算法是工资薪金用的「累计预扣」：把年初到本月的收入累加后再查税率表，减去已经扣过的税，才是本月该扣的。
+    所以前几个月扣得少、后几个月扣得多，全年总额一样。年终奖「单独计税」是把奖金除以 12 找税率，政策到 2027 年底仍然有效；
+    「并入综合」就是把这笔钱加进全年收入一起算。实际社保基数有上下限、公积金比例各公司不同，把五险一金那一栏换成工资条上的真实数字最准。
+  </div>
+
+  <footer>
+    计算全部在浏览器里完成，不上传任何数据。税率表：全年应纳税所得额 3.6 万以内 3%、至 14.4 万 10%、至 30 万 20%、至 42 万 25%、至 66 万 30%、至 96 万 35%、超过 45%。
+  </footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var salaryEl = $('salary'), insEl = $('ins'), extraEl = $('extra'), bonusEl = $('bonus');
+  var sums = $('sums'), tb = $('tb'), bonusBox = $('bonusBox');
+  var rate = 0.222;
+
+  // 年度综合所得税率表：上限, 税率, 速算扣除数
+  var YEAR = [[36000,0.03,0],[144000,0.10,2520],[300000,0.20,16920],
+              [420000,0.25,31920],[660000,0.30,52920],[960000,0.35,85920],
+              [Infinity,0.45,181920]];
+  // 年终奖单独计税用的月度税率表
+  var MONTH = [[3000,0.03,0],[12000,0.10,210],[25000,0.20,1410],
+               [35000,0.25,2660],[55000,0.30,4410],[80000,0.35,7160],
+               [Infinity,0.45,15160]];
+
+  function num(s){
+    var t = String(s == null ? '' : s).replace(/[,，\s]/g, '').replace(/[^\d.\-]/g, '');
+    var v = parseFloat(t);
+    return isFinite(v) ? v : 0;
+  }
+  function money(v){
+    return (Math.round(v * 100) / 100).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function money0(v){
+    return Math.round(v).toLocaleString('zh-CN');
+  }
+  function taxOf(t, table){
+    if (!(t > 0)) return 0;
+    for (var i = 0; i < table.length; i++){
+      if (t <= table[i][0]) return t * table[i][1] - table[i][2];
+    }
+    return 0;
+  }
+  function rateOf(t, table){
+    for (var i = 0; i < table.length; i++) if (t <= table[i][0]) return table[i][1];
+    return 0;
+  }
+
+  function read(){
+    var salary = Math.max(0, num(salaryEl.value));
+    var insRaw = String(insEl.value || '').trim();
+    var ins = insRaw === '' ? salary * rate : Math.max(0, num(insRaw));
+    var extra = Math.max(0, num(extraEl.value));
+    var bonus = Math.max(0, num(bonusEl.value));
+    return { salary: salary, ins: ins, extra: extra, bonus: bonus, insAuto: insRaw === '' };
+  }
+
+  function paint(){
+    var s = read();
+    $('salaryCn').textContent = '年薪 ' + (s.salary * 12 / 10000).toFixed(s.salary >= 10000 ? 0 : 1) + ' 万';
+    $('insCn').textContent = s.insAuto
+      ? '按 ' + (rate * 100).toFixed(1).replace(/\.0$/, '') + '% 估：' + money(s.ins) + ' 元'
+      : '手动填的，按此扣除';
+    $('bonusCn').textContent = s.bonus > 0 ? ('÷12 = ' + money(s.bonus / 12) + ' 元，用来找税率') : '没有就留空';
+
+    var taxableM = Math.max(0, s.salary - s.ins - 5000 - s.extra);
+    if (s.salary <= 0){
+      sums.innerHTML = '<div class="sum"><div class="k">填个月薪</div><div class="v">—</div></div>';
+      tb.innerHTML = '';
+      bonusBox.style.display = 'none';
+      return;
+    }
+
+    // 逐月累计预扣
+    var rows = [], paid = 0, yearTax = 0;
+    for (var m = 1; m <= 12; m++){
+      var cumTaxable = taxableM * m;
+      var cumTax = taxOf(cumTaxable, YEAR);
+      var due = Math.max(0, cumTax - paid);
+      paid += due;
+      yearTax = cumTax;
+      rows.push({ m: m, cumTaxable: cumTaxable, cumTax: cumTax, due: due });
+    }
+
+    var netMonth = s.salary - s.ins - yearTax / 12;
+    var netYear = s.salary * 12 - s.ins * 12 - yearTax;
+    var insOut = 0;
+
+    sums.innerHTML =
+      '<div class="sum hero"><div class="k">每月到手（平均）</div><div class="v">' + money(netMonth) + '</div>' +
+        '<div class="s">税前 ' + money0(s.salary) + ' − 五险一金 ' + money0(s.ins) + ' − 税 ' + money0(yearTax / 12) + '</div></div>' +
+      '<div class="sum"><div class="k">全年到手</div><div class="v">' + money0(netYear) + '</div>' +
+        '<div class="s">到手率 ' + (s.salary ? (netYear / (s.salary * 12) * 100).toFixed(1) : '0') + '%</div></div>' +
+      '<div class="sum"><div class="k">全年个税</div><div class="v">' + money0(yearTax) + '</div>' +
+        '<div class="s">适用税率 ' + (taxableM > 0 ? (rateOf(taxableM * 12, YEAR) * 100).toFixed(0) : '0') + '%' +
+        ' · 月应税 ' + money0(taxableM) + '</div></div>' +
+      '<div class="sum"><div class="k">五险一金（年）</div><div class="v">' + money0(s.ins * 12) + '</div>' +
+        '<div class="s">月 ' + money0(s.ins) + '，公积金可提取</div></div>';
+
+    var html = '';
+    rows.forEach(function(r){
+      html += '<tr><td>' + r.m + ' 月</td><td>' + money0(r.cumTaxable) + '</td><td>' + money0(r.cumTax) +
+              '</td><td>' + money(r.due) + '</td><td>' + money(s.salary - s.ins - r.due) + '</td></tr>';
+    });
+    tb.innerHTML = html;
+
+    // 年终奖两种算法
+    if (s.bonus > 0){
+      var per = s.bonus / 12;
+      var soloTax = Math.max(0, s.bonus * rateOf(per, MONTH) - (function(){
+        var t = per;
+        for (var i = 0; i < MONTH.length; i++) if (t <= MONTH[i][0]) return MONTH[i][2];
+        return 0;
+      })());
+      var mergeTaxAll = taxOf(taxableM * 12 + s.bonus, YEAR);
+      var mergeExtra = Math.max(0, mergeTaxAll - yearTax);
+      var best = soloTax <= mergeExtra ? 'solo' : 'merge';
+      var save = Math.abs(soloTax - mergeExtra);
+      bonusBox.style.display = '';
+      bonusBox.innerHTML =
+        '<div class="bcard' + (best === 'solo' ? ' best' : '') + '"><div class="k">年终奖单独计税</div>' +
+          '<div class="v">' + money0(soloTax) + ' 元税</div>' +
+          '<div class="s">÷12 = ' + money0(per) + ' 元 → 按 ' + (rateOf(per, MONTH) * 100).toFixed(0) + '% 档<br>税后到手 ' + money0(s.bonus - soloTax) + ' 元</div></div>' +
+        '<div class="bcard' + (best === 'merge' ? ' best' : '') + '"><div class="k">并入当年综合所得</div>' +
+          '<div class="v">' + money0(mergeExtra) + ' 元税</div>' +
+          '<div class="s">多交的这一部分税<br>税后到手 ' + money0(s.bonus - mergeExtra) + ' 元</div></div>' +
+        '<div class="bcard" style="grid-column:1/-1"><div class="k">结论</div>' +
+          '<div class="v">' + (best === 'solo' ? '单独计税更省 ' : '并入综合更省 ') + money0(save) + ' 元</div>' +
+          '<div class="s">' + (best === 'solo' ? '单独计税按月度税率表，通常奖金不算特别高时更划算。' : '奖金并入后如果本来离下一档还差一点，合并算可能反而便宜；也可能把税率顶上去，注意临界点。') + '</div></div>';
+    } else {
+      bonusBox.style.display = 'none';
+    }
+  }
+
+  [salaryEl, insEl, extraEl, bonusEl].forEach(function(el){
+    el.addEventListener('input', paint);
+    el.addEventListener('change', paint);
+  });
+
+  [].forEach.call(document.querySelectorAll('[data-rate]'), function(b){
+    b.addEventListener('click', function(){
+      rate = parseFloat(b.getAttribute('data-rate'));
+      insEl.value = '';
+      [].forEach.call(document.querySelectorAll('[data-rate]'), function(x){ x.classList.toggle('on', x === b); });
+      paint();
+    });
+  });
+
+  var DEMO = { '8k': ['8000','0','1000','10000'], '20k': ['20000','0','2000','30000'], '45k': ['45000','0','3000','80000'] };
+  [].forEach.call(document.querySelectorAll('[data-demo]'), function(b){
+    b.addEventListener('click', function(){
+      var d = DEMO[b.getAttribute('data-demo')];
+      salaryEl.value = d[0]; insEl.value = ''; extraEl.value = d[2]; bonusEl.value = d[3];
+      paint();
+    });
+  });
+
+  paint();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>番茄钟与倒计时 · 25 分钟一件事</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .clock{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:22px 18px;
+    display:flex; flex-direction:column; align-items:center; gap:16px; margin-bottom:12px}
+  .ringwrap{position:relative; width:220px; height:220px}
+  .ringwrap svg{transform:rotate(-90deg)}
+  .ringwrap .time{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px}
+  .ringwrap .time b{font:600 44px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; letter-spacing:-1.5px}
+  .ringwrap .time span{font-size:12.5px; color:var(--dim)}
+  .btns{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
+  .btns button{
+    font:500 14px/1 inherit; padding:11px 22px; border-radius:10px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); min-width:96px;
+  }
+  .btns button:hover{border-color:var(--accent)}
+  .btns button.primary{background:var(--accent); border-color:transparent; color:var(--accent-fg); font-weight:600}
+  .btns button.primary:hover{filter:brightness(1.06)}
+  .fld{display:flex; gap:8px; align-items:center; font-size:13px; color:var(--dim)}
+  .fld input{width:70px; font:600 15px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg)}
+  .fld input:focus{outline:0; border-color:var(--accent)}
+  .sums{display:grid; gap:10px; grid-template-columns:1fr 1fr; margin-bottom:12px}
+  @media (min-width:700px){ .sums{grid-template-columns:repeat(3,1fr)} }
+  .sum{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:13px 14px}
+  .sum .k{font-size:12.5px; color:var(--dim); margin-bottom:5px}
+  .sum .v{font:600 20px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .sum .s{font-size:12px; color:var(--dim); margin-top:5px}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.85; margin-top:4px}
+  @media (max-width:560px){ .ringwrap{width:190px; height:190px} .ringwrap .time b{font-size:38px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>番茄钟与倒计时</h1>
+      <p class="lede">选 25 分钟就是番茄钟，选个自定义分钟数就是倒计时；结束响一声，标签页上的数字也换成剩余时间。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="row">
+    <span class="lbl">时长：</span>
+    <button class="chip on" type="button" data-min="25" data-kind="focus">专注 25 分</button>
+    <button class="chip" type="button" data-min="5" data-kind="break">休息 5 分</button>
+    <button class="chip" type="button" data-min="15" data-kind="break">长休 15 分</button>
+    <button class="chip" type="button" data-min="45" data-kind="focus">专注 45 分</button>
+    <span class="sep"></span>
+    <span class="fld">自定义 <input id="custom" type="text" inputmode="numeric" value="10" autocomplete="off"> 分钟
+      <button class="chip quick" type="button" id="btnCustom">用这个</button>
+    </span>
+  </div>
+
+  <div class="clock">
+    <div class="ringwrap">
+      <svg width="220" height="220" viewBox="0 0 220 220">
+        <circle cx="110" cy="110" r="96" fill="none" stroke="var(--line)" stroke-width="10"></circle>
+        <circle id="arc" cx="110" cy="110" r="96" fill="none" stroke="var(--accent)" stroke-width="10"
+                stroke-linecap="round" stroke-dasharray="603.19" stroke-dashoffset="0"></circle>
+      </svg>
+      <div class="time"><b id="time">25:00</b><span id="stateTxt">准备好了就点开始</span></div>
+    </div>
+    <div class="btns">
+      <button class="primary" id="btnStart" type="button">开始</button>
+      <button id="btnReset" type="button">重置</button>
+    </div>
+  </div>
+
+  <div class="sums">
+    <div class="sum"><div class="k">今天完成的专注</div><div class="v" id="doneCnt">0 个</div><div class="s" id="doneMin">共 0 分钟</div></div>
+    <div class="sum"><div class="k">这一轮结束于</div><div class="v" id="endAt">—</div><div class="s" id="endHint">点开始后显示</div></div>
+    <div class="sum"><div class="k">当前时长</div><div class="v" id="curMin">25 分</div><div class="s" id="curKind">专注</div></div>
+  </div>
+
+  <div class="hint">
+    空格键 = 开始 / 暂停。专注结束会自动记一个番茄，并切到 5 分钟休息（不自动开始，自己决定什么时候继续）。
+    声音需要你点过页面才会响，浏览器不让网页自己出声。切到别的标签页也能走，回来看到的是真实剩余时间。
+  </div>
+
+  <footer>
+    计时在浏览器里跑，不上传也不联网。关掉页面这一轮就没了，今天的番茄数会留在本机。
+  </footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var timeEl = $('time'), arc = $('arc'), stateTxt = $('stateTxt');
+  var btnStart = $('btnStart'), btnReset = $('btnReset');
+  var CIRC = 2 * Math.PI * 96;
+
+  var total = 25 * 60 * 1000, remain = total, endAt = 0, running = false, kind = 'focus';
+  var TITLE = document.title;
+
+  // 今天的番茄数（按本地日期存）
+  function dayKey(){
+    var d = new Date();
+    return 'tb.timer.' + d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+  }
+  function loadDone(){
+    try { return JSON.parse(localStorage.getItem(dayKey()) || '{"n":0,"m":0}'); } catch (e){ return { n: 0, m: 0 }; }
+  }
+  function saveDone(o){
+    try { localStorage.setItem(dayKey(), JSON.stringify(o)); } catch (e){}
+  }
+  function paintDone(){
+    var d = loadDone();
+    $('doneCnt').textContent = d.n + ' 个';
+    $('doneMin').textContent = '共 ' + d.m + ' 分钟';
+  }
+
+  function fmt(ms){
+    var s = Math.max(0, Math.ceil(ms / 1000));
+    var m = Math.floor(s / 60);
+    var ss = s % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (ss < 10 ? '0' : '') + ss;
+  }
+
+  function paint(){
+    timeEl.textContent = fmt(remain);
+    var p = total ? Math.max(0, Math.min(1, remain / total)) : 0;
+    arc.setAttribute('stroke-dashoffset', String(CIRC * (1 - p)));
+    arc.setAttribute('stroke-dasharray', String(CIRC));
+    $('curMin').textContent = Math.round(total / 60000) + ' 分';
+    $('curKind').textContent = kind === 'focus' ? '专注' : '休息';
+    if (running){
+      var d = new Date(endAt);
+      $('endAt').textContent = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+      $('endHint').textContent = '还剩 ' + fmt(remain);
+      stateTxt.textContent = kind === 'focus' ? '专注中，别切走' : '休息一下';
+      document.title = fmt(remain) + (kind === 'focus' ? ' · 专注' : ' · 休息');
+    } else {
+      if (remain >= total){
+        $('endAt').textContent = '—';
+        $('endHint').textContent = '点开始后显示';
+        stateTxt.textContent = '准备好了就点开始';
+      } else if (remain <= 0){
+        stateTxt.textContent = '时间到';
+      } else {
+        $('endHint').textContent = '已暂停，剩 ' + fmt(remain);
+        stateTxt.textContent = '已暂停';
+      }
+      document.title = fmt(remain) + ' · ' + (kind === 'focus' ? '专注' : '休息') + (running ? '' : '（停）');
+      if (remain >= total) document.title = TITLE;
+    }
+    btnStart.textContent = running ? '暂停' : (remain < total && remain > 0 ? '继续' : '开始');
+  }
+
+  function beep(){
+    try {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      var ctx = new Ctx();
+      [0, 0.28, 0.56].forEach(function(t){
+        var o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine'; o.frequency.value = 880;
+        g.gain.setValueAtTime(0.0001, ctx.currentTime + t);
+        g.gain.exponentialRampToValueAtTime(0.28, ctx.currentTime + t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.22);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.24);
+      });
+      setTimeout(function(){ try { ctx.close(); } catch (e){} }, 1400);
+    } catch (e){}
+  }
+
+  function setDuration(min, newKind){
+    min = Math.max(1, Math.min(180, Math.round(min || 0)));
+    total = min * 60 * 1000;
+    remain = total;
+    running = false;
+    endAt = 0;
+    if (newKind) kind = newKind;
+    paint();
+  }
+
+  function finish(){
+    running = false;
+    remain = 0;
+    beep();
+    var msg;
+    if (kind === 'focus'){
+      var d = loadDone();
+      d.n += 1; d.m += Math.round(total / 60000);
+      saveDone(d); paintDone();
+      kind = 'break'; total = 5 * 60 * 1000;
+      msg = '刚完成一个番茄，按开始进入 5 分钟休息';
+    } else {
+      kind = 'focus'; total = 25 * 60 * 1000;
+      msg = '休息结束，按开始进入下一个番茄';
+    }
+    remain = total; endAt = 0;
+    paint();
+    stateTxt.textContent = msg;
+  }
+
+  function tick(){
+    if (!running) return;
+    remain = endAt - Date.now();
+    if (remain <= 0){ paint(); finish(); return; }
+    paint();
+  }
+
+  function start(){
+    if (running) return;
+    if (remain <= 0) remain = total;
+    endAt = Date.now() + remain;
+    running = true;
+    paint();
+  }
+  function pause(){
+    if (!running) return;
+    remain = Math.max(0, endAt - Date.now());
+    running = false;
+    document.title = TITLE;
+    paint();
+  }
+
+  btnStart.addEventListener('click', function(){ running ? pause() : start(); });
+  btnReset.addEventListener('click', function(){ setDuration(total / 60000, kind); document.title = TITLE; });
+
+  [].forEach.call(document.querySelectorAll('[data-min]'), function(b){
+    b.addEventListener('click', function(){
+      [].forEach.call(document.querySelectorAll('[data-min]'), function(x){ x.classList.toggle('on', x === b); });
+      var c = document.getElementById('custom');
+      c.value = b.getAttribute('data-min');
+      setDuration(parseFloat(b.getAttribute('data-min')), b.getAttribute('data-kind'));
+      document.title = TITLE;
+    });
+  });
+
+  $('btnCustom').addEventListener('click', function(){
+    var v = parseFloat(String($('custom').value).replace(/[^\d.]/g, ''));
+    [].forEach.call(document.querySelectorAll('[data-min]'), function(x){ x.classList.remove('on'); });
+    setDuration(v, 'focus');
+    document.title = TITLE;
+  });
+
+  document.addEventListener('keydown', function(e){
+    if (e.code === 'Space' && !/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)){
+      e.preventDefault();
+      running ? pause() : start();
+    }
+  });
+
+  setInterval(tick, 200);
+  paintDone();
+  paint();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

@@ -1,6 +1,6 @@
-# toolbox — forty-seven small tools that open and work
+# toolbox — fifty-one small tools that open and work
 
-> Forty-seven tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table, whitespace detective, table aligner, shadow generator, JSON tree. No backend, no ports.
+> Fifty-one tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table, whitespace detective, table aligner, shadow generator, JSON tree, income tax and take-home, JSON to table, BMI and calories, pomodoro timer. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -8,78 +8,20 @@ English | [中文](README.md)
 
 Every tool computes in the browser; no server is involved. `scripts/build_toolbox.py` reads each tool template, rewrites asset paths, injects a shared back-to-index chip and assembles a grouped landing page; theme.css and base.js are deduplicated. The output is a plain static directory any static server can host.
 
-This round grew the toolbox from eight tools to twelve, all of them things you actually reach for:
+This round (2026-11-14) brings the count to fifty-one, with four new ones:
 
-- **Text diff**: paste before and after. Lines are aligned with a longest-common-subsequence pass, then paired removed/added lines get a character-level comparison so only the characters that really changed are marked; long unchanged runs collapse into a single notice and the diff copies out in `+`/`-` form.
-- **QR generator**: bundled encoder (MIT). Chinese goes in as UTF-8 rather than whatever the browser would guess, error correction L/M/Q/H, a fixed four-module quiet zone, and the downloaded PNG is scaled by whole modules so scanners like it.
-- **Encoders**: Base64 (including URL-safe -_), URL escaping, HTML escaping, unicode escapes, JWT inspection. The JWT view converts issued/expiry timestamps to local time and says how long is left — while stating on the page that signatures are not verified.
-- **Hash checker**: drop a file for MD5 / SHA-1 / SHA-256 / SHA-512. The SHA family uses the browser's crypto.subtle; MD5 is implemented in the page (checked against four vectors: empty string, abc, 1000 a's, a Chinese string). Paste the published checksum and it infers the algorithm from its length and says whether it matches.
-
-Two long-standing bugs got fixed on the way: the favicon template reference was never rewritten by the build (so every tool page had a 404 tab icon), and the landing page restarted a group heading whenever a newly appended tool belonged to a group already rendered. Grouping now follows `GROUP_ORDER`, and every page points at the same `assets/icon.svg`.
-
-Third round (twelve to fifteen), all of it the everyday stuff you hit while writing server code:
-
-- **Cron explainer**: paste a crontab line, get a plain-Chinese description plus the next ten exact run times. Supports `*`, ranges, steps, lists and combos, English month/weekday names, `7` for Sunday, and the `@daily` style aliases. Finding the next run does not brute-force minutes: it matches whole days first, then scans that day's hours and minutes, so leap years and month ends stay instant. When both day-of-month and day-of-week are restricted it follows cron's old rule — either one matching is enough.
-- **Naming converter**: one field name per line, eight casings at once (camel, Pascal, snake, CONSTANT, kebab, dot, spaced, title). Tokenising understands separators, camel boundaries and acronym runs, so `HTTPServer` becomes http + server rather than h-t-t-p. Batch friendly, one-click copy per style.
-- **Date calculator**: days and working days between two dates, plus the calendar reading; or step forward N days / working days / months from any date. Month arithmetic clamps the day-of-month (Jan 31 + 1 month = Feb 28), and everything runs in UTC so daylight-saving transitions can't shift the answer by a day.
-
-- **Random generator**: passwords, UUID v4, hex and plain digits, a batch at a time. Values come from the browser's CSPRNG through rejection sampling rather than a plain modulo (which would favour the leading characters), and passwords can exclude the look-alikes `0 O o 1 l I`. A meter estimates `length × log2(pool)` and says whether that is enough.
-
-Fourth round (sixteen to twenty), all about text going in and coming out:
-
-- **CSV to table**: comma, tab, semicolon and pipe are detected by counting occurrences per line; quoted commas, newlines and doubled quotes follow RFC 4180. You get a readable table first (sticky header, zebra rows, numeric columns right-aligned, click a header to sort), then the same data exported as Markdown / JSON / SQL INSERT / HTML / TSV. Copying from the table view yields TSV, which pastes straight into Excel or Feishu Sheets as columns.
-- **CJK/Latin spacing**: inserts a single space where Chinese meets Latin or digits, removes stray spaces between Chinese characters, and optionally converts full-width letters and digits. Insertions are marked with a placeholder first and normalised afterwards, so one rule cannot eat another rule's work; a toggle highlights every CJK/Latin space in the result.
-- **Word count**: Chinese characters, English words, digit runs, characters with and without spaces, lines, paragraphs, punctuation, longest sentence, plus a reading time folded from 300 chars/min and 200 words/min. A side panel lists the limits of Weibo, Xiaohongshu, WeChat digest, SMS and X, turning red when exceeded; frequent characters are counted with Chinese function words filtered out.
-- **URL dissector**: protocol, host, port, path and fragment laid out separately, with query parameters as an editable table — edit a value or delete a row and the clean link below rebuilds live. One click strips utm_*, spm, gclid, from and scene; the parameter table copies out as JSON with repeated keys merged into arrays. A link without a scheme is treated as https.
-
-The landing page also gained instant search: with twenty tools, scrolling to find one is slow — type 「表格」 or 「颜色」 and only matching cards stay, empty group headings disappear with them, `/` focuses the box and Esc clears it.
-
-Fifth round (twenty to twenty-four), a set about converting and repairing:
-
-- **Subnet calculator**: give it an address with `/26` or a dotted mask and it lists network, broadcast, usable range, usable host count, mask, wildcard mask and the address class (private / loopback / link-local / documentation). Dotted masks are validated for contiguity — `255.0.255.0` is rejected instead of producing a plausible lie — and `/31` counts both addresses as usable while `/32` counts one, matching what devices actually do. Below that you can split the block into N subnets and see each range, or test whether another address belongs to it, including whether that address is the network or broadcast one.
-- **Percentage**: four live panels side by side — discount (price plus discount rate gives what you pay and what you save), change (old to new gives percent and multiple), share (part over whole gives percent and how far from 100%), and increase (base plus percent, negative to subtract). A zero denominator explains itself instead of printing Infinity.
-- **Mojibake repair**: paste garbage and it tries UTF-8 read as Latin-1, GBK read as Latin-1, Big5 read as Latin-1 and GBK read as UTF-8, ranks the results by how much readable CJK they contain, highlights the best guess and copies it on click; URL encoding, HTML entities and backslash-u escapes are decoded too. It is honest about the hopeless case: strings containing replacement characters lost their original bytes during the bad conversion, and the page says so rather than pretending.
-- **Markdown preview**: write on the left, see the page on the right — headings, bold/italic/strikethrough, inline code, fenced code (escaped as text, never rendered as tags), ordered and unordered lists with one level of nesting, quotes, tables (leading and trailing pipes optional), rules, links and images. Then copy the HTML, copy the text, or download a standalone page with inline styles.
-
-Sixth round (twenty-four to twenty-seven):
-
-- **Image to WebP**: drop JPG / PNG / BMP / AVIF / SVG (with explicit width and height) and every one is encoded in the browser through canvas — quality 50–100, optional maximum edge, automatic re-encode when you change either. Transparency is preserved instead of flattened to white, EXIF orientation is honoured via `imageOrientation: 'from-image'`, and the queue converts one file at a time so a 20 MP photo cannot blow up memory. Two sample images (a photo and a transparent circle) are drawn at load time so the size difference is visible immediately.
-- **Base converter**: one field understands `0x` / `0b` / `0o` / `#` prefixes and stores values as BigInt, so digit count is unbounded. Decimal gets thousands separators, binary is grouped in fours, and every row copies. A bit strip highlights the ones, and a row of bitwise operations (and, or, xor, shifts, unsigned 32-bit not) reports the result in decimal, hex and binary, appending the character when the code point lands somewhere printable.
-- **Image to Data URI**: small images become a string you can paste into HTML or CSS — four formats (full URI, bare base64, CSS background, img tag) with a copy button, the inflation factor spelled out and a warning past 30 KB. Going the other way, paste a data URI or bare base64 and it rebuilds the image for download, guessing JPEG / GIF / WebP / PNG from magic bytes when the prefix is missing.
-
-Eighth batch (31 → 35): three things you reach for while building, plus one for writing docs.
-
-- **SQL formatter**: paste a one-line query and it breaks at clauses (SELECT / FROM / WHERE / GROUP BY / JOIN / ON …), one column per line in select and group-by lists, keywords uppercased, indent 2 / 4 / none — or collapse everything back to one line and drop comments. A small tokenizer protects strings (with `''` escapes), backticks, line and block comments, `::` and `->>` before any reflow; the AND in `BETWEEN 1 AND 5` never becomes a line break, and `CREATE TABLE` puts one column per line.
-- **JSON to types**: paste an API response and get a TypeScript interface, a Go struct, or Python dataclasses. Objects inside arrays merge their keys, and fields missing from some elements become optional (`?` / `,omitempty` / `Optional[...]`); ints and floats are inferred separately (int64 / float64 in Go); Go names are exported with a `json` tag and an initialism table; Python output uses `from __future__ import annotations` with one class per nested object. Parse errors report the position.
-- **Number checker**: mainland ID cards (15 / 17 / 18 digits, short ones auto-padded), bank cards via Luhn, unified social credit codes, EAN-13 barcodes and ISBN-10 — one input, type detected automatically. ID cards report birth date, age, sex and province code; a wrong check digit tells you which one it should be.
-- **Symbol palette**: arrows, ticks, math, currency, circled numbers, units, punctuation, checkboxes, ornaments, bullets, Greek, emoji — twelve groups, 270+ characters, one click copies and appends to a scratch tray at the bottom.
-
-No server code this round: four pages plus three pure-calculation scripts, bundled into `assets/<tool>/` at build time. The site stays a static directory.
-
-Ninth batch (35 -> 39): two things you need while building, one for config files, one for money.
-
-- **curl to code**: paste a "Copy as cURL" command and get fetch, Python requests, Go net/http or PowerShell. A small tokenizer handles single and double quotes, backslash / caret / backtick continuations, grouped short flags like `-sSL`, and `-X / -H / -d / --json / -F / -u / -b`; the body is classified as JSON (inlined as an object), form (URLSearchParams / dict) or raw text, and Content-Type is filled in when missing. Flags that only affect curl itself (`-k -L -s -o`) stay out of the generated code but are called out in a note.
-- **HTTP status codes**: 54 entries, the standard set plus nginx's own 499 / 444 and Cloudflare's 52x. Each carries a plain-language explanation, the usual cause and where to look next; search matches the number, the English name, the Chinese text and hidden tags.
-- **.gitignore generator**: 24 stacks in four groups, tick and the file appears. A rule appearing in several blocks is emitted once, comment headers stay, and negation rules are excluded from deduplication (getting that wrong silently ignores files that should be kept).
-- **Loan calculator**: amount, annual rate and term in; monthly payment, total interest, total repayment and a per-period schedule out. The equal-payment plan computes interest on the remaining balance each period and takes the balance as the final principal so rounding cannot leave a residue; the equal-principal plan keeps principal flat and lets interest fall.
-
-Tenth batch (39 → 43): two for building sites, one for generating test data, one for reading clocks.
-
-- **Favicon maker**: drop one square image in, get a `.ico` bundling 16 / 32 / 48 / 64 / 128 / 256 plus single PNGs at 180 and 512. The ICO stores PNG slices rather than BMP, an order of magnitude smaller; non-square images are centre-cropped to a square instead of being squashed. The container is assembled by hand: 6-byte header, 16-byte directory entry per image (256 written as 0 per spec), then contiguous image data with running offsets.
-- **HTML to Markdown**: paste what you copied from a page (the rich-text flavour is preferred on paste) and Markdown comes out. Headings, bold/italic, strikethrough, inline code, fenced code with language, nested ordered/unordered lists, task items, links, images, quotes, rules and tables are understood; scripts and styles are dropped whole, and pasting a full page only takes the body.
-- **Mock data**: tick the columns, set the row count, get a table you can copy as TSV, copy as JSON or export as CSV. Seventeen field types; ID numbers carry a correct check digit and card numbers pass Luhn; emails use `@example.com` so they can never reach a real person.
-- **Timezone table**: pick an instant and see twenty cities' local time, offset, day shift and whether they are inside working hours. Offsets are computed live through `Intl.DateTimeFormat` rather than from a table, so DST follows automatically; half-hour zones (Mumbai +5:30) are kept to the minute.
-
-Batch eleven (43 → 47), four things you need while writing docs, styling a card, or reading an API response:
-
-- **Whitespace detective**: marks every invisible character in place — plain spaces as dots, tabs as arrows, NBSP and ideographic spaces with their own badges, zero-width characters (ZWSP / ZWJ / BOM / RLM and friends) spelled out by name. Text copied from web pages often carries NBSP, and zero-width characters in code are nearly impossible to spot. One click cleans it: strip zero-width and BOM, turn NBSP and ideographic spaces into plain spaces, normalise to LF, drop trailing spaces. Since a textarea normalises CRLF to LF by itself, the "check a file" button reads raw bytes through FileReader so you can actually see which line ending a file uses.
-- **Table aligner**: pads Markdown table cells by real display width (a CJK character counts as two), right-aligns numeric columns and left-aligns the rest, rewrites the separator row. Tabs-only data copied from a spreadsheet becomes a table; pipes inside cells are escaped so the table never breaks.
-- **Shadow generator**: five sliders plus colour and opacity with a live card, five presets (soft card, floating, hard sticker, inset, glow), and a dark-background preview — on dark UI a shadow is usually invisible and a border works better. Copy two CSS lines when done.
-- **JSON tree**: folds a large payload, expands two levels by default, searches keys and values with ancestors auto-expanded and non-matches hidden, and copies `$.data.list[0].id` style paths on click or the raw value. Parse errors report line and column and can jump the caret straight to the broken spot.
+- **Income tax and take-home**: monthly withholding computed the cumulative way payroll does it. Salary, social insurance (estimated by rate or typed from a real payslip) and extra deductions go in; twelve months of taxable income, tax paid and take-home come out. A year-end bonus is priced both standalone (divided by twelve to find the bracket) and merged into annual income, with the cheaper option called out.
+- **JSON to table**: object arrays, single objects and JSON Lines all parse. Nested objects flatten to `user.name` columns, arrays join with commas; export as CSV (with BOM for Excel), TSV, a Markdown table or SQL inserts where numbers stay unquoted.
+- **BMI and calories**: Chinese BMI bands, Mifflin-St Jeor basal rate times an activity factor for daily burn, then cut / maintain / bulk targets with protein at 1.6-1.8 g/kg and fat at 25% of calories.
+- **Pomodoro timer**: 25 / 45 minute focus, 5 / 15 minute breaks or any custom length. The ring shrinks with the remaining share, a beep and a locally stored session mark the end, and the tab title mirrors the countdown without drift.
 
 
 ## Features
 
+- Income tax and take-home: monthly withholding computed cumulatively; year-end bonus compared solo vs merged, with the saving spelled out
+- JSON to table: object arrays, single objects and JSON Lines; nested keys flattened to user.name; CSV / TSV / Markdown / SQL output
+- BMI and calories: Chinese BMI bands, Mifflin-St Jeor BMR times an activity factor, plus cut / maintain / bulk calories and macros
+- Pomodoro timer: ring countdown, a beep and a logged session at the end, remaining time mirrored in the tab title, no drift after switching tabs
 - Whitespace detective: zero-width, BOM, NBSP, ideographic spaces and tabs marked per character, one click to clean
 - Table aligner: pads by display width, right-aligns numeric columns automatically, TSV to Markdown table
 - Shadow generator: live box-shadow and border-radius from sliders, dark-background preview, copy two CSS lines
@@ -88,7 +30,7 @@ Batch eleven (43 → 47), four things you need while writing docs, styling a car
 - HTTP status codes: 54 entries with plain-language causes, including nginx and Cloudflare codes
 - .gitignore generator: 24 stacks merged without duplicates, negations preserved, copy or download
 - Loan calculator: equal-payment vs equal-principal, monthly payment, total interest, full schedule
-- Forty-seven tools in one static site, no backend and no ports
+- Fifty-one tools in one static site, no backend and no ports
 - One build script generates every page from its template
 - Text diff: line alignment, in-line character highlighting, foldable unchanged runs, copyable patch
 - QR: UTF-8 Chinese, L/M/Q/H correction, adjustable size, PNG download, fixed quiet zone

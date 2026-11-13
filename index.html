@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>工具台 toolbox</title>
-<meta name="description" content="一堆打开就能用的小工具：JSON、文本、CSV 表格、Markdown 预览、字数统计、中英混排、网址拆解、乱码修复、时间戳、对比、Cron、日期、命名转换、金额大写、百分比、贷款计算、单位、网段计算、颜色、图片压缩、二维码、哈希、编码、SQL 排版、JSON 转类型、号码校验、curl 转代码、HTTP 状态码、.gitignore 生成、网站图标、HTML 转 Markdown、假数据生成、时区对照、特殊符号、隐藏字符体检、表格对齐、阴影与圆角、JSON 树。全在浏览器里算，不上传服务器。">
+<meta name="description" content="一堆打开就能用的小工具：JSON、文本、CSV 表格、Markdown 预览、字数统计、中英混排、网址拆解、乱码修复、时间戳、对比、Cron、日期、命名转换、金额大写、百分比、贷款计算、单位、网段计算、颜色、图片压缩、二维码、哈希、编码、SQL 排版、JSON 转类型、号码校验、curl 转代码、HTTP 状态码、.gitignore 生成、网站图标、HTML 转 Markdown、假数据生成、时区对照、特殊符号、隐藏字符体检、表格对齐、阴影与圆角、JSON 树、个税与到手、JSON 转表格、体重与热量、番茄钟。全在浏览器里算，不上传服务器。">
 <link rel="stylesheet" href="assets/theme.css">
 <style>
   .grid{display:grid; gap:12px; grid-template-columns:1fr}
@@ -246,6 +246,12 @@
       <p>一大坨接口返回折叠着看，搜键名直接定位，点一下复制路径或值。</p>
       <div class="tags"><span>折叠浏览</span><span>搜键名</span><span>复制路径</span></div>
     </a>
+    <a class="card" href="j2c/" data-k="j2c JSON 转表格 粘一坨接口返回就出表格，一键变成 CSV、Markdown 表格或建表用的 SQL。 CSV / TSV 嵌套字段展开 SQL 导出" data-slug="j2c">
+      <div class="top"><span class="ico">▤</span><span class="arrow">↗</span></div>
+      <h2>JSON 转表格</h2>
+      <p>粘一坨接口返回就出表格，一键变成 CSV、Markdown 表格或建表用的 SQL。</p>
+      <div class="tags"><span>CSV / TSV</span><span>嵌套字段展开</span><span>SQL 导出</span></div>
+    </a>
   </div>
   <div class="group">时间与任务</div>
   <div class="grid">
@@ -272,6 +278,12 @@
       <h2>时区对照</h2>
       <p>定一个时间，一眼看到十几个城市各是几点、差几个小时、对面在不在上班。</p>
       <div class="tags"><span>夏令时自动</span><span>上班时段</span><span>二十个城市</span></div>
+    </a>
+    <a class="card" href="timer/" data-k="timer 番茄钟 25 分钟一件事：转圈倒计时，结束响一声，标签页标题上也显示剩余时间。 番茄钟 自定义倒计时 空格开始" data-slug="timer">
+      <div class="top"><span class="ico">◷</span><span class="arrow">↗</span></div>
+      <h2>番茄钟</h2>
+      <p>25 分钟一件事：转圈倒计时，结束响一声，标签页标题上也显示剩余时间。</p>
+      <div class="tags"><span>番茄钟</span><span>自定义倒计时</span><span>空格开始</span></div>
     </a>
   </div>
   <div class="group">数字与金额</div>
@@ -311,6 +323,18 @@
       <h2>贷款计算</h2>
       <p>填金额、利率、年限，立刻看到月供、总利息和每期还款明细，等额本息与等额本金能对比。</p>
       <div class="tags"><span>月供</span><span>总利息</span><span>还款明细表</span></div>
+    </a>
+    <a class="card" href="tax/" data-k="tax 个税与到手 填税前月薪和五险一金，算出每月实际到手、一年交多少税；有年终奖还能比一比怎么发更省。 累计预扣 年终奖对比 到手工资" data-slug="tax">
+      <div class="top"><span class="ico">税</span><span class="arrow">↗</span></div>
+      <h2>个税与到手</h2>
+      <p>填税前月薪和五险一金，算出每月实际到手、一年交多少税；有年终奖还能比一比怎么发更省。</p>
+      <div class="tags"><span>累计预扣</span><span>年终奖对比</span><span>到手工资</span></div>
+    </a>
+    <a class="card" href="bmi/" data-k="bmi 体重与热量 填身高体重看 BMI 落在哪一档，顺带算出基础代谢和减脂每天该吃多少卡。 BMI 分级 基础代谢 每天热量" data-slug="bmi">
+      <div class="top"><span class="ico">◔</span><span class="arrow">↗</span></div>
+      <h2>体重与热量</h2>
+      <p>填身高体重看 BMI 落在哪一档，顺带算出基础代谢和减脂每天该吃多少卡。</p>
+      <div class="tags"><span>BMI 分级</span><span>基础代谢</span><span>每天热量</span></div>
     </a>
   </div>
   <div class="group">网络与编码</div>
@@ -379,7 +403,7 @@
 
   <footer>
     同一个仓库里长出来的东西：新工具加个目录、挂进这张表就行。需要后端的（短码暂存、天气、主机指标、资讯聚合）各自独立跑，不塞进这里。
-    <br>更新于 2026-11-12 · 共 47 个工具
+    <br>更新于 2026-11-14 · 共 51 个工具
   </footer>
 </div>
 <script src="assets/base.js"></script>
