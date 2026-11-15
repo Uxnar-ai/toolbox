@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CSS 渐变 · 色标拖出来就是代码</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .cols{display:grid; gap:12px; grid-template-columns:1fr}
+  @media (min-width:900px){ .cols{grid-template-columns:350px minmax(0,1fr)} }
+
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px}
+  .panel h2{
+    margin:0 0 12px; font-size:12.5px; font-weight:600; letter-spacing:.3px; color:var(--dim);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+
+  .stop{display:grid; grid-template-columns:40px 70px minmax(0,1fr) 26px; gap:8px; align-items:center; margin-bottom:8px}
+  .stop input[type=color]{
+    width:40px; height:32px; padding:2px; border-radius:8px; border:1px solid var(--line);
+    background:var(--card); cursor:pointer;
+  }
+  .stop input[type=number]{
+    width:100%; font:13px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    padding:7px 8px; border-radius:8px; border:1px solid var(--line); background:var(--soft); color:var(--fg);
+  }
+  .stop input[type=range]{height:4px}
+  .stop .del{
+    width:26px; height:26px; border-radius:7px; border:1px solid var(--line); background:var(--card);
+    color:var(--dim); cursor:pointer; line-height:1; font-size:15px; padding:0;
+  }
+  .stop .del:hover{border-color:var(--err); color:var(--err)}
+
+  button.b{
+    font:500 13px/1.2 inherit; padding:8px 14px; border-radius:9px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); transition:border-color .15s,color .15s;
+  }
+  button.b:hover{border-color:var(--accent); color:var(--accent)}
+  button.b.pri{background:var(--accent); border-color:var(--accent); color:var(--accent-fg)}
+  button.b.pri:hover{opacity:.92; color:var(--accent-fg)}
+
+  .fld{margin:14px 0 4px}
+  .fld .top{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px}
+  .fld .top span{font-size:12.5px; color:var(--dim)}
+  .fld .top b{font:600 13px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  input[type=range]{
+    -webkit-appearance:none; appearance:none; width:100%; height:4px; border-radius:3px;
+    background:var(--line); outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent);
+    border:2px solid var(--card); cursor:pointer; box-shadow:0 0 0 1px var(--line);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:14px; height:14px; border-radius:50%; background:var(--accent); border:2px solid var(--card); cursor:pointer;
+  }
+
+  .stage{
+    height:300px; border-radius:var(--radius); border:1px solid var(--line);
+    transition:background .15s linear;
+  }
+  @media (max-width:620px){ .stage{height:210px} }
+
+  .codebox{
+    margin-top:12px; background:var(--soft); border:1px solid var(--line); border-radius:10px;
+    padding:12px 14px; font:13px/1.85 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    white-space:pre-wrap; word-break:break-all;
+  }
+  .codebox .k{color:var(--accent)}
+  .codebox .c{color:var(--dim)}
+  .acts{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
+  .stats{font-size:12.5px; color:var(--dim); margin-top:10px}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.9; margin-top:12px}
+  .hint code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; background:var(--soft); padding:1px 5px; border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>CSS 渐变</h1>
+      <p class="lede">挑几个颜色、拖一下角度，右边那块就是效果，下面那行直接粘到 CSS 里。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="row" id="presets">
+    <span class="lbl">现成的</span>
+    <button class="chip" data-p="dawn">晨曦</button>
+    <button class="chip" data-p="dusk">暮色</button>
+    <button class="chip" data-p="sea">湖蓝</button>
+    <button class="chip" data-p="peach">蜜桃</button>
+    <button class="chip" data-p="night">深夜</button>
+    <button class="chip" data-p="aurora">极光</button>
+    <button class="chip" data-p="gray">灰阶</button>
+    <button class="chip" data-p="brand">品牌蓝</button>
+  </div>
+
+  <div class="cols">
+    <div class="panel">
+      <h2><span>色标</span><span id="nStop">3 个</span></h2>
+      <div id="stops"></div>
+      <button class="b" id="add" style="width:100%; margin-top:4px">+ 加一个颜色</button>
+
+      <div class="row" style="margin:14px 0 0">
+        <button class="chip on" data-t="linear">线性</button>
+        <button class="chip" data-t="radial">径向</button>
+      </div>
+
+      <div class="fld" id="angleFld">
+        <div class="top"><span>方向</span><b id="vAng">135°</b></div>
+        <input type="range" id="ang" min="0" max="360" value="135">
+      </div>
+      <div class="stats" id="stats"></div>
+    </div>
+
+    <div>
+      <div class="stage" id="stage"></div>
+      <div class="codebox" id="code"></div>
+      <div class="acts">
+        <button class="b pri" id="copy">复制 CSS</button>
+        <button class="b" id="copyBg">复制成整条 background</button>
+        <button class="b" id="png">下载 1200×630 图片</button>
+      </div>
+      <div class="hint">
+        浏览器里画，不上传任何东西。角度按 CSS 规矩：<code>0deg</code> 从下往上、<code>90deg</code> 从左往右。
+        导出图片是给社交媒体封面用的尺寸，比截图清晰。
+      </div>
+    </div>
+  </div>
+
+  <footer>色标多了会自动按百分比排序，代码里不会出现倒序的色标。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var stops = [{c:'#2f6df6', p:0}, {c:'#7b5cff', p:55}, {c:'#ff5fa2', p:100}];
+  var angle = 135, type = 'linear';
+
+  var PRESETS = {
+    dawn:  {a:120, s:[['#ffd6a5',0],['#ff9a9e',48],['#a18cd1',100]]},
+    dusk:  {a:160, s:[['#f6d365',0],['#fda085',55],['#6a3093',100]]},
+    sea:   {a:135, s:[['#00c6ff',0],['#0072ff',100]]},
+    peach: {a:135, s:[['#ffecd2',0],['#fcb69f',100]]},
+    night: {a:160, s:[['#0f2027',0],['#203a43',52],['#2c5364',100]]},
+    aurora:{a:110, s:[['#00f5a0',0],['#00d9f5',45],['#7b5cff',100]]},
+    gray:  {a:135, s:[['#e9ecef',0],['#adb5bd',55],['#495057',100]]},
+    brand: {a:135, s:[['#2f6df6',0],['#5b8cff',60],['#8fb4ff',100]]}
+  };
+
+  function esc(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function sorted(){
+    return stops.slice().sort(function(x,y){ return x.p - y.p; });
+  }
+  function stopsCss(){
+    return sorted().map(function(s){ return s.c + ' ' + s.p + '%'; }).join(', ');
+  }
+  function cssValue(){
+    if (type === 'radial' || stops.length < 2){
+      if (type === 'radial') return 'radial-gradient(circle at 50% 50%, ' + stopsCss() + ')';
+    }
+    return 'linear-gradient(' + angle + 'deg, ' + stopsCss() + ')';
+  }
+
+  function renderStops(){
+    var box = $('stops');
+    box.innerHTML = '';
+    stops.forEach(function(s, i){
+      var row = document.createElement('div');
+      row.className = 'stop';
+      var c = document.createElement('input');
+      c.type = 'color'; c.value = s.c;
+      c.addEventListener('input', function(){ s.c = c.value; paint(); });
+      var n = document.createElement('input');
+      n.type = 'number'; n.min = 0; n.max = 100; n.value = s.p; n.step = 1;
+      var r = document.createElement('input');
+      r.type = 'range'; r.min = 0; r.max = 100; r.value = s.p;
+      n.addEventListener('input', function(){
+        var v = parseInt(n.value, 10);
+        s.p = isNaN(v) ? 0 : Math.max(0, Math.min(100, v));
+        r.value = s.p;
+        paint();
+      });
+      r.addEventListener('input', function(){
+        s.p = parseInt(r.value, 10);
+        n.value = s.p;
+        paint();
+      });
+      var d = document.createElement('button');
+      d.className = 'del'; d.textContent = '×'; d.title = '删掉这个颜色';
+      d.addEventListener('click', function(){
+        if (stops.length <= 2){ alert('至少留两个颜色'); return; }
+        stops.splice(i, 1);
+        renderStops(); paint();
+      });
+      row.appendChild(c); row.appendChild(n); row.appendChild(r); row.appendChild(d);
+      box.appendChild(row);
+    });
+    $('nStop').textContent = stops.length + ' 个';
+  }
+
+  function paint(){
+    var v = cssValue();
+    $('stage').style.background = v;
+    $('ang').parentNode.style.opacity = type === 'radial' ? '.35' : '1';
+    $('vAng').textContent = type === 'radial' ? '从中心' : angle + '°';
+    var full = 'background: ' + v + ';';
+    $('code').innerHTML =
+      '<span class="k">background</span>: ' + esc(v) + ';' +
+      '\n<span class="c">/* ' + stops.length + ' 个色标 · ' + type + (type === 'radial' ? '' : ' ' + angle + 'deg') + ' */</span>';
+    $('stats').textContent = '色标 ' + stops.length + ' 个 · 代码 ' + full.length + ' 字符 · 导出图片 1200×630';
+    paint._v = v; paint._full = full;
+  }
+
+  $('add').addEventListener('click', function(){
+    if (stops.length >= 8){ alert('最多八个颜色，再多就糊了'); return; }
+    var last = sorted();
+    var p = Math.round((last[last.length-1].p + last[last.length-2].p) / 2);
+    stops.push({c:'#ffffff', p:isNaN(p) ? 50 : p});
+    renderStops(); paint();
+  });
+
+  $('ang').addEventListener('input', function(){
+    angle = parseInt(this.value, 10);
+    paint();
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-t]'), function(b){
+    b.addEventListener('click', function(){
+      type = b.getAttribute('data-t');
+      Array.prototype.forEach.call(document.querySelectorAll('[data-t]'), function(o){ o.classList.remove('on'); });
+      b.classList.add('on');
+      paint();
+    });
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-p]'), function(b){
+    b.addEventListener('click', function(){
+      var p = PRESETS[b.getAttribute('data-p')];
+      if (!p) return;
+      angle = p.a;
+      $('ang').value = p.a;
+      stops = p.s.map(function(x){ return {c:x[0], p:x[1]}; });
+      renderStops(); paint();
+    });
+  });
+
+  $('copy').addEventListener('click', function(){ copyText(paint._v, this, '复制 CSS'); });
+  $('copyBg').addEventListener('click', function(){ copyText(paint._full, this, '复制成整条 background'); });
+
+  $('png').addEventListener('click', function(){
+    var W = 1200, H = 630;
+    var cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    var g = cv.getContext('2d');
+    var st = sorted();
+    var grad;
+    if (type === 'radial'){
+      var r = Math.max(W, H) / 2;
+      grad = g.createRadialGradient(W/2, H/2, 0, W/2, H/2, r);
+    } else {
+      var a = angle * Math.PI / 180;
+      var dx = Math.sin(a), dy = -Math.cos(a);
+      var len = Math.abs(W * dx) + Math.abs(H * dy);
+      grad = g.createLinearGradient(
+        W/2 - dx*len/2, H/2 - dy*len/2,
+        W/2 + dx*len/2, H/2 + dy*len/2);
+    }
+    st.forEach(function(s){
+      try { grad.addColorStop(s.p / 100, s.c); } catch(e){}
+    });
+    g.fillStyle = grad;
+    g.fillRect(0, 0, W, H);
+    cv.toBlob(function(blob){
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'gradient-' + angle + 'deg.png';
+      a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+    }, 'image/png');
+  });
+
+  renderStops();
+  paint();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

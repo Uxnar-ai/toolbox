@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JSON 对比 · 两个接口返回差在哪</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .cols{display:grid; gap:12px; grid-template-columns:1fr}
+  @media (min-width:860px){ .cols{grid-template-columns:1fr 1fr} }
+
+  .pane{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:12px}
+  .pane h2{
+    margin:0 0 9px; font-size:12.5px; font-weight:600; letter-spacing:.3px; color:var(--dim);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .pane h2 .k{color:var(--fg); font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    background:var(--soft); padding:3px 7px; border-radius:6px}
+
+  textarea{
+    width:100%; height:206px; resize:vertical; display:block;
+    font:12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    padding:10px 12px; border-radius:9px; border:1px solid var(--line);
+    background:var(--soft); color:var(--fg);
+  }
+  textarea:focus{outline:none; border-color:var(--accent)}
+
+  button.b{
+    font:500 13px/1.2 inherit; padding:8px 13px; border-radius:9px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); transition:border-color .15s,color .15s;
+  }
+  button.b:hover{border-color:var(--accent); color:var(--accent)}
+  button.b.pri{background:var(--accent); border-color:var(--accent); color:var(--accent-fg)}
+  button.b.pri:hover{opacity:.92; color:var(--accent-fg)}
+
+  .bar{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:12px 0}
+  .stats{display:flex; gap:8px; flex-wrap:wrap; font-size:12.5px}
+  .pill{
+    border:1px solid var(--line); border-radius:999px; padding:4px 11px;
+    background:var(--card); color:var(--dim);
+  }
+  .pill b{font-weight:600; color:var(--fg)}
+  .pill.add b{color:var(--ok)} .pill.del b{color:var(--err)}
+  .pill.chg b{color:var(--warn)}
+
+  .list{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    overflow:hidden;
+  }
+  .item{
+    display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px 12px;
+    padding:9px 13px; border-bottom:1px solid var(--line); font-size:12.5px;
+  }
+  .item:last-child{border-bottom:none}
+  .item .p{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px;
+    word-break:break-all; color:var(--fg);
+  }
+  .item .p i{color:var(--dim); font-style:normal}
+  .item .v{grid-column:1 / -1; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:12px; color:var(--dim); word-break:break-all; line-height:1.7}
+  .item .v em{font-style:normal; color:var(--err); text-decoration:line-through}
+  .item .v i{font-style:normal; color:var(--dim); margin:0 6px}
+  .item .v s{text-decoration:none; color:var(--ok)}
+  .item.chg{background:rgba(180,83,9,.055)}
+  .item.del{background:rgba(192,57,43,.055)}
+  .item.add{background:rgba(31,122,77,.055)}
+  .badge{
+    font-size:11.5px; font-weight:600; padding:3px 8px; border-radius:6px; white-space:nowrap;
+    align-self:start; border:1px solid transparent;
+  }
+  .badge.add{color:var(--ok); border-color:var(--ok)}
+  .badge.del{color:var(--err); border-color:var(--err)}
+  .badge.chg{color:var(--warn); border-color:var(--warn)}
+  .badge.same{color:var(--dim); border-color:var(--line)}
+  .empty{padding:24px 16px; text-align:center; color:var(--dim); font-size:13px}
+  .err{
+    display:none; margin:8px 0 0; padding:9px 12px; border-radius:9px; font-size:12.5px;
+    background:rgba(192,57,43,.09); color:var(--err); border:1px solid rgba(192,57,43,.3);
+  }
+  .err.on{display:block}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.9; margin-top:10px}
+  .hint code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px;
+    background:var(--soft); padding:1px 5px; border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>JSON 对比</h1>
+      <p class="lede">接口改版前后各粘一遍，哪个字段新增、删了、值变了，按路径列出来。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="cols">
+    <div class="pane">
+      <h2><span>改之前</span><span class="k">A</span></h2>
+      <textarea id="ta" spellcheck="false"></textarea>
+      <div class="err" id="ea"></div>
+    </div>
+    <div class="pane">
+      <h2><span>改之后</span><span class="k">B</span></h2>
+      <textarea id="tb" spellcheck="false"></textarea>
+      <div class="err" id="eb"></div>
+    </div>
+  </div>
+
+  <div class="bar">
+    <button class="b pri" id="run">对比</button>
+    <button class="b" id="swap">左右互换</button>
+    <button class="b" id="beautify">两边都排版</button>
+    <span class="grow"></span>
+    <button class="chip on" data-f="diff">只看不同</button>
+    <button class="chip" data-f="all">全部字段</button>
+    <button class="b" id="copy">复制差异清单</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="list" id="list" style="margin-top:12px">
+    <div class="empty">上面两块改完就会自动比对，不用点按钮。</div>
+  </div>
+
+  <div class="hint">
+    路径写法是 <code>$.data.items[0].name</code>，复制到代码里就能直接指过去。
+    数组按位置逐个比，不做「智能配对」——顺序变了会整片显示为不同，这是故意的，免得猜错。
+  </div>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var SAMPLE_A = {
+    "code": 0,
+    "msg": "ok",
+    "data": {
+      "user": { "id": 1024, "name": "林岸", "level": 3, "vip": false },
+      "items": [
+        { "sku": "A-1", "price": 19.9, "stock": 120 },
+        { "sku": "B-7", "price": 8.5, "stock": 40 }
+      ],
+      "updated": "2026-11-14 09:12:00"
+    }
+  };
+  var SAMPLE_B = {
+    "code": 0,
+    "msg": "ok",
+    "data": {
+      "user": { "id": 1024, "name": "林岸", "level": 4, "vip": true, "avatar": null },
+      "items": [
+        { "sku": "A-1", "price": 19.9, "stock": 96 },
+        { "sku": "B-7", "price": 7.9, "stock": 40 },
+        { "sku": "C-2", "price": 32.0, "stock": 8 }
+      ],
+      "updated": "2026-11-15 08:40:00"
+    }
+  };
+
+  $('ta').value = JSON.stringify(SAMPLE_A, null, 2);
+  $('tb').value = JSON.stringify(SAMPLE_B, null, 2);
+
+  var filter = 'diff';
+  var entries = [];
+
+  function typeOf(v){
+    if (v === null) return 'null';
+    if (Array.isArray(v)) return 'array';
+    return typeof v;
+  }
+  function short(v){
+    var s;
+    try { s = JSON.stringify(v); } catch(e){ s = String(v); }
+    if (s === undefined) s = 'undefined';
+    return s.length > 90 ? s.slice(0, 88) + '…' : s;
+  }
+  function isPrimitive(t){
+    return t === 'string' || t === 'number' || t === 'boolean' || t === 'null';
+  }
+
+  function compare(a, b){
+    var out = [];
+    function push(path, kind, av, bv){ out.push({path:path, kind:kind, a:av, b:bv}); }
+
+    function walk(a, b, path){
+      var ta = typeOf(a), tb = typeOf(b);
+      if (ta !== tb){ push(path, 'chg', a, b); return; }
+      if (ta === 'object'){
+        var seen = {}, keys = [];
+        Object.keys(a).forEach(function(k){ if (!seen[k]){ seen[k] = 1; keys.push(k); } });
+        Object.keys(b).forEach(function(k){ if (!seen[k]){ seen[k] = 1; keys.push(k); } });
+        if (!keys.length){ push(path, 'same', a, b); return; }
+        keys.forEach(function(k){
+          var p = path + '.' + k;
+          if (!(k in a)) push(p, 'add', undefined, b[k]);
+          else if (!(k in b)) push(p, 'del', a[k], undefined);
+          else walk(a[k], b[k], p);
+        });
+        return;
+      }
+      if (ta === 'array'){
+        var n = Math.max(a.length, b.length);
+        if (!n){ push(path, 'same', a, b); return; }
+        for (var i = 0; i < n; i++){
+          var p = path + '[' + i + ']';
+          if (i >= a.length) push(p, 'add', undefined, b[i]);
+          else if (i >= b.length) push(p, 'del', a[i], undefined);
+          else walk(a[i], b[i], p);
+        }
+        return;
+      }
+      if (a === b) push(path, 'same', a, b);
+      else push(path, 'chg', a, b);
+    }
+
+    walk(a, b, '$');
+    return out;
+  }
+
+  function esc(s){
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function render(){
+    var list = $('list');
+    var shown = entries.filter(function(e){ return filter === 'all' || e.kind !== 'same'; });
+    var c = {add:0, del:0, chg:0, same:0};
+    entries.forEach(function(e){ c[e.kind]++; });
+    $('stats').innerHTML =
+      '<span class="pill add">新增 <b>' + c.add + '</b></span>' +
+      '<span class="pill del">删除 <b>' + c.del + '</b></span>' +
+      '<span class="pill chg">修改 <b>' + c.chg + '</b></span>' +
+      '<span class="pill">未变 <b>' + c.same + '</b></span>';
+
+    if (!shown.length){
+      list.innerHTML = '<div class="empty">' + (entries.length ? '两边完全一样，没有差异' : '两边都空着') + '</div>';
+      return;
+    }
+    var cap = 500, html = '';
+    shown.slice(0, cap).forEach(function(e){
+      var label = e.kind === 'add' ? '新增' : e.kind === 'del' ? '删除' : e.kind === 'chg' ? '修改' : '相同';
+      var v = '';
+      if (e.kind === 'chg') v = '<em>' + esc(short(e.a)) + '</em><i>→</i><s>' + esc(short(e.b)) + '</s>';
+      else if (e.kind === 'add') v = '<s>' + esc(short(e.b)) + '</s>';
+      else if (e.kind === 'del') v = '<em>' + esc(short(e.a)) + '</em>';
+      else v = esc(short(e.a));
+      html += '<div class="item ' + e.kind + '">' +
+        '<span class="p">' + esc(e.path) + '</span>' +
+        '<span class="badge ' + e.kind + '">' + label + '</span>' +
+        '<span class="v">' + v + '</span></div>';
+    });
+    if (shown.length > cap){
+      html += '<div class="empty">还有 ' + (shown.length - cap) + ' 条没显示，先筛一筛再看</div>';
+    }
+    list.innerHTML = html;
+  }
+
+  function run(){
+    var a, b, ea = $('ea'), eb = $('eb');
+    ea.classList.remove('on'); eb.classList.remove('on');
+    var ok = true;
+    try { a = JSON.parse($('ta').value); } catch(e){
+      ea.textContent = '这边不是合法 JSON：' + e.message; ea.classList.add('on'); ok = false;
+    }
+    try { b = JSON.parse($('tb').value); } catch(e){
+      eb.textContent = '这边不是合法 JSON：' + e.message; eb.classList.add('on'); ok = false;
+    }
+    if (!ok){ entries = []; $('stats').innerHTML = ''; $('list').innerHTML = '<div class="empty">先修好上面标红的 JSON</div>'; return; }
+    entries = compare(a, b);
+    render();
+  }
+
+  var timer = null;
+  function lazy(){
+    clearTimeout(timer);
+    timer = setTimeout(run, 260);
+  }
+  $('ta').addEventListener('input', lazy);
+  $('tb').addEventListener('input', lazy);
+
+  $('run').addEventListener('click', run);
+  $('swap').addEventListener('click', function(){
+    var t = $('ta').value;
+    $('ta').value = $('tb').value;
+    $('tb').value = t;
+    run();
+  });
+  $('beautify').addEventListener('click', function(){
+    ['ta', 'tb'].forEach(function(id){
+      try { $(id).value = JSON.stringify(JSON.parse($(id).value), null, 2); } catch(e){}
+    });
+    run();
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-f]'), function(b){
+    b.addEventListener('click', function(){
+      filter = b.getAttribute('data-f');
+      Array.prototype.forEach.call(document.querySelectorAll('[data-f]'), function(o){ o.classList.remove('on'); });
+      b.classList.add('on');
+      render();
+    });
+  });
+
+  $('copy').addEventListener('click', function(){
+    var lines = entries.filter(function(e){ return e.kind !== 'same'; }).map(function(e){
+      if (e.kind === 'add') return '+ ' + e.path + ' = ' + short(e.b);
+      if (e.kind === 'del') return '- ' + e.path + ' （原 ' + short(e.a) + '）';
+      return '~ ' + e.path + ': ' + short(e.a) + ' → ' + short(e.b);
+    });
+    copyText(lines.length ? lines.join('\n') : '（没有差异）', this, '复制差异清单');
+  });
+
+  run();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

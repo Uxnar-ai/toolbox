@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SVG 瘦身 · 去掉注释和杂物</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .cols{display:grid; gap:12px; grid-template-columns:1fr}
+  @media (min-width:860px){ .cols{grid-template-columns:1fr 1fr} }
+
+  .pane{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:12px}
+  .pane h2{
+    margin:0 0 9px; font-size:12.5px; font-weight:600; letter-spacing:.3px; color:var(--dim);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  textarea{
+    width:100%; height:250px; resize:vertical; display:block;
+    font:12px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    padding:10px 12px; border-radius:9px; border:1px solid var(--line);
+    background:var(--soft); color:var(--fg); white-space:pre;
+  }
+  textarea:focus{outline:none; border-color:var(--accent)}
+
+  button.b{
+    font:500 13px/1.2 inherit; padding:8px 13px; border-radius:9px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); transition:border-color .15s,color .15s;
+  }
+  button.b:hover{border-color:var(--accent); color:var(--accent)}
+  button.b.pri{background:var(--accent); border-color:var(--accent); color:var(--accent-fg)}
+  button.b.pri:hover{opacity:.92; color:var(--accent-fg)}
+
+  .bar{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:12px 0}
+  .opts{display:flex; gap:14px; flex-wrap:wrap; align-items:center; font-size:13px; color:var(--dim)}
+  .chk{display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none}
+  .chk input{accent-color:var(--accent); width:15px; height:15px}
+  select{
+    font:13px/1.2 inherit; padding:6px 8px; border-radius:8px;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+
+  .prev{
+    margin-top:10px; height:150px; border:1px solid var(--line); border-radius:var(--radius);
+    background:var(--soft); display:flex; align-items:center; justify-content:center; padding:14px;
+    background-image:
+      linear-gradient(45deg,rgba(0,0,0,.035) 25%,transparent 25%,transparent 75%,rgba(0,0,0,.035) 75%),
+      linear-gradient(45deg,rgba(0,0,0,.035) 25%,transparent 25%,transparent 75%,rgba(0,0,0,.035) 75%);
+    background-size:16px 16px; background-position:0 0,8px 8px;
+  }
+  .prev svg{max-width:100%; max-height:100%; height:auto}
+
+  .stats{display:flex; gap:8px; flex-wrap:wrap; font-size:12.5px; margin-top:10px}
+  .pill{border:1px solid var(--line); border-radius:999px; padding:4px 11px; background:var(--card); color:var(--dim)}
+  .pill b{font-weight:600; color:var(--fg)}
+  .pill.good b{color:var(--ok)}
+  .err{
+    display:none; margin-top:10px; padding:9px 12px; border-radius:9px; font-size:12.5px;
+    background:rgba(192,57,43,.09); color:var(--err); border:1px solid rgba(192,57,43,.3);
+  }
+  .err.on{display:block}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.9; margin-top:10px}
+  .hint code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px;
+    background:var(--soft); padding:1px 5px; border-radius:4px}
+  .drop{display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:12.5px; color:var(--dim)}
+  .drop:hover{color:var(--accent)}
+  .drop input{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>SVG 瘦身</h1>
+      <p class="lede">从设计工具导出的 SVG 总带着一堆注释、编辑器信息和小数位，贴进来一次清干净，右边直接预览。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="bar">
+    <label class="drop"><input id="file" type="file" accept=".svg,image/svg+xml">选一个 .svg 文件</label>
+    <span class="sep"></span>
+    <button class="b" id="demo">放个示例</button>
+    <button class="chip on" data-m="min">压缩成一行</button>
+    <button class="chip" data-m="pretty">展开成可读</button>
+    <span class="grow"></span>
+    <button class="b pri" id="copy">复制结果</button>
+    <button class="b" id="dl">下载 .svg</button>
+  </div>
+
+  <div class="bar" style="margin-top:0">
+    <div class="opts">
+      <label class="chk"><input type="checkbox" id="oComment" checked>去掉注释</label>
+      <label class="chk"><input type="checkbox" id="oEditor" checked>去掉编辑器信息</label>
+      <label class="chk"><input type="checkbox" id="oSpace" checked>去掉多余空白</label>
+      <label class="chk"><input type="checkbox" id="oEmpty" checked>去掉空的组</label>
+      <label class="chk">小数位
+        <select id="oDec">
+          <option value="9">不处理</option>
+          <option value="2">保留 2 位</option>
+          <option value="1" selected>保留 1 位</option>
+          <option value="0">取整</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div class="pane">
+      <h2><span>原始 SVG</span><span id="inSize">—</span></h2>
+      <textarea id="src" spellcheck="false" placeholder="把 &lt;svg …&gt; 整段粘进来"></textarea>
+    </div>
+    <div class="pane">
+      <h2><span>结果</span><span id="outSize">—</span></h2>
+      <div class="prev" id="prev"></div>
+      <textarea id="dst" spellcheck="false" readonly style="height:180px; margin-top:10px"></textarea>
+    </div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+  <div class="err" id="err"></div>
+
+  <div class="hint">
+    只动排版和编辑器杂物，不改图形本身：注释、<code>metadata</code>、<code>inkscape:</code> / <code>sodipodi:</code> 属性会被拿掉，
+    坐标数字按你选的小数位四舍五入。文字节点一律保留原样，不会把 <code>&lt;text&gt;</code> 里的空格吃掉。
+  </div>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var mode = 'min';
+  var NUM_ATTRS = ['d','points','viewBox','x','y','x1','y1','x2','y2','cx','cy','r','rx','ry',
+                   'width','height','stroke-width','font-size','opacity','stroke-dasharray','transform'];
+
+  var DEMO = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<!-- Generator: Adobe Illustrator 27.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0) -->',
+    '<svg version="1.1" id="图层_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"',
+    '     xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.0.dtd"',
+    '     x="0px" y="0px" viewBox="0 0 64.000000 64.000000" style="enable-background:new 0 0 64 64;" xml:space="preserve">',
+    '  <sodipodi:namedview id="namedview4" pagecolor="#ffffff" inkscape:zoom="8.5" />',
+    '  <metadata>',
+    '    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"/>',
+    '  </metadata>',
+    '  <g inkscape:label="底层" inkscape:groupmode="layer" id="g1">',
+    '  </g>',
+    '  <g></g>',
+    '  <!-- 主圆形 -->',
+    '  <circle cx="32.000000" cy="32.000000" r="25.476310" fill="#2f6df6" />',
+    '  <path d="M18.327654 40.982145 L30.112233 22.004512 L41.998231 40.920034 Z" fill="#ffffff" opacity="0.9234567" />',
+    '  <text x="32" y="58" font-size="7.500000" text-anchor="middle" fill="#ffffff"> logo </text>',
+    '</svg>'
+  ].join('\n');
+
+  function byteLen(s){
+    try { return new Blob([s]).size; } catch(e){ return s.length; }
+  }
+  function kb(n){
+    return n < 1024 ? n + ' B' : (n / 1024).toFixed(n / 1024 < 10 ? 2 : 1) + ' KB';
+  }
+
+  function roundNums(s, dec){
+    var k = Math.pow(10, dec);
+    return s.replace(/-?\d*\.\d+|-?\d+/g, function(m){
+      var v = parseFloat(m);
+      if (!isFinite(v)) return m;
+      var r = Math.round(v * k) / k;
+      return String(r);
+    });
+  }
+
+  function stripEditorAttrs(el){
+    Array.prototype.slice.call(el.attributes).forEach(function(at){
+      var an = at.name;
+      if (an.indexOf('inkscape:') === 0 || an.indexOf('sodipodi:') === 0 ||
+          an === 'xmlns:inkscape' || an === 'xmlns:sodipodi' || an === 'i:extraneous'){
+        el.removeAttribute(an);
+      }
+    });
+  }
+
+  function roundAttrs(el, dec){
+    NUM_ATTRS.forEach(function(name){
+      var v = el.getAttribute(name);
+      if (v && /\d/.test(v)) el.setAttribute(name, roundNums(v, dec));
+    });
+  }
+
+  function cleanTree(el, opt){
+    var kids = Array.prototype.slice.call(el.childNodes);
+    var tag = (el.localName || '').toLowerCase();
+    var keepText = tag === 'text' || tag === 'tspan' || tag === 'textpath' || tag === 'style' || tag === 'title' || tag === 'desc';
+
+    kids.forEach(function(n){
+      if (n.nodeType === 8){
+        if (opt.comment) el.removeChild(n);
+        return;
+      }
+      if (n.nodeType === 3){
+        if (opt.space && !keepText && !n.nodeValue.trim()) el.removeChild(n);
+        return;
+      }
+      if (n.nodeType !== 1) return;
+
+      var t = (n.localName || '').toLowerCase();
+      if (opt.editor && (t === 'metadata' || n.nodeName.indexOf('inkscape:') === 0 || n.nodeName.indexOf('sodipodi:') === 0)){
+        el.removeChild(n);
+        return;
+      }
+      if (opt.editor){
+        stripEditorAttrs(n);
+      }
+      if (opt.dec < 9) roundAttrs(n, opt.dec);
+      cleanTree(n, opt);
+      if (opt.empty && t === 'g' && !n.childNodes.length && !n.attributes.length) el.removeChild(n);
+    });
+  }
+
+  function pretty(el, depth){
+    var pad = new Array(depth + 1).join('  ');
+    var attrs = Array.prototype.map.call(el.attributes, function(a){
+      return ' ' + a.name + '="' + a.value + '"';
+    }).join('');
+    var tag = el.nodeName;
+    var kids = Array.prototype.filter.call(el.childNodes, function(n){ return n.nodeType === 1; });
+    var text = Array.prototype.filter.call(el.childNodes, function(n){
+      return n.nodeType === 3 && n.nodeValue.trim();
+    }).map(function(n){ return n.nodeValue.trim(); }).join(' ');
+    if (!kids.length){
+      if (!text) return pad + '<' + tag + attrs + '/>';
+      return pad + '<' + tag + attrs + '>' + text + '</' + tag + '>';
+    }
+    return pad + '<' + tag + attrs + '>\n' +
+      kids.map(function(k){ return pretty(k, depth + 1); }).join('\n') +
+      '\n' + pad + '</' + tag + '>';
+  }
+
+  function transform(){
+    var src = $('src').value.trim();
+    var err = $('err');
+    err.classList.remove('on');
+    $('inSize').textContent = src ? kb(byteLen(src)) : '—';
+    if (!src){
+      $('dst').value = ''; $('prev').innerHTML = ''; $('outSize').textContent = '—';
+      $('stats').innerHTML = '';
+      return;
+    }
+    var doc;
+    try {
+      doc = new DOMParser().parseFromString(src, 'image/svg+xml');
+    } catch(e){
+      err.textContent = '解析失败：' + e.message; err.classList.add('on'); return;
+    }
+    if (!doc || !doc.documentElement || doc.documentElement.nodeName === 'parsererror' ||
+        doc.getElementsByTagName('parsererror').length){
+      var msg = doc && doc.getElementsByTagName('parsererror')[0];
+      err.textContent = '这不是合法的 SVG：' + (msg ? msg.textContent.slice(0, 140) : '格式错误');
+      err.classList.add('on');
+      return;
+    }
+    var root = doc.documentElement;
+    if (root.nodeName.toLowerCase() !== 'svg'){
+      err.textContent = '最外层不是 <svg>，检查一下复制范围';
+      err.classList.add('on');
+      return;
+    }
+
+    var opt = {
+      comment: $('oComment').checked,
+      editor: $('oEditor').checked,
+      space: $('oSpace').checked,
+      empty: $('oEmpty').checked,
+      dec: parseInt($('oDec').value, 10)
+    };
+    if (opt.editor) stripEditorAttrs(root);
+    if (opt.dec < 9) roundAttrs(root, opt.dec);
+    cleanTree(root, opt);
+
+    var out;
+    if (mode === 'pretty') out = pretty(root, 0);
+    else out = new XMLSerializer().serializeToString(root);
+
+    $('dst').value = out;
+    $('prev').innerHTML = out;
+
+    var before = byteLen(src), after = byteLen(out);
+    var saved = before > 0 ? Math.round((1 - after / before) * 100) : 0;
+    $('outSize').textContent = kb(after);
+    $('stats').innerHTML =
+      '<span class="pill">原始 <b>' + kb(before) + '</b></span>' +
+      '<span class="pill">压缩后 <b>' + kb(after) + '</b></span>' +
+      '<span class="pill ' + (saved > 0 ? 'good' : '') + '">' + (saved > 0 ? '省 ' + saved + '%' : '没变小') + '</span>' +
+      '<span class="pill">元素 <b>' + root.getElementsByTagName('*').length + '</b></span>';
+  }
+
+  var timer = null;
+  $('src').addEventListener('input', function(){
+    clearTimeout(timer);
+    timer = setTimeout(transform, 220);
+  });
+  ['oComment','oEditor','oSpace','oEmpty','oDec'].forEach(function(id){
+    $(id).addEventListener('change', transform);
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('[data-m]'), function(b){
+    b.addEventListener('click', function(){
+      mode = b.getAttribute('data-m');
+      Array.prototype.forEach.call(document.querySelectorAll('[data-m]'), function(o){ o.classList.remove('on'); });
+      b.classList.add('on');
+      transform();
+    });
+  });
+
+  $('demo').addEventListener('click', function(){
+    $('src').value = DEMO;
+    transform();
+  });
+
+  $('copy').addEventListener('click', function(){
+    copyText($('dst').value, this, '复制结果');
+  });
+
+  $('dl').addEventListener('click', function(){
+    var s = $('dst').value;
+    if (!s){ return; }
+    var blob = new Blob([s], {type:'image/svg+xml'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'icon-min.svg';
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+  });
+
+  $('file').addEventListener('change', function(){
+    var f = this.files && this.files[0];
+    if (!f) return;
+    var fr = new FileReader();
+    fr.onload = function(){ $('src').value = String(fr.result); transform(); };
+    fr.readAsText(f);
+  });
+
+  $('src').value = DEMO;
+  transform();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
