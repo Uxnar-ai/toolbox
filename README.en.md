@@ -1,6 +1,6 @@
-# toolbox — fifty-five small tools that open and work
+# toolbox — sixty small tools that open and work
 
-> Fifty-five tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table, whitespace detective, table aligner, shadow generator, JSON tree, income tax and take-home, JSON to table, BMI and calories, pomodoro timer. CSS gradient, image cropper, JSON diff, SVG minifier. No backend, no ports.
+> Sixty tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table, whitespace detective, table aligner, shadow generator, JSON tree, income tax and take-home, JSON to table, BMI and calories, pomodoro timer. CSS gradient, image cropper, JSON diff, SVG minifier, subtitle timeline, image watermark, photo metadata, barcode generator, text splitter. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -8,19 +8,21 @@ English | [中文](README.md)
 
 Every tool computes in the browser; no server is involved. `scripts/build_toolbox.py` reads each tool template, rewrites asset paths, injects a shared back-to-index chip and assembles a grouped landing page; theme.css and base.js are deduplicated. The output is a plain static directory any static server can host.
 
-This round (2026-11-15) brings the count to fifty-five, with four new ones:
+This round (2026-11-16) brings the count to sixty, with five new ones:
 
-- **CSS gradient**: colour stops positioned by sliders (up to eight), linear or radial, angle 0–360. Live preview, one-click `background: linear-gradient(...)`, and a 1200×630 PNG export using the same maths as CSS (0deg points up).
-- **Image cropper**: drop an image, drag a box on the canvas, lock 1:1 / 4:3 / 16:9 / 3:4 / wide; the selection is expressed in source pixels, exported as PNG / JPEG / WebP with an optional size cap. Dimmed mask, rule-of-thirds guides, and a sensible 70% default selection.
-- **JSON diff**: paste two API responses, comparison runs automatically and lists added / removed / changed fields by path such as `$.data.items[0].stock`. Filter to differences only, copy the list. Arrays are compared by index — no guessing.
-- **SVG minifier**: strips comments, metadata, inkscape / sodipodi attributes and redundant whitespace, rounds coordinate decimals to 0–2 places, previews instantly and reports before/after size (1.04 KB to 430 B on the bundled sample). Text nodes are left untouched.
+- **Subtitle timeline**: shift a whole subtitle file forward or back by a number of seconds (clamped at zero), and convert between SRT and VTT without touching the text or the cue order. Cue counts, total duration and first/last timestamps are summarised.
+- **Image watermark**: drop an image, type a line, then pick one of nine anchor positions and adjust size (percentage of image width), opacity and colour. A tiled mode covers the whole frame; exports keep the original resolution and never leave the machine.
+- **Photo metadata**: parses the JPEG APP1 block directly — capture time, camera, lens, aperture/shutter, GPS — grouped and highlighted when sensitive. One click re-renders through a canvas to strip everything, and reports how much smaller the file got.
+- **Barcode generator**: Code128 (set B, with checksum) and EAN-13 (check digit computed for 12 digits, validated for 13). Renders SVG with a 10-module quiet zone and merged bar runs; PNG export redraws at 3x.
+- **Text splitter**: cut a long text into chunks by character budget, breaking on blank lines and sentence punctuation instead of mid-sentence. "Split into N parts" searches for the budget whose chunk count lands closest to the target.
 
 ## Features
 
-- CSS gradient: slider-positioned colour stops (up to eight), linear or radial, 0–360 angle, live preview, one-click CSS copy and a 1200×630 PNG export
-- Image cropper: drag a box on the canvas with six ratio locks; export the selection at source-pixel fidelity as PNG / JPEG / WebP, optionally capped at 512 / 1024 / 2048
-- JSON diff: automatic comparison of two payloads, added / removed / changed fields listed by path, differences-only filter, copyable change list
-- SVG minifier: drops comments, metadata, editor attributes and extra whitespace, rounds coordinates to 0–2 decimals, live preview with before/after size
+- Subtitle timeline: shift all cues by seconds (clamped at zero), convert SRT to VTT and back without touching text or order, with cue count and total duration
+- Image watermark: nine anchor positions, size as a percentage of image width, opacity and colour, optional full-frame tiling, exports at original resolution
+- Photo metadata: reads capture time, camera, lens, exposure and GPS from the JPEG APP1 block, highlights the sensitive parts, and strips everything on re-export
+- Barcode generator: Code128 and EAN-13 with computed / validated check digits, SVG with a 10-module quiet zone and merged bar runs, plus a 3x PNG export
+- Text splitter: chunk by character budget or target part count, breaking on paragraphs and sentence punctuation, copy per chunk or export a txt
 - Everything runs in the browser: images, text and JSON never leave the machine, and there is no backend at all
 
 ## Stack

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>字幕时间轴 · SRT / VTT 互转与整体平移</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .shift{display:flex; gap:6px; align-items:center}
+  .shift input[type=number]{
+    font:inherit; font-size:13.5px; width:92px; padding:7px 9px; border-radius:8px;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.9; margin-top:10px}
+  .hint b{color:var(--fg); font-weight:600}
+  .msg{font-size:12.5px; color:var(--ok); min-height:18px; margin-top:6px}
+  .msg.bad{color:var(--err)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>字幕时间轴</h1>
+      <p class="lede">字幕整体早了晚了？填个秒数一键挪；SRT 与 VTT 互相转，顺序和换行都不动。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="row">
+    <span class="lbl">平移</span>
+    <div class="shift">
+      <input type="number" id="delta" value="0.5" step="0.1">
+      <button class="chip" id="apply" type="button">秒 · 应用</button>
+    </div>
+    <span class="sep"></span>
+    <button class="chip on" id="fSrt" type="button">输出 SRT</button>
+    <button class="chip" id="fVtt" type="button">输出 VTT</button>
+    <span class="sep"></span>
+    <button class="chip quick" id="sample" type="button">看个例子</button>
+    <button class="chip quick" id="clear" type="button">清空</button>
+    <span class="grow"></span>
+    <a class="chip quick" id="dl" href="#" download="subtitle.srt">下载</a>
+  </div>
+
+  <div class="panes">
+    <div class="pane">
+      <h2><span>粘字幕原文（SRT 或 VTT）</span><span id="nIn">空</span></h2>
+      <textarea id="src" spellcheck="false" placeholder="1&#10;00:00:01,000 --&gt; 00:00:04,000&#10;第一句字幕"></textarea>
+    </div>
+    <div class="pane">
+      <h2><span>结果</span><button id="copy" type="button">复制</button></h2>
+      <pre class="out" id="out"></pre>
+    </div>
+  </div>
+
+  <div class="stats">
+    <span>条数 <b id="sN">—</b></span>
+    <span>总时长 <b id="sDur">—</b></span>
+    <span>首条 <b id="sFirst">—</b></span>
+    <span>末条结束 <b id="sLast">—</b></span>
+  </div>
+  <div class="msg" id="msg"></div>
+
+  <p class="hint">
+    平移会<b>直接改写左边的时间码</b>（负数是提前，挪到 0 之前就停在 0），文字、条数、顺序都不动。
+    两边时间码的小数点后按毫秒算，SRT 用逗号、VTT 用句点，转换时自动换。
+    带定位信息的 VTT（<b>align: / line:</b> 这类）转成 SRT 会丢掉那半截，其余照旧。
+  </p>
+
+  <footer>全部在浏览器里算，字幕不上传。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var ta = $('src'), out = $('out'), fmt = 'srt';
+
+  function pad3(n){ return ('00' + n).slice(-3); }
+
+  function toMs(s){
+    var m = String(s).trim().match(/^(?:(\d+):)?(\d{1,2}):(\d{2})[,.](\d{1,3})$/);
+    if (!m) return null;
+    return ((+m[1] || 0) * 3600 + (+m[2]) * 60 + (+m[3])) * 1000 + (+pad3(m[4]));
+  }
+
+  function fmtTime(ms, sep){
+    ms = Math.max(0, Math.round(ms));
+    var h = Math.floor(ms / 3600000),
+        mi = Math.floor(ms % 3600000 / 60000),
+        se = Math.floor(ms % 60000 / 1000),
+        x = ms % 1000;
+    return (h < 10 ? '0' + h : h) + ':' + (mi < 10 ? '0' + mi : mi) + ':' +
+           (se < 10 ? '0' + se : se) + sep + pad3(x);
+  }
+
+  var SAMPLE = [
+    '1',
+    '00:00:01,200 --> 00:00:04,000',
+    '这个视频的字幕整体早了两秒。',
+    '',
+    '2',
+    '00:00:04,100 --> 00:00:07,600',
+    '后面这句也一样，全都对不上口型。',
+    '',
+    '3',
+    '00:00:08,000 --> 00:00:11,250',
+    '把它挪一下就好了。',
+    '',
+    '4',
+    '00:00:11,400 --> 00:00:14,900',
+    '担心格式被改坏？转成 VTT 试试。'
+  ].join('\n');
+
+  // 解析成 [{a,b,text}]；SRT / VTT 都吃，认不出时间码的块直接跳过
+  function parse(text){
+    var t = text.replace(/\r\n?/g, '\n').replace(/^\uFEFF/, '');
+    var blocks = t.split(/\n{2,}/), cues = [];
+    for (var i = 0; i < blocks.length; i++){
+      var lines = blocks[i].split('\n');
+      while (lines.length && lines[0].trim() === '') lines.shift();
+      if (!lines.length) continue;
+      if (/^WEBVTT/.test(lines[0])) { lines.shift(); continue; }
+      if (/^(NOTE|STYLE|REGION)(\s|$)/.test(lines[0].trim())) continue;
+      var ti = -1;
+      for (var j = 0; j < lines.length; j++){
+        if (lines[j].indexOf('-->') > -1) { ti = j; break; }
+      }
+      if (ti < 0) continue;
+      var parts = lines[ti].split('-->');
+      var a = toMs(parts[0]), b = toMs(String(parts[1] || '').trim().split(/\s+/)[0]);
+      if (a === null || b === null) continue;
+      var body = lines.slice(ti + 1).join('\n').replace(/\s+$/, '');
+      cues.push({ a: a, b: b, text: body });
+    }
+    return cues;
+  }
+
+  function render(cues, format){
+    if (!cues.length) return '';
+    var sep = format === 'vtt' ? '.' : ',', arr = [];
+    if (format === 'vtt') arr.push('WEBVTT');
+    for (var i = 0; i < cues.length; i++){
+      var c = cues[i], head;
+      if (format === 'vtt') head = fmtTime(c.a, sep) + ' --> ' + fmtTime(c.b, sep);
+      else head = (i + 1) + '\n' + fmtTime(c.a, sep) + ' --> ' + fmtTime(c.b, sep);
+      arr.push(head + (c.text ? '\n' + c.text : ''));
+    }
+    return arr.join('\n\n') + '\n';
+  }
+
+  function dur(ms){
+    var s = Math.round(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60;
+    var p = m < 10 ? '0' + m : m, q = x < 10 ? '0' + x : x;
+    return h ? h + ':' + p + ':' + q : m + ':' + q;
+  }
+
+  function stats(cues){
+    $('sN').textContent = cues.length ? cues.length + ' 条' : '—';
+    if (!cues.length){
+      $('sDur').textContent = $('sFirst').textContent = $('sLast').textContent = '—';
+      return;
+    }
+    var total = 0;
+    for (var i = 0; i < cues.length; i++) total += Math.max(0, cues[i].b - cues[i].a);
+    $('sDur').textContent = dur(total);
+    $('sFirst').textContent = fmtTime(cues[0].a, '.').replace(/\.\d+$/, '');
+    $('sLast').textContent = fmtTime(cues[cues.length - 1].b, '.').replace(/\.\d+$/, '');
+  }
+
+  function say(txt, bad){
+    $('msg').textContent = txt || '';
+    $('msg').className = 'msg' + (bad ? ' bad' : '');
+  }
+
+  function paint(){
+    var cues = parse(ta.value);
+    out.textContent = render(cues, fmt);
+    stats(cues);
+    $('nIn').textContent = ta.value.trim() ? cues.length + ' 条' : '空';
+    $('dl').setAttribute('href', '#');
+    $('dl').setAttribute('download', fmt === 'vtt' ? 'subtitle.vtt' : 'subtitle.srt');
+    if (ta.value.trim() && !cues.length) say('没认出时间码：每块要有「00:00:01,000 --> 00:00:04,000」这样一行。', true);
+    else say('');
+  }
+
+  function setFmt(f){
+    fmt = f;
+    $('fSrt').className = 'chip' + (f === 'srt' ? ' on' : '');
+    $('fVtt').className = 'chip' + (f === 'vtt' ? ' on' : '');
+    paint();
+  }
+
+  ta.addEventListener('input', paint);
+
+  $('fSrt').addEventListener('click', function(){ setFmt('srt'); });
+  $('fVtt').addEventListener('click', function(){ setFmt('vtt'); });
+
+  $('apply').addEventListener('click', function(){
+    var cues = parse(ta.value);
+    if (!cues.length){ say('先把字幕粘进左边。', true); return; }
+    var d = parseFloat($('delta').value || '0');
+    if (!isFinite(d) || d === 0){ say('填一个不是 0 的秒数，比如 0.5（延后）或 -2（提前）。', true); return; }
+    var ms = Math.round(d * 1000), moved = 0;
+    for (var i = 0; i < cues.length; i++){
+      var na = cues[i].a + ms, nb = cues[i].b + ms;
+      if (na < 0) na = 0;
+      if (nb < na) nb = na;
+      cues[i].a = na; cues[i].b = nb;
+      if (ms !== 0) moved++;
+    }
+    var isVtt = /^\s*(?:\uFEFF)?WEBVTT/.test(ta.value);
+    ta.value = render(cues, isVtt ? 'vtt' : 'srt');
+    paint();
+    say((ms > 0 ? '整体延后 ' : '整体提前 ') + Math.abs(d) + ' 秒，' + cues.length + ' 条都挪了。');
+  });
+
+  $('sample').addEventListener('click', function(){
+    ta.value = SAMPLE; setFmt(fmt);
+  });
+
+  $('clear').addEventListener('click', function(){
+    ta.value = ''; paint(); ta.focus();
+  });
+
+  $('copy').addEventListener('click', function(){
+    copyText(out.textContent, $('copy'), '复制');
+  });
+
+  $('dl').addEventListener('click', function(e){
+    var txt = out.textContent;
+    if (!txt.trim()){ e.preventDefault(); return; }
+    e.preventDefault();
+    var name = fmt === 'vtt' ? 'subtitle.vtt' : 'subtitle.srt';
+    var blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+  });
+
+  // 打开就有内容：默认示例 + SRT
+  ta.value = SAMPLE;
+  setFmt('srt');
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

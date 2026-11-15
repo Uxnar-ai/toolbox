@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>长文分块 · 按字数切成能逐条发的几段</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{align-items:start}
+  .toolrow{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .toolrow input[type=number]{
+    font:inherit; font-size:13.5px; width:84px; padding:7px 9px; border-radius:8px;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.9; margin-top:10px}
+  .hint b{color:var(--fg); font-weight:600}
+
+  .blocks{max-height:340px; overflow:auto; padding:10px}
+  .blk{border:1px solid var(--line); border-radius:10px; margin-bottom:10px; overflow:hidden}
+  .blk:last-child{margin-bottom:0}
+  .blk .bh{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:7px 11px; font-size:12.5px; color:var(--dim); background:var(--soft);
+    border-bottom:1px solid var(--line);
+  }
+  .blk .bh b{color:var(--fg); font-weight:600}
+  .blk .bh button{
+    font:inherit; font-size:12px; padding:3px 9px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); white-space:nowrap;
+  }
+  .blk .bh button:hover{border-color:var(--accent); color:var(--accent)}
+  .blk .bd{
+    padding:10px 12px; font-size:13.5px; line-height:1.85; white-space:pre-wrap; word-break:break-word;
+    max-height:190px; overflow:auto;
+  }
+  .empty{padding:22px 14px; color:var(--dim); font-size:13px; line-height:1.9; text-align:center}
+  .msg{font-size:12.5px; color:var(--ok); min-height:18px; margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>长文分块</h1>
+      <p class="lede">一段长文要分几条发出去？定个字数上限，它会在段落和句号处断开，不会把句子切一半。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="row">
+    <button class="chip on" id="mChar" type="button">按字数切</button>
+    <button class="chip" id="mEven" type="button">均分成几段</button>
+    <span class="sep"></span>
+    <div class="toolrow">
+      <input type="number" id="num" value="120" min="20" max="5000" step="10">
+      <span class="lbl" id="numLbl">字 / 段</span>
+    </div>
+    <span class="sep"></span>
+    <button class="chip" id="sample" type="button">看个例子</button>
+    <button class="chip" id="clear" type="button">清空</button>
+    <span class="grow"></span>
+    <button class="chip quick" id="dl" type="button">下载 txt</button>
+  </div>
+
+  <div class="panes">
+    <div class="pane">
+      <h2><span>粘长文进来</span><span id="nIn">空</span></h2>
+      <textarea id="src" spellcheck="false" placeholder="把要分几段发出去的文字粘这里"></textarea>
+    </div>
+    <div class="pane">
+      <h2><span>切好的（点右上角单条复制）</span><button id="copyAll" type="button">复制全部</button></h2>
+      <div class="blocks" id="blocks"></div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <span>总字数 <b id="sTotal">—</b></span>
+    <span>段数 <b id="sN">—</b></span>
+    <span>最长一段 <b id="sMax">—</b></span>
+  </div>
+  <div class="msg" id="msg"></div>
+
+  <p class="hint">
+    切分优先在<b>空行分段</b>处断开，其次在<b>句号、问号、感叹号、分号</b>后断，
+    实在一段太长才会按字数硬切（并标出来）。字数按字符算，中文一个字算一个。
+  </p>
+
+  <footer>全部在浏览器里算，文字不上传。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var MODE = 'char', BLOCKS = [];
+
+  var SAMPLE = [
+    '写长贴最烦的是最后一步：内容写完了，可平台一条只能发 300 字，得手动切。',
+    '手动切的时候经常把一句话切成两半，读起来像断气。更麻烦的是截图里那种数据 —— 一共 12 项，切到第 7 项正好在中间，前面一半在一条里，后面一半在另一条里，对方看到的就是两条各自没头没尾的消息。',
+    '这个页面做的事很简单：给一个字数上限，它先按空行分段，段落放不下再按句号问号断开，最后才硬切。每一段都能单独复制，也能一次导出成 txt。',
+    '如果不想按字数，而是想均分成三条、五条，切成差不多长的几块，切到「均分成几段」再填数字就行。'
+  ].join('\n\n');
+
+  function sentences(s){
+    var out = [], cur = '';
+    for (var i = 0; i < s.length; i++){
+      cur += s[i];
+      if ('。！？；…!?;'.indexOf(s[i]) > -1){ out.push(cur); cur = ''; }
+    }
+    if (cur) out.push(cur);
+    return out.filter(function(x){ return x.trim() !== ''; });
+  }
+
+  // 把文本拆成「不超过 max 的小块」，尽量落在段落 / 句子边界
+  function pack(text, max){
+    max = Math.max(20, Math.round(max));
+    var paras = text.replace(/\r\n?/g, '\n').split(/\n\s*\n/).map(function(p){
+      return p.replace(/\s+$/, '').replace(/^\s+/, '');
+    }).filter(function(p){ return p !== ''; });
+
+    var units = [];
+    paras.forEach(function(p){
+      if (p.length <= max){ units.push(p); return; }
+      sentences(p).forEach(function(s){
+        if (s.length <= max){ units.push(s); return; }
+        for (var i = 0; i < s.length; i += max) units.push(s.slice(i, i + max));
+      });
+    });
+
+    var out = [], cur = '';
+    units.forEach(function(u){
+      if (!cur){ cur = u; return; }
+      if (cur.length + 1 + u.length <= max){ cur += '\n' + u; return; }
+      out.push(cur);
+      cur = u;
+    });
+    if (cur) out.push(cur);
+    return out;
+  }
+
+  // 均分模式：上限从 20 字逐步放宽，取块数最接近目标的那一档
+  function packEven(text, parts){
+    var hi = Math.max(20, text.length), best = null, bestDiff = 1e9;
+    for (var per = 20; per <= hi; per = Math.max(per + 1, Math.ceil(per * 1.12))){
+      var b = pack(text, per), d = Math.abs(b.length - parts);
+      if (d < bestDiff){ bestDiff = d; best = b; }
+      if (b.length <= parts) break;
+    }
+    return best || pack(text, Math.max(20, Math.ceil(text.length / parts)));
+  }
+
+  function render(){
+    var text = $('src').value.trim();
+    var n = parseInt($('num').value, 10);
+    if (!isFinite(n)) n = MODE === 'char' ? 120 : 4;
+    // 两种模式的下限不一样：按字数最少 20 字，均分最少 2 段
+    n = MODE === 'char' ? Math.max(20, n) : Math.max(2, Math.min(50, n));
+
+    if (!text){
+      BLOCKS = [];
+      $('blocks').innerHTML = '<div class="empty">左边粘一段长文，这里会立刻切成几块。</div>';
+      $('sTotal').textContent = $('sN').textContent = $('sMax').textContent = '—';
+      $('nIn').textContent = '空';
+      return;
+    }
+
+    var total = text.replace(/\s/g, '').length;
+    if (MODE === 'char'){
+      BLOCKS = pack(text, n);
+    } else {
+      BLOCKS = packEven(text, Math.max(2, Math.min(50, n)));
+    }
+
+    var html = '', longest = 0;
+    BLOCKS.forEach(function(b, i){
+      var len = b.replace(/\s/g, '').length;
+      if (len > longest) longest = len;
+      html += '<div class="blk"><div class="bh"><span>第 <b>' + (i + 1) +
+        '</b> 块 · <b>' + len + '</b> 字</span><button data-i="' + i + '">复制这块</button></div>' +
+        '<div class="bd">' + esc(b) + '</div></div>';
+    });
+    $('blocks').innerHTML = html;
+    $('sTotal').textContent = total + ' 字';
+    $('sN').textContent = BLOCKS.length + ' 段';
+    $('sMax').textContent = longest + ' 字';
+    $('nIn').textContent = total + ' 字';
+
+    if (MODE === 'char' && longest > n * 1.05){
+      say('有一段超过上限：中间没有可断的句号，只能按字数硬切了。');
+    } else if (MODE === 'even' && BLOCKS.length !== n){
+      say('受段落和句子边界限制，实际切成 ' + BLOCKS.length + ' 段（本来想要 ' + n + ' 段）。');
+    } else {
+      say('');
+    }
+  }
+
+  function esc(s){
+    return String(s).replace(/[&<>]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; });
+  }
+  function say(t){ $('msg').textContent = t || ''; }
+
+  $('blocks').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-i]');
+    if (!b) return;
+    var i = +b.getAttribute('data-i');
+    copyText(BLOCKS[i] || '', b, '复制这块');
+    say('第 ' + (i + 1) + ' 块已经复制，去粘贴吧。');
+  });
+
+  $('copyAll').addEventListener('click', function(){
+    if (!BLOCKS.length){ say('先粘点东西进来。'); return; }
+    var txt = BLOCKS.map(function(b, i){ return '【第 ' + (i + 1) + ' 块】\n' + b; }).join('\n\n');
+    copyText(txt, $('copyAll'), '复制全部');
+    say('全部 ' + BLOCKS.length + ' 块已复制。');
+  });
+
+  $('dl').addEventListener('click', function(){
+    if (!BLOCKS.length){ say('先粘点东西进来。'); return; }
+    var txt = BLOCKS.map(function(b, i){ return '===== 第 ' + (i + 1) + ' 块 =====\n' + b; }).join('\n\n');
+    var blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'split-' + BLOCKS.length + '.txt';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    say('已下载 split-' + BLOCKS.length + '.txt');
+  });
+
+  function setMode(m){
+    MODE = m;
+    $('mChar').className = 'chip' + (m === 'char' ? ' on' : '');
+    $('mEven').className = 'chip' + (m === 'even' ? ' on' : '');
+    $('numLbl').textContent = m === 'char' ? '字 / 段' : '段';
+    $('num').value = m === 'char' ? 120 : 4;
+    render();
+  }
+
+  $('mChar').addEventListener('click', function(){ setMode('char'); });
+  $('mEven').addEventListener('click', function(){ setMode('even'); });
+  $('num').addEventListener('input', render);
+  $('src').addEventListener('input', render);
+
+  $('sample').addEventListener('click', function(){ $('src').value = SAMPLE; render(); });
+  $('clear').addEventListener('click', function(){ $('src').value = ''; render(); $('src').focus(); });
+
+  $('src').value = SAMPLE;
+  render();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

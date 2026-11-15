@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>图片加水印 · 位置、透明度、平铺</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .cols{display:grid; gap:12px; grid-template-columns:1fr}
+  @media (min-width:900px){ .cols{grid-template-columns:308px minmax(0,1fr)} }
+
+  .pane{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px}
+  .pane h2{
+    margin:0 0 10px; font-size:12.5px; font-weight:600; letter-spacing:.3px; color:var(--dim);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .pane h2 button{
+    font:inherit; font-size:12px; padding:3px 9px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+
+  .drop{
+    display:block; background:var(--soft); border:1.5px dashed var(--line); border-radius:var(--radius);
+    padding:16px 12px; text-align:center; cursor:pointer; transition:border-color .15s;
+  }
+  .drop:hover, .drop.on{border-color:var(--accent)}
+  .drop b{display:block; font-size:13.5px; font-weight:600; margin-bottom:3px}
+  .drop small{font-size:12px; color:var(--dim); line-height:1.6; display:block}
+  .drop input{display:none}
+
+  .lbl2{font-size:12.5px; color:var(--dim); margin:12px 0 6px; display:block}
+  input[type=text]{
+    width:100%; font:inherit; font-size:13.5px; padding:8px 10px; border-radius:8px;
+    border:1px solid var(--line); background:var(--bg); color:var(--fg);
+  }
+  input[type=range]{width:100%; accent-color:var(--accent)}
+  .srow{display:flex; align-items:center; gap:10px}
+  .srow output{
+    font:12.5px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    color:var(--fg); min-width:44px; text-align:right;
+  }
+  .grid9{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; width:126px}
+  .grid9 button{
+    height:30px; border:1px solid var(--line); background:var(--bg); border-radius:7px;
+    cursor:pointer; color:var(--dim); display:flex; align-items:center; justify-content:center;
+  }
+  .grid9 button::after{content:""; width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.6}
+  .grid9 button.on{background:var(--accent); color:var(--accent-fg); border-color:transparent}
+  .grid9 button:hover{border-color:var(--accent)}
+
+  .acts{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px}
+  button.b{
+    font:500 13px/1.2 inherit; padding:9px 10px; border-radius:9px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  button.b:hover{border-color:var(--accent); color:var(--accent)}
+  button.b.pri{background:var(--accent); border-color:var(--accent); color:var(--accent-fg)}
+  button.b.pri:hover{opacity:.92; color:var(--accent-fg)}
+
+  .stage{
+    background:var(--soft); border:1px solid var(--line); border-radius:var(--radius);
+    padding:10px; display:flex; align-items:center; justify-content:center;
+    min-height:320px; overflow:hidden;
+  }
+  .stage canvas{max-width:100%; display:block; border-radius:6px; box-shadow:0 3px 14px rgba(0,0,0,.12)}
+  .readout{display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:var(--dim); margin-top:10px}
+  .readout b{color:var(--fg); font-weight:600; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .msg{font-size:12.5px; color:var(--ok); min-height:18px; margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>图片加水印</h1>
+      <p class="lede">拖张图进来，打字就会盖上字：位置、大小、透明度、颜色自己调，导出的还是原分辨率。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="cols">
+    <div class="pane">
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept="image/*">
+        <b>点这里选图 / 也可以直接拖进来</b>
+        <small>JPG、PNG、WebP 都行，图片不上传</small>
+      </label>
+
+      <label class="lbl2" for="txt">水印文字</label>
+      <input type="text" id="txt" value="© example.com" spellcheck="false">
+
+      <span class="lbl2">字号（占图宽的百分比）</span>
+      <div class="srow"><input type="range" id="size" min="1" max="20" step="0.5" value="5"><output id="oSize">5%</output></div>
+
+      <span class="lbl2">透明度</span>
+      <div class="srow"><input type="range" id="op" min="5" max="100" step="1" value="55"><output id="oOp">55%</output></div>
+
+      <span class="lbl2">颜色</span>
+      <div class="srow"><input type="color" id="col" value="#ffffff" style="width:52px;height:32px;border:1px solid var(--line);border-radius:8px;background:var(--card);padding:2px"><span class="lbl2" style="margin:0">浅色底就换深色字</span></div>
+
+      <span class="lbl2">位置</span>
+      <div class="grid9" id="pos">
+        <button type="button" data-p="lt"></button>
+        <button type="button" data-p="ct"></button>
+        <button type="button" data-p="rt"></button>
+        <button type="button" data-p="lm"></button>
+        <button type="button" data-p="cm" class="on"></button>
+        <button type="button" data-p="rm"></button>
+        <button type="button" data-p="lb"></button>
+        <button type="button" data-p="cb"></button>
+        <button type="button" data-p="rb"></button>
+      </div>
+
+      <span class="lbl2">满图平铺（防截取）</span>
+      <div class="srow"><input type="range" id="tile" min="0" max="1" step="1" value="0"><output id="oTile">关</output></div>
+
+      <div class="acts">
+        <button class="b pri" id="dlPng" type="button">下载 PNG</button>
+        <button class="b" id="dlJpg" type="button">下载 JPEG</button>
+      </div>
+      <div class="msg" id="msg"></div>
+    </div>
+
+    <div class="pane">
+      <h2><span>预览（就是导出的样子）</span><button id="reset" type="button">换回示例图</button></h2>
+      <div class="stage"><canvas id="cv"></canvas></div>
+      <div class="readout">
+        <span>尺寸 <b id="rDim">—</b></span>
+        <span>字号 <b id="rFont">—</b></span>
+        <span>来源 <b id="rSrc">示例图</b></span>
+      </div>
+    </div>
+  </div>
+
+  <footer>全部在浏览器里算，图片不上传服务器。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var cv = $('cv'), ctx = cv.getContext('2d');
+  var IMG = null, POS = 'cm', NAME = 'watermarked';
+
+  // 示例图：现画一张渐变图，打开就有东西可看
+  function demo(){
+    var d = document.createElement('canvas');
+    d.width = 960; d.height = 640;
+    var g = d.getContext('2d');
+    var lg = g.createLinearGradient(0, 0, 960, 640);
+    lg.addColorStop(0, '#2b3a55'); lg.addColorStop(.55, '#4a6580'); lg.addColorStop(1, '#9fb4c7');
+    g.fillStyle = lg; g.fillRect(0, 0, 960, 640);
+    g.fillStyle = 'rgba(255,255,255,.10)';
+    g.beginPath(); g.arc(760, 150, 120, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(240, 520, 180, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.72)';
+    g.font = '600 34px MiSans, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+    g.fillText('示例图片 960 × 640', 40, 80);
+    g.font = '400 22px MiSans, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+    g.fillStyle = 'rgba(255,255,255,.5)';
+    g.fillText('拖你自己的照片进来替换', 40, 118);
+    return d;
+  }
+
+  function draw(){
+    if (!IMG) return;
+    var W = IMG.naturalWidth || IMG.width, H = IMG.naturalHeight || IMG.height;
+    cv.width = W; cv.height = H;
+    ctx.clearRect(0, 0, W, H);
+    ctx.drawImage(IMG, 0, 0, W, H);
+
+    var txt = $('txt').value.trim();
+    var fsPct = +$('size').value, alpha = (+$('op').value) / 100;
+    var fs = Math.max(9, Math.round(W * fsPct / 100));
+    $('rDim').textContent = W + ' × ' + H;
+    $('rFont').textContent = fs + ' px';
+
+    if (!txt){ ctx.globalAlpha = 1; return; }
+    ctx.font = '600 ' + fs + 'px MiSans, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+    ctx.fillStyle = $('col').value;
+    ctx.globalAlpha = alpha;
+    ctx.textBaseline = 'alphabetic';
+
+    var pad = Math.round(Math.min(W, H) * 0.035);
+    if (+$('tile').value === 1){
+      ctx.save();
+      ctx.translate(W / 2, H / 2);
+      ctx.rotate(-24 * Math.PI / 180);
+      var tw = ctx.measureText(txt).width;
+      var stepX = tw + fs * 2.2, stepY = fs * 3.2;
+      var span = Math.hypot(W, H) / 2 + tw;
+      for (var y = -span; y <= span; y += stepY){
+        for (var x = -span; x <= span; x += stepX){
+          ctx.fillText(txt, x, y);
+        }
+      }
+      ctx.restore();
+    } else {
+      var w = ctx.measureText(txt).width;
+      var hz = POS.charAt(0), vt = POS.charAt(1);
+      var tx = hz === 'l' ? pad : hz === 'c' ? (W - w) / 2 : W - w - pad;
+      var ty = vt === 't' ? pad + fs * 0.82 : vt === 'm' ? H / 2 + fs * 0.35 : H - pad;
+      ctx.fillText(txt, tx, ty);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function say(t){ $('msg').textContent = t || ''; }
+
+  function useFile(file){
+    if (!file || !/^image\//.test(file.type)){ say('这个不是图片文件。'); return; }
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function(){
+      IMG = img;
+      NAME = (file.name || 'image').replace(/\.[^.]+$/, '') + '-wm';
+      $('rSrc').textContent = file.name.length > 22 ? file.name.slice(0, 20) + '…' : file.name;
+      draw();
+      say('已加载 ' + (img.naturalWidth) + ' × ' + (img.naturalHeight) + '，调好就能下载。');
+      URLLib(url);
+    };
+    img.onerror = function(){ say('这张图打不开，换一张试试。'); URLLib(url); };
+    img.src = url;
+  }
+  var OLD = null;
+  function URLLib(u){ if (OLD) URL.revokeObjectURL(OLD); OLD = u; }
+
+  $('file').addEventListener('change', function(e){ useFile(e.target.files[0]); });
+
+  var drop = $('drop');
+  ['dragenter', 'dragover'].forEach(function(t){
+    drop.addEventListener(t, function(e){ e.preventDefault(); drop.classList.add('on'); });
+  });
+  ['dragleave', 'drop'].forEach(function(t){
+    drop.addEventListener(t, function(e){ e.preventDefault(); drop.classList.remove('on'); });
+  });
+  drop.addEventListener('drop', function(e){
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) useFile(e.dataTransfer.files[0]);
+  });
+
+  ['txt', 'size', 'op', 'col', 'tile'].forEach(function(id){
+    $(id).addEventListener('input', function(){
+      $('oSize').textContent = $('size').value + '%';
+      $('oOp').textContent = $('op').value + '%';
+      $('oTile').textContent = $('tile').value === '1' ? '开' : '关';
+      draw();
+    });
+  });
+
+  $('pos').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-p]');
+    if (!b) return;
+    POS = b.getAttribute('data-p');
+    Array.prototype.forEach.call(this.querySelectorAll('button'), function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    draw();
+  });
+
+  function save(type, ext, q){
+    if (!IMG){ say('先选一张图。'); return; }
+    cv.toBlob(function(blob){
+      if (!blob){ say('导出失败，换 PNG 试试。'); return; }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = NAME + '.' + ext;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+      say('已导出 ' + NAME + '.' + ext + '（' + bytes(blob.size) + '）');
+    }, type, q);
+  }
+
+  $('dlPng').addEventListener('click', function(){ save('image/png', 'png'); });
+  $('dlJpg').addEventListener('click', function(){ save('image/jpeg', 'jpg', 0.92); });
+
+  $('reset').addEventListener('click', function(){
+    IMG = demo(); NAME = 'watermarked'; $('rSrc').textContent = '示例图'; draw(); say('');
+  });
+
+  // 打开先摆一张示例图（等字体就绪再画，免得水印用错字体）
+  IMG = demo();
+  draw();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

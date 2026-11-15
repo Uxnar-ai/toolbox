@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>照片信息 · 看清一张图带了什么，再清干净</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .cols{display:grid; gap:12px; grid-template-columns:1fr}
+  @media (min-width:900px){ .cols{grid-template-columns:320px minmax(0,1fr)} }
+
+  .pane{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px}
+  .pane h2{
+    margin:0 0 10px; font-size:12.5px; font-weight:600; letter-spacing:.3px; color:var(--dim);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .pane h2 button{
+    font:inherit; font-size:12px; padding:3px 9px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+
+  .drop{
+    display:block; background:var(--soft); border:1.5px dashed var(--line); border-radius:var(--radius);
+    padding:16px 12px; text-align:center; cursor:pointer; transition:border-color .15s;
+  }
+  .drop:hover, .drop.on{border-color:var(--accent)}
+  .drop b{display:block; font-size:13.5px; font-weight:600; margin-bottom:3px}
+  .drop small{font-size:12px; color:var(--dim); line-height:1.6; display:block}
+  .drop input{display:none}
+
+  .thumb{
+    display:block; margin:12px auto 0; max-width:100%; max-height:132px;
+    border-radius:8px; border:1px solid var(--line);
+  }
+  .filebox{font-size:12.5px; color:var(--dim); line-height:1.9; margin-top:10px; word-break:break-all}
+  .filebox b{color:var(--fg); font-weight:600}
+  .filebox .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--fg)}
+
+  .risk{margin-top:12px; font-size:12.5px; line-height:1.9; color:var(--dim)}
+  .risk .chips{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px}
+  .risk .chips span{
+    font-size:12px; padding:3px 9px; border-radius:999px; border:1px solid var(--line); color:var(--dim);
+  }
+  .risk .chips span.hot{border-color:rgba(192,57,43,.5); color:var(--err); background:rgba(192,57,43,.08)}
+  .risk .chips span.ok{color:var(--ok); border-color:rgba(31,122,77,.3)}
+
+  .acts{display:grid; gap:8px; margin-top:14px}
+  button.b{
+    font:500 13px/1.2 inherit; padding:10px 12px; border-radius:9px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  button.b:hover{border-color:var(--accent); color:var(--accent)}
+  button.b.pri{background:var(--accent); border-color:var(--accent); color:var(--accent-fg)}
+  button.b.pri:hover{opacity:.92; color:var(--accent-fg)}
+  .msg{font-size:12.5px; color:var(--ok); min-height:18px; margin-top:9px; line-height:1.7}
+  .msg.bad{color:var(--err)}
+
+  .meta{border:1px solid var(--line); border-radius:10px; overflow:hidden}
+  .meta .r{
+    display:grid; grid-template-columns:112px minmax(0,1fr); gap:10px;
+    padding:8px 12px; font-size:13px; border-top:1px solid var(--line);
+  }
+  .meta .r:first-child{border-top:0}
+  .meta .r:nth-child(even){background:var(--soft)}
+  .meta .k{color:var(--dim); font-size:12.5px}
+  .meta .v{
+    color:var(--fg); word-break:break-all;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px;
+  }
+  .meta .r.hot .v{color:var(--err)}
+  .meta .sec{
+    padding:7px 12px; font-size:12px; font-weight:600; letter-spacing:.4px;
+    color:var(--dim); background:var(--soft); border-top:1px solid var(--line);
+  }
+  .empty{padding:18px 12px; font-size:13px; color:var(--dim); line-height:1.9}
+  .empty b{color:var(--fg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>照片信息</h1>
+      <p class="lede">一张照片发给别人，可能顺手带走了你在哪儿、用什么手机拍的。先看清，再一键清干净。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="cols">
+    <div class="pane">
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept="image/*">
+        <b>点这里选照片 / 也可以直接拖进来</b>
+        <small>JPG 才带拍摄信息；图片不上传</small>
+      </label>
+      <img class="thumb" id="thumb" alt="预览">
+      <div class="filebox" id="fbox"></div>
+      <div class="risk" id="risk"></div>
+      <div class="acts">
+        <button class="b pri" id="clean" type="button">清除全部信息并导出</button>
+        <button class="b" id="copy" type="button">复制全部信息</button>
+      </div>
+      <div class="msg" id="msg"></div>
+    </div>
+
+    <div class="pane">
+      <h2><span>这张图里带着这些</span><button id="demo" type="button">换回示例照片</button></h2>
+      <div class="meta" id="meta"></div>
+    </div>
+  </div>
+
+  <footer>全部在浏览器里算，照片不上传服务器。清除信息靠重新绘制图片，所以文件会小一圈，画质有极轻微损失。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var DEMO = 'data:image/jpeg;base64,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';
+  var CUR = { name: 'demo.jpg', size: 0, type: 'image/jpeg' };
+  var IMG = null;
+
+  var ORI = {
+    1: '正常', 2: '水平镜像', 3: '旋转 180°', 4: '垂直镜像',
+    5: '主对角镜像', 6: '顺时针 90°', 7: '副对角镜像', 8: '逆时针 90°'
+  };
+
+  function readVal(dv, base, p, type, n, le, len){
+    var SZ = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 6: 1, 7: 1, 8: 2, 9: 4, 10: 8, 11: 4, 12: 8 };
+    var sz = SZ[type];
+    if (!sz || !n || n > 5000) return null;
+    var total = sz * n;
+    var off = total <= 4 ? p : base + dv.getUint32(p, le);
+    if (off < 0 || off + total > len) return null;
+    var i, arr;
+    if (type === 2){
+      var s = '';
+      for (i = 0; i < n; i++){ var c = dv.getUint8(off + i); if (!c) break; s += String.fromCharCode(c); }
+      return s;
+    }
+    if (type === 5 || type === 10 || type === 12){
+      arr = [];
+      for (i = 0; i < n; i++){
+        var o = off + i * 8, a = dv.getUint32(o, le), b = dv.getUint32(o + 4, le);
+        arr.push(b ? a / b : 0);
+      }
+      return n === 1 ? arr[0] : arr;
+    }
+    if (type === 3 || type === 8){
+      arr = [];
+      for (i = 0; i < n; i++) arr.push(dv.getUint16(off + i * 2, le));
+      return n === 1 ? arr[0] : arr;
+    }
+    if (type === 4 || type === 9){
+      arr = [];
+      for (i = 0; i < n; i++) arr.push(dv.getUint32(off + i * 4, le));
+      return n === 1 ? arr[0] : arr;
+    }
+    return null;
+  }
+
+  // 从 JPEG 的 APP1 段里把 TIFF 结构整个读出来
+  function exifOf(buf){
+    var dv = new DataView(buf), len = buf.byteLength;
+    if (len < 4 || dv.getUint16(0) !== 0xFFD8) return null;
+    var i = 2, tiff = -1;
+    while (i < len - 4){
+      if (dv.getUint8(i) !== 0xFF){ i++; continue; }
+      var mk = dv.getUint8(i + 1);
+      if (mk === 0xD8 || mk === 0x01 || (mk >= 0xD0 && mk <= 0xD7)){ i += 2; continue; }
+      if (mk === 0xDA || mk === 0xD9) break;
+      var size = dv.getUint16(i + 2);
+      if (size < 2) break;
+      if (mk === 0xE1 && dv.getUint8(i + 4) === 0x45 && dv.getUint8(i + 5) === 0x78){ tiff = i + 10; break; }
+      i += 2 + size;
+    }
+    if (tiff < 0 || tiff + 8 > len) return null;
+    var le = dv.getUint16(tiff) === 0x4949;
+    if (dv.getUint16(tiff + 2, le) !== 42) return null;
+
+    var raw = {};
+    function collect(off, depth){
+      if (!(off > 0) || depth > 2) return;
+      var p = tiff + off;
+      if (p + 2 > len) return;
+      var cnt = dv.getUint16(p, le);
+      if (!cnt || cnt > 400 || p + 2 + cnt * 12 > len) return;
+      var subs = [];
+      for (var k = 0; k < cnt; k++){
+        var e = p + 2 + k * 12;
+        var tag = dv.getUint16(e, le), type = dv.getUint16(e + 2, le), n = dv.getUint32(e + 4, le);
+        var v = readVal(dv, tiff, e + 8, type, n, le, len);
+        if (v === null) continue;
+        if (tag === 0x8769 || tag === 0x8825){ if (typeof v === 'number') subs.push(v); continue; }
+        raw[tag] = v;
+      }
+      for (var s = 0; s < subs.length; s++) collect(subs[s], depth + 1);
+    }
+    collect(dv.getUint32(tiff + 4, le), 0);
+    return raw;
+  }
+
+  function dms(arr, ref){
+    if (!arr || arr.length < 2) return null;
+    var d = (arr[0] || 0) + (arr[1] || 0) / 60 + (arr[2] || 0) / 3600;
+    if (ref === 'S' || ref === 'W') d = -d;
+    return d;
+  }
+
+  function fixTime(s){
+    return String(s).replace(/^(\d{4}):(\d{2}):(\d{2})/, '$1-$2-$3').trim();
+  }
+
+  // 排成 [组, 名, 值, 是否敏感]
+  function rowsOf(raw, w, h){
+    var R = [];
+    function add(sec, k, v, hot){
+      if (v === undefined || v === null || v === '') return;
+      R.push({ sec: sec, k: k, v: String(v), hot: !!hot });
+    }
+    var shootSec = '拍摄', devSec = '设备', gpsSec = '位置', techSec = '文件与格式';
+
+    var pw = w || raw[0xA002], ph = h || raw[0xA003];
+    if (pw && ph) add(techSec, '像素尺寸', pw + ' × ' + ph);
+    var lt = raw[0x9003] || raw[0x9004] || raw[0x0132];
+    if (lt) add(shootSec, raw[0x9003] ? '拍摄时间' : '图片时间', fixTime(lt), true);
+    var ex = raw[0x829A];
+    if (ex) add(shootSec, '曝光时间', ex < 1 ? '1/' + Math.round(1 / ex) + ' 秒' : ex.toFixed(1) + ' 秒');
+    if (raw[0x829D]) add(shootSec, '光圈', 'f/' + (+raw[0x829D]).toFixed(1));
+    if (raw[0x8827]) add(shootSec, '感光度', 'ISO ' + raw[0x8827]);
+    if (raw[0x920A]) add(shootSec, '焦距', (+raw[0x920A]).toFixed(1) + ' mm');
+
+    var mk = raw[0x010F], md = raw[0x0110];
+    if (mk || md) add(devSec, '相机 / 手机', [mk, md].filter(Boolean).join(' '), true);
+    if (raw[0xA434]) add(devSec, '镜头', raw[0xA434]);
+    if (raw[0x0112]) add(devSec, '方向', ORI[raw[0x0112]] || ('值 ' + raw[0x0112]));
+    if (raw[0x0131]) add(devSec, '编辑过的软件', raw[0x0131], true);
+    if (raw[0x010E]) add(devSec, '图片描述', raw[0x010E], true);
+    if (raw[0xA430]) add(devSec, '作者', raw[0xA430], true);
+
+    var lat = dms(raw[0x0002], raw[0x0001]), lon = dms(raw[0x0004], raw[0x0003]);
+    if (lat !== null && lon !== null){
+      add(gpsSec, '坐标', lat.toFixed(6) + ', ' + lon.toFixed(6), true);
+      add(gpsSec, '大致位置', Math.abs(lat).toFixed(4) + '° ' + (lat >= 0 ? '北纬' : '南纬') + '，' +
+          Math.abs(lon).toFixed(4) + '° ' + (lon >= 0 ? '东经' : '西经'), true);
+    }
+    if (raw[0x0005] !== undefined && raw[0x0005] !== null){
+      var alt = raw[0x0005];
+      if (typeof alt === 'number') add(gpsSec, '海拔', alt.toFixed(1) + ' 米');
+    }
+    return R;
+  }
+
+  function paint(rows, note){
+    var box = $('meta');
+    if (!rows.length){
+      box.innerHTML = '<div class="empty">' + (note || '这张图里没读到拍摄信息。') + '</div>';
+      return;
+    }
+    var html = '', last = '';
+    rows.forEach(function(r){
+      if (r.sec !== last){ html += '<div class="sec">' + r.sec + '</div>'; last = r.sec; }
+      html += '<div class="r' + (r.hot ? ' hot' : '') + '"><span class="k">' + r.k +
+              '</span><span class="v">' + esc(r.v) + '</span></div>';
+    });
+    box.innerHTML = html;
+  }
+
+  function esc(s){
+    return String(s).replace(/[&<>]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; });
+  }
+
+  function riskOf(rows){
+    var gps = rows.some(function(r){ return r.sec === '位置'; });
+    var dev = rows.some(function(r){ return r.k === '相机 / 手机'; });
+    var time = rows.some(function(r){ return /时间/.test(r.k); });
+    var soft = rows.some(function(r){ return r.k === '编辑过的软件' || r.k === '作者' || r.k === '图片描述'; });
+    var chips = [];
+    if (gps) chips.push('<span class="hot">带位置坐标</span>');
+    if (dev) chips.push('<span class="hot">能认出手机型号</span>');
+    if (time) chips.push('<span class="hot">带拍摄时间</span>');
+    if (soft) chips.push('<span class="hot">带软件 / 作者</span>');
+    if (!chips.length) chips.push('<span class="ok">没发现敏感信息</span>');
+    $('risk').innerHTML = '发出去之前先看一眼：<div class="chips">' + chips.join('') + '</div>';
+  }
+
+  function fbox(){
+    $('fbox').innerHTML =
+      '文件名 <b>' + esc(CUR.name) + '</b><br>' +
+      '大小 <b class="mono">' + bytes(CUR.size) + '</b> · 类型 <b class="mono">' + esc(CUR.type || '未知') + '</b>';
+  }
+
+  function analyze(buf, name, size, type, imgEl){
+    CUR = { name: name, size: size, type: type };
+    IMG = imgEl;
+    fbox();
+    var rows = [];
+    var isJpeg = /jpe?g/i.test(type) || (buf && buf.byteLength > 2 && new DataView(buf).getUint16(0) === 0xFFD8);
+    if (isJpeg && buf){
+      var raw = exifOf(buf);
+      if (raw) rows = rowsOf(raw, imgEl.naturalWidth, imgEl.naturalHeight);
+    }
+    paint(rows, isJpeg
+      ? '这是一张 JPEG，但里面没写拍摄信息（可能本来就被清过，或者来自截图 / 导出）。'
+      : '这不是 JPEG，通常不带拍摄地点和时间；PNG / WebP 少数编辑器会塞文字块，这里不展开。');
+    riskOf(rows);
+    $('thumb').src = imgEl.src;
+    $('thumb').style.display = 'block';
+    window.__ROWS = rows;
+  }
+
+  function loadFromBlob(blob, name){
+    var url = URL.createObjectURL(blob);
+    var img = new Image();
+    img.onload = function(){
+      blob.arrayBuffer().then(function(buf){
+        analyze(buf, name, blob.size, blob.type, img);
+      });
+    };
+    img.onerror = function(){ msg('这张图浏览器打不开，换一张试试。', true); };
+    img.src = url;
+  }
+
+  function loadDemo(){
+    fetch(DEMO).then(function(r){ return r.arrayBuffer(); }).then(function(buf){
+      var img = new Image();
+      img.onload = function(){ analyze(buf, '示例照片.jpg', buf.byteLength, 'image/jpeg', img); msg(''); };
+      img.src = DEMO;
+    });
+  }
+
+  function msg(t, bad){
+    $('msg').textContent = t || '';
+    $('msg').className = 'msg' + (bad ? ' bad' : '');
+  }
+
+  $('file').addEventListener('change', function(e){
+    var f = e.target.files[0];
+    if (f) loadFromBlob(f, f.name);
+  });
+
+  var drop = $('drop');
+  ['dragenter', 'dragover'].forEach(function(t){
+    drop.addEventListener(t, function(e){ e.preventDefault(); drop.classList.add('on'); });
+  });
+  ['dragleave', 'drop'].forEach(function(t){
+    drop.addEventListener(t, function(e){ e.preventDefault(); drop.classList.remove('on'); });
+  });
+  drop.addEventListener('drop', function(e){
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) loadFromBlob(f, f.name);
+  });
+
+  $('clean').addEventListener('click', function(){
+    if (!IMG){ msg('先选一张图。', true); return; }
+    var cv = document.createElement('canvas');
+    cv.width = IMG.naturalWidth; cv.height = IMG.naturalHeight;
+    var x = cv.getContext('2d');
+    x.fillStyle = '#fff'; x.fillRect(0, 0, cv.width, cv.height);
+    x.drawImage(IMG, 0, 0);
+    cv.toBlob(function(blob){
+      if (!blob){ msg('导出失败，换一张图试试。', true); return; }
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'clean-' + CUR.name.replace(/\.[^.]+$/, '') + '.jpg';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+      var saved = CUR.size ? Math.round((1 - blob.size / CUR.size) * 100) : 0;
+      msg('已导出 clean-' + CUR.name.replace(/\.[^.]+$/, '') + '.jpg（' + bytes(blob.size) +
+          (saved > 0 ? '，比原图小 ' + saved + '%' : '') + '），位置和时间都不在了。');
+    }, 'image/jpeg', 0.92);
+  });
+
+  $('copy').addEventListener('click', function(){
+    var rows = window.__ROWS || [];
+    if (!rows.length){ msg('这张图没有可复制的信息。', true); return; }
+    var txt = rows.map(function(r){ return r.sec + ' / ' + r.k + '：' + r.v; }).join('\n');
+    copyText(txt, $('copy'), '复制全部信息');
+    msg('已复制 ' + rows.length + ' 条。');
+  });
+
+  $('demo').addEventListener('click', loadDemo);
+
+  loadDemo();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>条码生成 · Code128 与商品条码</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .cols{display:grid; gap:12px; grid-template-columns:1fr}
+  @media (min-width:900px){ .cols{grid-template-columns:300px minmax(0,1fr)} }
+
+  .pane{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px}
+  .pane h2{
+    margin:0 0 10px; font-size:12.5px; font-weight:600; letter-spacing:.3px; color:var(--dim);
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .pane h2 button{
+    font:inherit; font-size:12px; padding:3px 9px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+
+  .lbl2{font-size:12.5px; color:var(--dim); margin:12px 0 6px; display:block}
+  input[type=text]{
+    width:100%; font:inherit; font-size:13.5px; padding:8px 10px; border-radius:8px;
+    border:1px solid var(--line); background:var(--bg); color:var(--fg);
+  }
+  input[type=range]{width:100%; accent-color:var(--accent)}
+  .srow{display:flex; align-items:center; gap:10px}
+  .srow output{
+    font:12.5px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    color:var(--fg); min-width:48px; text-align:right;
+  }
+  .types{display:flex; gap:6px; flex-wrap:wrap}
+  .types .chip{font-size:12.5px; padding:6px 11px}
+
+  .acts{display:grid; gap:8px; margin-top:14px}
+  button.b{
+    font:500 13px/1.2 inherit; padding:10px 12px; border-radius:9px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  button.b:hover{border-color:var(--accent); color:var(--accent)}
+  button.b.pri{background:var(--accent); border-color:var(--accent); color:var(--accent-fg)}
+  button.b.pri:hover{opacity:.92; color:var(--accent-fg)}
+
+  .stage{
+    background:#fff; border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 14px; display:flex; align-items:center; justify-content:center;
+    min-height:240px; overflow:auto;
+  }
+  .stage svg{max-width:100%; height:auto; display:block}
+  .readout{display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:var(--dim); margin-top:10px}
+  .readout b{color:var(--fg); font-weight:600; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .msg{font-size:12.5px; color:var(--ok); min-height:18px; margin-top:9px; line-height:1.7}
+  .msg.bad{color:var(--err)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>条码生成</h1>
+      <p class="lede">要做价签、出入库单、设备铭牌？填一串字符，立刻出能扫的条码，导 SVG 拿去印刷不糊。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="cols">
+    <div class="pane">
+      <span class="lbl2" style="margin-top:0">条码类型</span>
+      <div class="types" id="types">
+        <button class="chip on" data-t="c128" type="button">Code128（通用）</button>
+        <button class="chip" data-t="ean13" type="button">EAN-13（商品）</button>
+      </div>
+
+      <label class="lbl2" for="txt">内容</label>
+      <input type="text" id="txt" value="TB-2026-001" spellcheck="false">
+
+      <span class="lbl2">高度</span>
+      <div class="srow"><input type="range" id="h" min="40" max="160" step="2" value="96"><output id="oH">96</output></div>
+
+      <span class="lbl2">窄条宽度</span>
+      <div class="srow"><input type="range" id="mw" min="1" max="4" step="0.5" value="2"><output id="oW">2</output></div>
+
+      <span class="lbl2">条码下方印上原文</span>
+      <div class="srow"><input type="range" id="show" min="0" max="1" step="1" value="1"><output id="oShow">印</output></div>
+
+      <div class="acts">
+        <button class="b pri" id="dlSvg" type="button">下载 SVG（印刷用）</button>
+        <button class="b" id="dlPng" type="button">下载 PNG（贴文档用）</button>
+        <button class="b" id="demo" type="button">换回示例</button>
+      </div>
+      <div class="msg" id="msg"></div>
+    </div>
+
+    <div class="pane">
+      <h2><span>预览（白底黑条，扫得动）</span><button id="copyTxt" type="button">复制原文</button></h2>
+      <div class="stage" id="stage"></div>
+      <div class="readout">
+        <span>宽 × 高 <b id="rDim">—</b></span>
+        <span>字符数 <b id="rN">—</b></span>
+        <span>校验位 <b id="rChk">—</b></span>
+      </div>
+    </div>
+  </div>
+
+  <footer>全部在浏览器里算，输入的内容不上传。<b>Code128</b> 认英文字母、数字和常见符号；
+    <b>EAN-13</b> 只认 12 或 13 位数字，填 12 位会自动补最后一位校验位。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var TYPE = 'c128';
+
+  // Code128 每个符号的条空宽度（0-106，103/104/105 是起始符，106 是终止符）
+  var C128 = ['212222','222122','222221','121223','121322','131222','122213','122312','132212','221213','221312','231212','112232','122132','122231','113222','123122','123221','223211','221132','221231','213212','223112','312131','311222','321122','321221','312212','322112','322211','212123','212321','232121','111323','131123','131321','112313','132113','132311','211313','231113','231311','112133','112331','132131','113123','113321','133121','313121','211331','231131','213113','213311','213131','311123','311321','331121','312113','312311','332111','314111','221411','431111','111224','111422','121124','121421','141122','141221','112214','112412','122114','122411','142112','142211','241211','221114','413111','241112','134111','111242','121142','121241','114212','124112','124211','411212','421112','421211','212141','214121','412121','111143','111341','131141','114113','114311','411113','411311','113141','114131','311141','411131','211412','211214','211232','2331112'];
+
+  var L = ['0001101', '0011001', '0010011', '0111101', '0100011', '0110001', '0101111', '0111011', '0110111', '0001011'];
+  var G = ['0100111', '0110011', '0011011', '0100001', '0011101', '0111001', '0000101', '0010001', '0001001', '0010111'];
+  var R = ['1110010', '1100110', '1101100', '1000010', '1011100', '1001110', '1010000', '1000100', '1001000', '1110100'];
+  var EAN_STRUCT = ['LLLLLL', 'LLGLGG', 'LLGGLG', 'LLGGGL', 'LGLLGG', 'LGGLLG', 'LGGGLL', 'LGLGLG', 'LGLGGL', 'LGGLGL'];
+
+  function bits128(txt){
+    if (!txt) return { err: '先填要编码的内容。' };
+    var vals = [];
+    for (var i = 0; i < txt.length; i++){
+      var c = txt.charCodeAt(i);
+      if (c < 32 || c > 126) return { err: '第 ' + (i + 1) + ' 个字符编不进 Code128，只能放英文、数字、空格和常见符号。' };
+      vals.push(c - 32);
+    }
+    var sum = 104;
+    for (var k = 0; k < vals.length; k++) sum += vals[k] * (k + 1);
+    var chk = sum % 103;
+    var codes = [104].concat(vals, [chk], [106]);
+    var bits = '';
+    for (var j = 0; j < codes.length; j++){
+      var w = C128[codes[j]], bar = true;
+      for (var m = 0; m < w.length; m++){
+        bits += new Array(+w[m] + 1).join(bar ? '1' : '0');
+        bar = !bar;
+      }
+    }
+    return { bits: bits, chk: chk, extra: '校验位 ' + chk };
+  }
+
+  function eanCheck(d12){
+    var s = 0;
+    for (var i = 0; i < 12; i++) s += (+d12[i]) * (i % 2 ? 3 : 1);
+    return (10 - s % 10) % 10;
+  }
+
+  function bitsEan(txt){
+    var t = String(txt).replace(/[\s-]/g, '');
+    if (!/^\d+$/.test(t)) return { err: 'EAN-13 只能用数字。' };
+    if (t.length === 12){
+      t = t + eanCheck(t);
+    } else if (t.length !== 13){
+      return { err: 'EAN-13 要 12 位（自动补校验位）或 13 位数字，现在是 ' + t.length + ' 位。' };
+    } else if (eanCheck(t.slice(0, 12)) !== +t[12]){
+      return { err: '这 13 位的校验位不对，正确应该是 ' + eanCheck(t.slice(0, 12)) + '。' };
+    }
+    var st = EAN_STRUCT[+t[0]], bits = '101';
+    for (var i = 0; i < 6; i++){
+      var d = +t[1 + i];
+      bits += st[i] === 'L' ? L[d] : G[d];
+    }
+    bits += '01010';
+    for (var j = 0; j < 6; j++) bits += R[+t[7 + j]];
+    bits += '101';
+    return { bits: bits, chk: t[12], extra: '校验位 ' + t[12], out: t };
+  }
+
+  var SVGNS = 'http://www.w3.org/2000/svg';
+
+  function render(){
+    var txt = $('txt').value.trim();
+    var res = TYPE === 'c128' ? bits128(txt) : bitsEan(txt);
+    var stage = $('stage');
+
+    if (res.err){
+      stage.innerHTML = '<span style="color:#8a9199;font:13px/1.7 MiSans,sans-serif;text-align:center">' + res.err + '</span>';
+      $('rDim').textContent = $('rN').textContent = $('rChk').textContent = '—';
+      msg(res.err, true);
+      return;
+    }
+    msg(res.out ? '这 13 位是有效商品条码（末位校验通过）。' : '');
+
+    var mw = +$('mw').value, h = +$('h').value, show = +$('show').value === 1;
+    var bits = res.bits, quiet = 10, total = bits.length + quiet * 2;
+    var W = total * mw, H = h + (show ? 22 : 8);
+    var top = 2;
+
+    var svg = document.createElementNS(SVGNS, 'svg');
+    svg.setAttribute('xmlns', SVGNS);
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('width', W);
+    svg.setAttribute('height', H);
+    svg.setAttribute('shape-rendering', 'crispEdges');
+
+    var bg = document.createElementNS(SVGNS, 'rect');
+    bg.setAttribute('x', 0); bg.setAttribute('y', 0);
+    bg.setAttribute('width', W); bg.setAttribute('height', H);
+    bg.setAttribute('fill', '#ffffff');
+    svg.appendChild(bg);
+
+    // 把连续的黑条合并成一个个矩形，条数少、打印更稳
+    var i = 0;
+    while (i < bits.length){
+      if (bits[i] === '1'){
+        var j = i;
+        while (j < bits.length && bits[j] === '1') j++;
+        var r = document.createElementNS(SVGNS, 'rect');
+        r.setAttribute('x', (quiet + i) * mw);
+        r.setAttribute('y', top);
+        r.setAttribute('width', (j - i) * mw);
+        r.setAttribute('height', h);
+        r.setAttribute('fill', '#000000');
+        svg.appendChild(r);
+        i = j;
+      } else { i++; }
+    }
+
+    if (show){
+      var t = document.createElementNS(SVGNS, 'text');
+      t.setAttribute('x', W / 2);
+      t.setAttribute('y', h + 20);
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('font-family', 'MiSans, -apple-system, sans-serif');
+      t.setAttribute('font-size', '15');
+      t.setAttribute('letter-spacing', '1.5');
+      t.setAttribute('fill', '#000000');
+      t.textContent = res.out || txt;
+      svg.appendChild(t);
+    }
+
+    stage.innerHTML = '';
+    stage.appendChild(svg);
+    $('rDim').textContent = Math.round(W) + ' × ' + Math.round(H);
+    $('rN').textContent = (res.out || txt).length + ' 个';
+    $('rChk').textContent = res.extra ? res.extra.replace('校验位 ', '') : '—';
+    window.__BITS = bits;
+    window.__TXT = res.out || txt;
+  }
+
+  function msg(t, bad){
+    $('msg').textContent = t || '';
+    $('msg').className = 'msg' + (bad ? ' bad' : '');
+  }
+
+  $('types').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-t]');
+    if (!b) return;
+    TYPE = b.getAttribute('data-t');
+    Array.prototype.forEach.call(this.querySelectorAll('button'), function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    if (TYPE === 'ean13' && !/^\d{12,13}$/.test($('txt').value.replace(/[\s-]/g, ''))){
+      $('txt').value = '6901234567892';
+    } else if (TYPE === 'c128' && /^\d{13}$/.test($('txt').value)){
+      $('txt').value = 'TB-2026-001';
+    }
+    render();
+  });
+
+  ['txt', 'h', 'mw', 'show'].forEach(function(id){
+    $(id).addEventListener('input', function(){
+      $('oH').textContent = $('h').value;
+      $('oW').textContent = $('mw').value;
+      $('oShow').textContent = $('show').value === '1' ? '印' : '不印';
+      render();
+    });
+  });
+
+  $('demo').addEventListener('click', function(){
+    $('txt').value = TYPE === 'c128' ? 'TB-2026-001' : '6901234567892';
+    render();
+  });
+
+  $('copyTxt').addEventListener('click', function(){
+    copyText(window.__TXT || '', $('copyTxt'), '复制原文');
+  });
+
+  function grabSvg(){
+    var svg = $('stage').querySelector('svg');
+    if (!svg) return null;
+    var s = new XMLSerializer().serializeToString(svg);
+    if (s.indexOf('xmlns=') < 0) s = s.replace('<svg', '<svg xmlns="' + SVGNS + '"');
+    return s;
+  }
+
+  $('dlSvg').addEventListener('click', function(){
+    var s = grabSvg();
+    if (!s){ msg('先让条码正常显示。', true); return; }
+    var blob = new Blob([s], { type: 'image/svg+xml;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'barcode-' + (window.__TXT || 'code') + '.svg';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+    msg('已下载 SVG，放大印刷不会糊。');
+  });
+
+  $('dlPng').addEventListener('click', function(){
+    var s = grabSvg();
+    if (!s){ msg('先让条码正常显示。', true); return; }
+    var svg = $('stage').querySelector('svg');
+    var W = +svg.getAttribute('width'), H = +svg.getAttribute('height'), scale = 3;
+    var img = new Image();
+    img.onload = function(){
+      var cv = document.createElement('canvas');
+      cv.width = W * scale; cv.height = H * scale;
+      var x = cv.getContext('2d');
+      x.fillStyle = '#fff'; x.fillRect(0, 0, cv.width, cv.height);
+      x.imageSmoothingEnabled = false;
+      x.drawImage(img, 0, 0, cv.width, cv.height);
+      cv.toBlob(function(blob){
+        if (!blob){ msg('导出失败，换 SVG 试试。', true); return; }
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = 'barcode-' + (window.__TXT || 'code') + '.png';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 5000);
+        msg('已下载 PNG（' + (W * scale) + ' × ' + (H * scale) + '，3 倍分辨率）。');
+      }, 'image/png');
+    };
+    img.onerror = function(){ msg('PNG 转换失败，直接用 SVG 也一样。', true); };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
+  });
+
+  render();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
