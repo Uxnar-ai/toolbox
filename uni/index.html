@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>字符查询 · 一个字符在电脑里存成什么</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{align-items:start}
+  .left{display:flex; flex-direction:column}
+  #src{height:200px; min-height:120px}
+  .revbox{border-top:1px solid var(--line); padding:10px 12px; background:var(--soft)}
+  .revbox .rl{font-size:12.5px; color:var(--dim); margin-bottom:7px}
+  .revline{display:flex; gap:7px; align-items:center; flex-wrap:wrap}
+  .revline input{
+    flex:1 1 140px; min-width:0; font:13.5px/1.5 ui-monospace,Menlo,Consolas,monospace;
+    padding:7px 10px; border-radius:8px; border:1px solid var(--line);
+    background:var(--card); color:var(--fg);
+  }
+  .revout{font-size:13px; line-height:1.9; margin-top:8px; color:var(--fg); word-break:break-word}
+  .revout .big{font-size:22px; vertical-align:-2px; margin-right:8px}
+  .revout .dim{color:var(--dim)}
+
+  .list{max-height:400px; overflow:auto; padding:10px}
+  .it{border:1px solid var(--line); border-radius:10px; margin-bottom:9px; overflow:hidden}
+  .it:last-child{margin-bottom:0}
+  .ih{display:flex; align-items:center; gap:10px; padding:8px 11px; background:var(--soft); border-bottom:1px solid var(--line)}
+  .glyph{
+    font:600 20px/1.25 ui-monospace,Menlo,Consolas,monospace; min-width:38px; height:38px;
+    display:inline-flex; align-items:center; justify-content:center; padding:0 6px;
+    background:var(--card); border:1px solid var(--line); border-radius:8px;
+  }
+  .glyph.blank{font:600 11px/1 ui-monospace,Menlo,monospace; color:var(--dim)}
+  .ih .nm{font-size:12.5px; color:var(--dim); flex:1 1 auto; min-width:0}
+  .ih .nm b{color:var(--fg); font-weight:600; font-size:13px}
+  .ih button{
+    font:inherit; font-size:11.5px; padding:3px 8px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); white-space:nowrap;
+  }
+  .ih button:hover{border-color:var(--accent); color:var(--accent)}
+  .kv{display:grid; grid-template-columns:66px 1fr; gap:2px 10px; padding:9px 11px; font-size:12.5px}
+  .kv dt{color:var(--dim)}
+  .kv dd{
+    margin:0; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12.5px;
+    word-break:break-all; cursor:pointer; border-radius:4px; padding:0 2px;
+  }
+  .kv dd:hover{background:var(--soft); color:var(--accent)}
+  .msg{font-size:12.5px; color:var(--ok); min-height:18px; margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>字符查询</h1>
+      <p class="lede">一个字在电脑里到底存成什么：码点、UTF-8 字节、转义写法，粘进来一次全列出来。反查也行。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="row">
+    <button class="chip" id="s1" type="button">中英混排</button>
+    <button class="chip" id="s2" type="button">emoji</button>
+    <button class="chip" id="s3" type="button">看不见的空白</button>
+    <button class="chip" id="s4" type="button">全角与符号</button>
+    <span class="sep"></span>
+    <button class="chip" id="clear" type="button">清空</button>
+    <span class="grow"></span>
+    <span class="lbl">只显示前 200 个字</span>
+  </div>
+
+  <div class="panes">
+    <div class="pane left">
+      <h2><span>粘文字或单个字符</span><span id="nIn">—</span></h2>
+      <textarea id="src" spellcheck="false" placeholder="比如：你好 A"></textarea>
+      <div class="revbox">
+        <div class="rl">反过来查：填码点看是哪个字（4F60 / U+4F60 / 20320 / &amp;#x4F60; 都认）</div>
+        <div class="revline">
+          <input id="rev" type="text" value="4F60" spellcheck="false" autocomplete="off">
+          <button class="chip" id="revBtn" type="button">查这个</button>
+        </div>
+        <div class="revout" id="revOut"></div>
+      </div>
+    </div>
+
+    <div class="pane">
+      <h2><span>逐个字符</span><span>点任意一项可复制</span></h2>
+      <div class="list" id="list"></div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <span>字符 <b id="sChar">—</b></span>
+    <span>码点 <b id="sCp">—</b></span>
+    <span>UTF-8 共 <b id="sByte">—</b></span>
+  </div>
+  <div class="msg" id="msg"></div>
+
+  <p class="lede" style="margin-top:12px">
+    字符按「一个字算一个」拆分：一个汉字、一个字母、一个 emoji 都是一项。像 👨‍👩‍👧 这种用零宽连接符拼出来的组合表情，
+    会被拆成三四个码点，这是正常的 —— 系统就是这么存的。UTF-8 那一行是它真正占的字节，也是文件上传/接口限流里算的那个数。
+  </p>
+
+  <footer>全部在浏览器里算，文字不上传。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var enc = new TextEncoder();
+
+  var SAMPLES = {
+    s1: 'A你好 3',
+    s2: '😀👍🏽',
+    s3: 'A\u00a0B\u3000C\u200bD',
+    s4: '，。！？「」￥…'
+  };
+
+  function hex2(n){ return ('0' + n.toString(16).toUpperCase()).slice(-2); }
+  function pad4(n){ return ('000' + n.toString(16).toUpperCase()).slice(-4); }
+
+  function utf8Bytes(cp){
+    var out = [], c = cp;
+    if (c < 0x80) out.push(c);
+    else if (c < 0x800) out.push(0xC0 | (c >> 6), 0x80 | (c & 63));
+    else if (c < 0x10000) out.push(0xE0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+    else out.push(0xF0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+    return out;
+  }
+
+  function classify(cp, ch){
+    if (cp === 0x20) return '空格';
+    if (cp === 0xA0) return '不换行空格 NBSP';
+    if (cp === 0x3000) return '全角空格';
+    if (cp === 0x200B || cp === 0x200C || cp === 0x200D) return '零宽字符';
+    if (cp === 0xFEFF) return 'BOM 字节顺序标记';
+    if (cp < 0x20 || cp === 0x7F) return '控制字符';
+    if (cp < 0x7F) return /[0-9]/.test(ch) ? '半角数字' : /[A-Za-z]/.test(ch) ? '半角字母' : '半角符号';
+    if (cp >= 0x4E00 && cp <= 0x9FFF) return '汉字';
+    if (cp >= 0x3400 && cp <= 0x4DBF) return '汉字（扩展 A）';
+    if (cp >= 0x3040 && cp <= 0x30FF) return '日文假名';
+    if (cp >= 0xAC00 && cp <= 0xD7AF) return '韩文';
+    if (cp >= 0xFF01 && cp <= 0xFF5E) return '全角符号';
+    if (cp === 0xFFE5) return '全角符号';
+    if (cp >= 0x3000 && cp <= 0x303F) return '中文标点';
+    if (cp >= 0xFF00 && cp <= 0xFFEF) return '全角 / 半角形式';
+    if ((cp >= 0x1F300 && cp <= 0x1FAFF) || (cp >= 0x2600 && cp <= 0x27BF)) return 'emoji / 符号';
+    if (cp >= 0x1F1E6 && cp <= 0x1F1FF) return '国旗字母';
+    if (cp >= 0xFE00 && cp <= 0xFE0F) return '变体选择符';
+    if (cp >= 0x1D400 && cp <= 0x1D7FF) return '数学字母';
+    return '其它';
+  }
+
+  function escJs(cp){
+    if (cp > 0xFFFF) return '\\u{' + cp.toString(16).toUpperCase() + '}';
+    return '\\u' + pad4(cp);
+  }
+
+  function info(ch){
+    var cp = ch.codePointAt(0);
+    var bytes = utf8Bytes(cp);
+    return {
+      ch: ch,
+      cp: cp,
+      u: 'U+' + pad4(cp),
+      dec: String(cp),
+      utf8: bytes.map(hex2).join(' '),
+      utf8n: bytes.length,
+      html: '&#' + cp + ';',
+      htmlHex: '&#x' + cp.toString(16).toUpperCase() + ';',
+      js: escJs(cp),
+      css: escJs(cp),
+      cls: classify(cp, ch),
+      blank: /^[\s\u200b\u200c\u200d\ufeff]$/.test(ch) || cp < 0x20
+    };
+  }
+
+  function label(h){
+    if (h.cp === 0x20) return 'SP';
+    if (h.cp === 0xA0) return 'NBSP';
+    if (h.cp === 0x3000) return '全角';
+    if (h.cp === 0x200B) return 'ZWSP';
+    if (h.cp === 0x200C) return 'ZWNJ';
+    if (h.cp === 0x200D) return 'ZWJ';
+    if (h.cp === 0xFEFF) return 'BOM';
+    if (h.cp < 0x20) return 'C' + h.cp;
+    return h.u;
+  }
+
+  function row(h, i){
+    var g = h.blank
+      ? '<span class="glyph blank">' + label(h) + '</span>'
+      : '<span class="glyph">' + esc(h.ch) + '</span>';
+    return '<div class="it">' +
+      '<div class="ih">' + g +
+        '<span class="nm"><b>' + h.u + '</b> · ' + h.cls + ' · ' + h.utf8n + ' 字节</span>' +
+        '<button data-copy="' + i + '" data-w="ch">复制字</button>' +
+      '</div>' +
+      '<dl class="kv">' +
+        '<dt>码点</dt><dd data-copy="' + i + '" data-w="u">' + h.u + '（十进制 ' + h.dec + '）</dd>' +
+        '<dt>UTF-8</dt><dd data-copy="' + i + '" data-w="utf8">' + h.utf8 + '</dd>' +
+        '<dt>JS 转义</dt><dd data-copy="' + i + '" data-w="js">' + esc(h.js) + '</dd>' +
+        '<dt>HTML</dt><dd data-copy="' + i + '" data-w="html">' + esc(h.htmlHex) + '</dd>' +
+      '</dl></div>';
+  }
+
+  function esc(s){
+    return String(s).replace(/[&<>]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; });
+  }
+
+  var ITEMS = [];
+  var HINT = '左边粘点东西，这里会一个字符一个字符拆开。';
+
+  function render(){
+    var text = $('src').value;
+    var chars = Array.from(text);
+    var shown = chars.slice(0, 200);
+    ITEMS = shown.map(info);
+
+    if (!chars.length){
+      $('list').innerHTML = '<div class="empty">' + HINT + '</div>';
+      $('sChar').textContent = $('sCp').textContent = $('sByte').textContent = '—';
+      $('nIn').textContent = '空';
+      return;
+    }
+
+    $('list').innerHTML = ITEMS.map(row).join('');
+    var bytes = enc.encode(text).length;
+    $('sChar').textContent = chars.length + ' 个';
+    $('sCp').textContent = ITEMS.length + (chars.length > 200 ? '（只列前 200）' : '');
+    $('sByte').textContent = bytes + ' 字节';
+    $('nIn').textContent = chars.length + ' 个 · ' + bytes + ' 字节';
+  }
+
+  function say(t){ $('msg').textContent = t || ''; }
+
+  $('list').addEventListener('click', function(e){
+    var t = e.target.closest('[data-copy]');
+    if (!t) return;
+    var h = ITEMS[+t.getAttribute('data-copy')];
+    if (!h) return;
+    var w = t.getAttribute('data-w');
+    var val = w === 'ch' ? h.ch : w === 'u' ? h.u : w === 'utf8' ? h.utf8 : w === 'js' ? h.js : h.htmlHex;
+    copyText(val, null, '');
+    say('已复制：' + (w === 'ch' ? '「' + (h.blank ? label(h) : h.ch) + '」' : val));
+  });
+
+  function reverse(){
+    var raw = $('rev').value.trim();
+    if (!raw){ $('revOut').innerHTML = '<span class="dim">填个码点再查。</span>'; return; }
+    var cp = null;
+    var m;
+    if ((m = raw.match(/^&#x([0-9a-f]+);?$/i))) cp = parseInt(m[1], 16);
+    else if ((m = raw.match(/^&#(\d+);?$/))) cp = parseInt(m[1], 10);
+    else if ((m = raw.match(/^(?:u\+|0x)([0-9a-f]+)$/i))) cp = parseInt(m[1], 16);
+    else if ((m = raw.match(/^([0-9a-f]{4,6})$/i)) && /[a-f]/i.test(m[1])) cp = parseInt(m[1], 16);
+    else if ((m = raw.match(/^(\d+)$/))) cp = parseInt(m[1], 10);
+    else if (Array.from(raw).length <= 4){ cp = raw.codePointAt(0); }
+
+    if (cp === null || !isFinite(cp) || cp < 0 || cp > 0x10FFFF){
+      $('revOut').innerHTML = '<span class="dim">认不出来。试试 4F60、U+4F60、20320 或 &#x4F60;。</span>';
+      return;
+    }
+    var ch = String.fromCodePoint(cp);
+    var h = info(ch);
+    $('revOut').innerHTML =
+      (h.blank ? '<span class="dim">（看不见的字符：' + label(h) + '）</span>' : '<span class="big">' + esc(ch) + '</span>') +
+      '<b>' + h.u + '</b> · ' + h.cls + ' · ' + h.utf8n + ' 字节<br>' +
+      '<span class="dim">UTF-8</span> ' + h.utf8 + '　<span class="dim">HTML</span> ' + esc(h.htmlHex) +
+      '　<span class="dim">JS</span> ' + esc(h.js);
+  }
+
+  $('rev').addEventListener('input', reverse);
+  $('revBtn').addEventListener('click', reverse);
+  $('src').addEventListener('input', render);
+
+  [['s1','s1'],['s2','s2'],['s3','s3'],['s4','s4']].forEach(function(p){
+    $(p[0]).addEventListener('click', function(){
+      $('src').value = SAMPLES[p[1]];
+      render(); say('');
+    });
+  });
+  $('clear').addEventListener('click', function(){ $('src').value = ''; render(); $('src').focus(); });
+
+  $('src').value = SAMPLES.s1;
+  render();
+  reverse();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

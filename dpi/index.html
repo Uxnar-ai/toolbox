@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>图片尺寸换算 · 像素、厘米、分辨率对着看</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{align-items:stretch}
+  .pane{padding-bottom:2px}
+  .body{padding:12px 13px 14px}
+  .fields{display:grid; grid-template-columns:1fr 1fr; gap:9px}
+  .fields.one{grid-template-columns:1fr}
+  .f{display:flex; flex-direction:column; gap:4px; min-width:0}
+  .f label{font-size:12px; color:var(--dim)}
+  .f input{
+    font:14px/1.4 ui-monospace,Menlo,Consolas,monospace; padding:8px 10px; border-radius:8px;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); width:100%; min-width:0;
+  }
+  .f input:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .x{font-size:12px; color:var(--dim); align-self:center}
+  .big{
+    margin-top:12px; padding:11px 13px; border-radius:10px; background:var(--soft);
+    display:flex; align-items:baseline; gap:8px; flex-wrap:wrap;
+  }
+  .big b{font:600 22px/1.2 ui-monospace,Menlo,Consolas,monospace; color:var(--fg)}
+  .big span{font-size:12.5px; color:var(--dim)}
+  .verdict{font-size:13px; line-height:1.75; margin-top:9px; color:var(--dim)}
+  .verdict b{font-weight:600}
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)}
+  .rev{margin-top:10px; font-size:12.5px; color:var(--dim); line-height:1.8}
+  .rev code{font-family:ui-monospace,Menlo,Consolas,monospace; color:var(--fg)}
+
+  table{width:100%; border-collapse:collapse; font-size:13px}
+  th,td{text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); white-space:nowrap}
+  th{font-size:12px; color:var(--dim); font-weight:600; background:var(--soft)}
+  td.num{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12.5px}
+  tbody tr{cursor:pointer}
+  tbody tr:hover td{background:var(--soft)}
+  .tblwrap{overflow:auto; max-height:430px; border-top:1px solid var(--line)}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.9; margin-top:12px}
+  .hint b{color:var(--fg); font-weight:600}
+  .msg{font-size:12.5px; color:var(--ok); min-height:18px; margin-top:8px}
+  .chkline{display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--dim); margin-top:11px}
+  .chkline input{width:15px; height:15px; accent-color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>图片尺寸换算</h1>
+      <p class="lede">这张图打出来多大、要打印 20 厘米需要多少像素，填两个数就知道，不用再算 2.54。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="row">
+    <span class="lbl">分辨率</span>
+    <button class="chip on" data-dpi="300" type="button">300 印刷</button>
+    <button class="chip" data-dpi="150" type="button">150 普通打印</button>
+    <button class="chip" data-dpi="96" type="button">96 屏幕</button>
+    <button class="chip" data-dpi="72" type="button">72 网页</button>
+    <span class="sep"></span>
+    <span class="lbl">当前 <b id="dpiNow">300</b> dpi</span>
+  </div>
+
+  <div class="panes">
+    <div class="pane">
+      <h2><span>已有图片：像素 → 打印多大</span></h2>
+      <div class="body">
+        <div class="fields">
+          <div class="f"><label>宽（像素）</label><input id="pw" type="number" value="2480" min="1" step="1"></div>
+          <div class="f"><label>高（像素）</label><input id="ph" type="number" value="3508" min="1" step="1"></div>
+        </div>
+        <div class="chkline">
+          <input id="lock" type="checkbox" checked><label for="lock">锁住比例，改宽自动算高</label>
+        </div>
+        <div class="big">
+          <b id="outCm">—</b><span>厘米</span>
+          <b id="outIn" style="font-size:16px">—</b><span>英寸</span>
+        </div>
+        <div class="verdict" id="verdict"></div>
+      </div>
+    </div>
+
+    <div class="pane">
+      <h2><span>要打印：多大 → 需要多少像素</span></h2>
+      <div class="body">
+        <div class="fields">
+          <div class="f"><label>打印宽（厘米）</label><input id="cw" type="number" value="21" min="0.1" step="0.1"></div>
+          <div class="f"><label>打印高（厘米）</label><input id="ch" type="number" value="29.7" min="0.1" step="0.1"></div>
+        </div>
+        <div class="big">
+          <b id="needPx">—</b><span>像素</span>
+        </div>
+        <div class="rev" id="needNote"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pane" style="margin-top:12px">
+    <h2><span>常见尺寸（点一行套到左边）</span><span id="dpiTag">300 dpi</span></h2>
+    <div class="tblwrap">
+      <table>
+        <thead><tr><th>用途</th><th>像素</th><th>打印尺寸</th><th>建议分辨率</th></tr></thead>
+        <tbody id="tb"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="msg" id="msg"></div>
+
+  <p class="hint">
+    换算只有一条公式：<b>打印厘米 = 像素 ÷ 分辨率 × 2.54</b>。所以同一张 2480×3508 的图，
+    按 300 dpi 打是 A4，按 150 dpi 打就是两张 A4 大 —— 图没变，是「每英寸塞多少点」变了。
+    <br>判断能不能用：<b>300 dpi</b> 印刷／证件照，<b>150 dpi</b> 家用打印够看，<b>96 dpi 以下</b>只适合屏幕上放。
+    手机拍的照片一般 3000 像素以上，打 6 寸照片绰绰有余。
+  </p>
+
+  <footer>全部在浏览器里算，不上传任何图片。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var DPI = 300, ratio = 3508 / 2480;
+
+  var PRESETS = [
+    ['A4 印刷', 2480, 3508, 300],
+    ['A4 家用打印', 1240, 1754, 150],
+    ['A3 海报', 3508, 4961, 150],
+    ['1 寸证件照', 295, 413, 300],
+    ['2 寸证件照', 413, 626, 300],
+    ['6 寸照片', 1800, 1200, 300],
+    ['公众号首图', 900, 383, 72],
+    ['朋友圈方图', 1080, 1080, 72],
+    ['手机壁纸', 1080, 2400, 96],
+    ['视频 1080p', 1920, 1080, 96]
+  ];
+
+  function num(el, dft){
+    var v = parseFloat(el.value);
+    return isFinite(v) && v > 0 ? v : dft;
+  }
+  function fmt(n){
+    var r = Math.round(n * 10) / 10;
+    return (Math.abs(r - Math.round(r)) < 0.05 ? Math.round(r) : r).toString();
+  }
+
+  function renderLeft(){
+    var w = num($('pw'), 1), h = num($('ph'), 1);
+    var cmW = w / DPI * 2.54, cmH = h / DPI * 2.54;
+    $('outCm').textContent = fmt(cmW) + ' × ' + fmt(cmH);
+    $('outIn').textContent = fmt(cmW / 2.54) + ' × ' + fmt(cmH / 2.54);
+
+    var v = $('verdict'), cls, txt;
+    if (DPI >= 300){
+      cls = 'ok'; txt = '这个分辨率下印刷、证件照都清楚，细节不会肉。';
+    } else if (DPI >= 150){
+      cls = 'warn'; txt = '家用打印够看；文字小、要出片的话最好按 300 dpi 重新导出。';
+    } else if (DPI >= 96){
+      cls = 'warn'; txt = '屏幕上放没问题，打出来会偏软 —— 这一档更适合网页和手机看。';
+    } else {
+      cls = 'err'; txt = '这一档只适合网页，印刷会明显发虚。';
+    }
+    v.innerHTML = '<b class="' + cls + '">' + DPI + ' dpi</b> · ' + txt +
+      '<br><span>这张图一共 ' + (w * h / 1e6).toFixed(2) + ' 百万像素，长宽比 ' + fmt(w / h) + ' : 1</span>';
+    $('dpiNow').textContent = DPI;
+    $('dpiTag').textContent = DPI + ' dpi';
+  }
+
+  function renderRight(){
+    var cw = num($('cw'), 1), ch = num($('ch'), 1);
+    var pw = Math.round(cw / 2.54 * DPI), ph = Math.round(ch / 2.54 * DPI);
+    $('needPx').textContent = pw.toLocaleString('en-US') + ' × ' + ph.toLocaleString('en-US');
+    var ratioTxt = fmt(cw / ch);
+    $('needNote').innerHTML = '按 <code>' + DPI + ' dpi</code> 算，最少要这么大的图才不会糊。' +
+      '<br>长宽比 <code>' + ratioTxt + ' : 1</code>，导出时按这个比例裁，别让图片被拉变形。' +
+      '<br>如果原图比这小，可以按比例缩小打印尺寸：宽度减半，需要的像素也减半。';
+  }
+
+  function paintTable(){
+    $('tb').innerHTML = PRESETS.map(function(p, i){
+      var cm = p[1] / p[3] * 2.54, cm2 = p[2] / p[3] * 2.54;
+      return '<tr data-i="' + i + '"><td>' + p[0] + '</td>' +
+        '<td class="num">' + p[1] + ' × ' + p[2] + '</td>' +
+        '<td class="num">' + fmt(cm) + ' × ' + fmt(cm2) + ' cm</td>' +
+        '<td class="num">' + p[3] + ' dpi</td></tr>';
+    }).join('');
+  }
+
+  function setDpi(d){
+    DPI = d;
+    [].forEach.call(document.querySelectorAll('[data-dpi]'), function(b){
+      b.className = 'chip' + (+b.getAttribute('data-dpi') === d ? ' on' : '');
+    });
+    renderLeft(); renderRight();
+  }
+
+  [].forEach.call(document.querySelectorAll('[data-dpi]'), function(b){
+    b.addEventListener('click', function(){ setDpi(+b.getAttribute('data-dpi')); });
+  });
+
+  $('pw').addEventListener('input', function(){
+    var w = num($('pw'), 1);
+    if ($('lock').checked){
+      $('ph').value = Math.max(1, Math.round(w / ratio));
+    } else {
+      ratio = w / num($('ph'), 1);
+    }
+    renderLeft();
+  });
+  $('ph').addEventListener('input', function(){
+    var h = num($('ph'), 1);
+    if ($('lock').checked){
+      $('pw').value = Math.max(1, Math.round(h * ratio));
+    } else {
+      ratio = num($('pw'), 1) / h;
+    }
+    renderLeft();
+  });
+  $('cw').addEventListener('input', renderRight);
+  $('ch').addEventListener('input', renderRight);
+
+  $('tb').addEventListener('click', function(e){
+    var tr = e.target.closest('tr[data-i]');
+    if (!tr) return;
+    var p = PRESETS[+tr.getAttribute('data-i')];
+    ratio = p[2] / p[1];
+    $('pw').value = p[1]; $('ph').value = p[2];
+    setDpi(p[3]);
+    $('msg').textContent = '已套用「' + p[0] + '」：' + p[1] + ' × ' + p[2] + ' @ ' + p[3] + ' dpi';
+  });
+
+  ratio = 3508 / 2480;
+  paintTable();
+  renderLeft();
+  renderRight();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>常用正则 · 每条都能当场验</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{align-items:start; grid-template-columns:1fr !important}
+  @media (min-width:900px){ .panes{grid-template-columns:290px 1fr !important} }
+  .searchrow{display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap}
+  .searchrow input{
+    flex:1 1 220px; min-width:0; font:13.5px/1.5 inherit; padding:8px 12px;
+    border-radius:9px; border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  .searchrow input:focus{outline:2px solid var(--accent); outline-offset:-1px}
+
+  .list{max-height:520px; overflow:auto; padding:8px}
+  .li{
+    display:flex; flex-direction:column; gap:2px; padding:8px 10px; border-radius:8px;
+    cursor:pointer; border:1px solid transparent;
+  }
+  .li:hover{background:var(--soft)}
+  .li.on{background:var(--soft); border-color:var(--accent)}
+  .li b{font-size:13.5px; font-weight:600}
+  .li span{font-size:11.5px; color:var(--dim); font-family:ui-monospace,Menlo,Consolas,monospace;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .cathead{font-size:11.5px; color:var(--dim); letter-spacing:.4px; padding:9px 10px 3px; font-weight:600}
+
+  .detail{padding:13px 14px}
+  .dtitle{font-size:16px; font-weight:600; margin:0 0 4px}
+  .ddesc{font-size:13px; color:var(--dim); line-height:1.85; margin:0 0 12px}
+  .rebox{
+    display:flex; gap:8px; align-items:flex-start; padding:10px 12px; border-radius:9px;
+    background:var(--soft); border:1px solid var(--line);
+  }
+  .rebox code{
+    flex:1 1 auto; min-width:0; font:13px/1.75 ui-monospace,Menlo,Consolas,monospace;
+    word-break:break-all; color:var(--fg); white-space:pre-wrap;
+  }
+  .rebox button{
+    flex:0 0 auto; font:inherit; font-size:11.5px; padding:4px 9px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  .rebox button:hover{border-color:var(--accent); color:var(--accent)}
+  .ex{display:grid; gap:5px; margin:12px 0 0; font-size:13px}
+  .ex div{display:flex; gap:8px; align-items:flex-start; line-height:1.7}
+  .ex i{font-style:normal; flex:0 0 auto; font-weight:700; font-size:13px}
+  .ex .y i{color:var(--ok)}
+  .ex .n i{color:var(--err)}
+  .ex code{
+    font:12.5px/1.6 ui-monospace,Menlo,Consolas,monospace; color:var(--fg);
+    background:var(--card); border:1px solid var(--line); border-radius:5px; padding:1px 6px;
+    word-break:break-all;
+  }
+  .ex em{font-style:normal; color:var(--dim); font-size:12px; margin-left:2px}
+  .testlbl{font-size:12.5px; color:var(--dim); margin:16px 0 6px; display:flex; gap:10px; align-items:center}
+  .testlbl b{color:var(--fg); font-weight:600}
+  textarea#test{
+    height:110px; min-height:80px; border:1px solid var(--line); border-radius:9px;
+    font:13px/1.7 ui-monospace,Menlo,Consolas,monospace; padding:10px 12px; background:var(--card);
+  }
+  #hit{
+    margin-top:9px; padding:10px 12px; border-radius:9px; background:var(--card);
+    border:1px solid var(--line); font:13px/1.9 ui-monospace,Menlo,Consolas,monospace;
+    word-break:break-word; max-height:180px; overflow:auto; white-space:pre-wrap;
+  }
+  #hit mark{background:var(--accent); color:var(--accent-fg); border-radius:3px; padding:0 2px}
+  .msg{font-size:12.5px; color:var(--ok); min-height:18px; margin-top:8px}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.9; margin-top:12px}
+  .hint b{color:var(--fg); font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>常用正则</h1>
+      <p class="lede">手机号、邮箱、身份证、网址该用哪条？点一条复制走，下面还带自测框，先在这儿试准了再贴进代码。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="searchrow">
+    <input id="q" type="search" placeholder="搜：手机、身份证、金额、日期、URL……" autocomplete="off">
+    <span class="lbl" id="cnt"></span>
+  </div>
+  <div class="row" id="cats"></div>
+
+  <div class="panes">
+    <div class="pane">
+      <h2><span>全部规则</span><span id="nList"></span></h2>
+      <div class="list" id="list"></div>
+    </div>
+    <div class="pane">
+      <div class="detail" id="detail"></div>
+    </div>
+  </div>
+  <div class="msg" id="msg"></div>
+
+  <p class="hint">
+    这些都是<b>整串校验</b>（首尾带 ^ $），意思是「这行必须完整符合」，多一个空格就不认。
+    如果只想在一大段文字里<b>找出来</b>，把开头的 ^ 和结尾的 $ 去掉。
+    <br>下面自测框里的匹配是按「全部匹配」跑的，所以带 g 的那几条（HTML 标签、Markdown 链接）会把每一处都标出来。
+  </p>
+
+  <footer>全部在浏览器里算，文字不上传。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script src="../assets/pattern/patterns.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var ALL = PATTERNS, CAT = '全部', KEY = '', SEL = 0;
+  var CATS = ['全部'];
+  ALL.forEach(function(p){ if (CATS.indexOf(p.cat) < 0) CATS.push(p.cat); });
+
+  var TEST = ['13800138000', '+86 13912345678', '12345678901', 'hi@example.com',
+    'https://example.com/a?b=1', '2026-11-17T04:00:00Z', '1,234.56',
+    '11010519491231002X', '#2F6DF6', '550e8400-e29b-41d4-a716-446655440000'].join(String.fromCharCode(10));
+
+  function esc(s){
+    return String(s).replace(/[&<>]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; });
+  }
+  function say(t){ $('msg').textContent = t || ''; }
+
+  function paintCats(){
+    $('cats').innerHTML = CATS.map(function(c){
+      return '<button class="chip' + (c === CAT ? ' on' : '') + '" data-cat="' + esc(c) + '">' + esc(c) + '</button>';
+    }).join('');
+  }
+
+  function filtered(){
+    return ALL.map(function(p, i){ return { p: p, i: i }; }).filter(function(o){
+      if (CAT !== '全部' && o.p.cat !== CAT) return false;
+      if (!KEY) return true;
+      var hay = (o.p.name + ' ' + o.p.desc + ' ' + o.p.re.source + ' ' + o.p.yes.join(' ')).toLowerCase();
+      return hay.indexOf(KEY) > -1;
+    });
+  }
+
+  function paintList(){
+    var arr = filtered(), last = '', html = '';
+    if (!arr.length){
+      $('list').innerHTML = '<div class="empty">没找到，换个词试试。</div>';
+      $('nList').textContent = '';
+      return;
+    }
+    arr.forEach(function(o){
+      if (o.p.cat !== last){ html += '<div class="cathead">' + esc(o.p.cat) + '</div>'; last = o.p.cat; }
+      html += '<div class="li' + (o.i === SEL ? ' on' : '') + '" data-i="' + o.i + '">' +
+        '<b>' + esc(o.p.name) + '</b><span>' + esc(o.p.re.source) + '</span></div>';
+    });
+    $('list').innerHTML = html;
+    $('nList').textContent = arr.length + ' 条';
+    $('cnt').textContent = arr.length + ' / ' + ALL.length + ' 条';
+  }
+
+  function reTest(p, s){
+    var r = new RegExp(p.re.source, p.re.flags.replace('g', ''));
+    return r.test(s);
+  }
+
+  function paintDetail(){
+    var p = ALL[SEL];
+    if (!p){ $('detail').innerHTML = '<div class="empty">左边选一条。</div>'; return; }
+    var yes = (p.yes || []).map(function(s){
+      var ok = reTest(p, s);
+      return '<div class="' + (ok ? 'y' : 'n') + '"><i>' + (ok ? '✓' : '✗') + '</i><code>' +
+        (s === '' ? '<span style="color:var(--dim)">（空字符串）</span>' : esc(s)) + '</code></div>';
+    }).join('');
+    var no = (p.no || []).map(function(s){
+      var bad = reTest(p, s);
+      return '<div class="' + (bad ? 'n' : 'y') + '"><i>' + (bad ? '✗' : '✓') + '</i><code>' +
+        esc(s) + '</code>' + (bad ? '<em>不该匹配却匹配上了</em>' : '') + '</div>';
+    }).join('');
+
+    $('detail').innerHTML =
+      '<h2 class="dtitle">' + esc(p.name) + '</h2>' +
+      '<p class="ddesc">' + esc(p.desc) + '</p>' +
+      '<div class="rebox"><code>' + esc(p.re.source) + '</code>' +
+        '<button data-copy="1">复制正则</button></div>' +
+      '<div class="ex">' + yes + no + '</div>' +
+      '<div class="testlbl"><b>自己试一段</b><span>匹配到的地方会标出来</span></div>' +
+      '<textarea id="test" spellcheck="false">' + esc(TEST) + '</textarea>' +
+      '<div id="hit"></div>';
+    runTest();
+  }
+
+  function runTest(){
+    var p = ALL[SEL], box = $('test'), hit = $('hit');
+    if (!p || !box || !hit) return;
+    var txt = box.value;
+    var flags = p.re.flags.indexOf('g') > -1 ? p.re.flags : p.re.flags + 'g';
+    if (flags.indexOf('m') < 0) flags += 'm';  // 多行文字按行首行尾算，否则带 ^$ 的一条都标不出来
+    var re, html = '', last = 0, n = 0, m;
+    try { re = new RegExp(p.re.source, flags); }
+    catch (e){ hit.textContent = '这条正则没法在浏览器里跑：' + e.message; return; }
+    if (!txt.trim()){
+      hit.innerHTML = '<span style="color:var(--dim)">上面粘一段文字，这里会标出命中的部分。</span>';
+      return;
+    }
+    while ((m = re.exec(txt)) !== null){
+      html += esc(txt.slice(last, m.index)) + '<mark>' + esc(m[0]) + '</mark>';
+      last = m.index + m[0].length;
+      n++;
+      if (m[0].length === 0) re.lastIndex++;
+      if (n >= 500) break;
+    }
+    html += esc(txt.slice(last));
+
+    var lines = 0, okLines = 0;
+    txt.split('\n').forEach(function(l){
+      if (!l.trim()) return;
+      lines++;
+      if (reTest(p, l)) okLines++;
+    });
+    hit.innerHTML = html +
+      '<div style="margin-top:8px;color:var(--dim);font-family:inherit;font-size:12.5px">' +
+      '共标出 ' + n + ' 处；按整行整串校验，' + lines + ' 行里有 ' + okLines + ' 行完全符合。</div>';
+  }
+
+  $('list').addEventListener('click', function(e){
+    var li = e.target.closest('.li[data-i]');
+    if (!li) return;
+    SEL = +li.getAttribute('data-i');
+    paintList(); paintDetail(); say('');
+  });
+
+  $('cats').addEventListener('click', function(e){
+    var b = e.target.closest('[data-cat]');
+    if (!b) return;
+    CAT = b.getAttribute('data-cat');
+    paintCats(); paintList();
+  });
+
+  $('detail').addEventListener('click', function(e){
+    var b = e.target.closest('[data-copy]');
+    if (!b) return;
+    copyText(ALL[SEL].re.source, b, '复制正则');
+    say('已复制：' + ALL[SEL].re.source);
+  });
+
+  $('detail').addEventListener('input', function(e){
+    if (e.target.id === 'test') runTest();
+  });
+
+  $('q').addEventListener('input', function(){
+    KEY = $('q').value.trim().toLowerCase();
+    var arr = filtered();
+    if (arr.length && !arr.some(function(o){ return o.i === SEL; })){
+      SEL = arr[0].i; paintDetail();
+    }
+    paintList();
+  });
+
+  paintCats(); paintList();
+
+  // 默认选中第一条「手机号」，打开就有东西看
+  SEL = 0;
+  for (var i = 0; i < ALL.length; i++){ if (ALL[i].name.indexOf('手机号') > -1){ SEL = i; break; } }
+  paintList(); paintDetail();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

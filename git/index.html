@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Git 急救 · 做错了怎么退回去</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .searchrow{display:flex; gap:8px; align-items:center; margin-bottom:10px; flex-wrap:wrap}
+  .searchrow input{
+    flex:1 1 240px; min-width:0; font:13.5px/1.5 inherit; padding:8px 12px;
+    border-radius:9px; border:1px solid var(--line); background:var(--card); color:var(--fg);
+  }
+  .searchrow input:focus{outline:2px solid var(--accent); outline-offset:-1px}
+
+  .cards{display:grid; gap:10px; grid-template-columns:1fr}
+  @media (min-width:860px){ .cards{grid-template-columns:1fr 1fr} }
+  .sc{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:12px 13px; display:flex; flex-direction:column; gap:0; min-width:0;
+  }
+  .sct{display:flex; align-items:flex-start; gap:8px; justify-content:space-between}
+  .sct b{font-size:14px; font-weight:600; line-height:1.5}
+  .sct button{
+    flex:0 0 auto; font:inherit; font-size:11.5px; padding:3px 9px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); white-space:nowrap;
+  }
+  .sct button:hover{border-color:var(--accent); color:var(--accent)}
+  .scd{font-size:12.5px; color:var(--dim); line-height:1.8; margin:5px 0 9px}
+  .cmd{
+    margin:0; padding:9px 11px; border-radius:8px; background:var(--soft);
+    font:12.5px/1.75 ui-monospace,Menlo,Consolas,monospace; color:var(--fg);
+    white-space:pre-wrap; word-break:break-all; cursor:pointer; border:1px solid transparent;
+  }
+  .cmd:hover{border-color:var(--accent)}
+  .warn{font-size:12px; line-height:1.75; color:var(--warn); margin:8px 0 0}
+  .warn::before{content:"⚠ "; }
+  .group{font-size:12.5px; font-weight:600; color:var(--dim); letter-spacing:.4px; margin:20px 0 8px}
+  .group:first-of-type{margin-top:4px}
+  .msg{font-size:12.5px; color:var(--ok); min-height:18px; margin-top:8px}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.95; margin-top:14px}
+  .hint b{color:var(--fg); font-weight:600}
+  .hint code{font-family:ui-monospace,Menlo,Consolas,monospace; color:var(--fg); font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Git 急救</h1>
+      <p class="lede">提交写错了、分支删掉了、推不上去 —— 说清症状，给一条能直接粘的命令，顺带告诉你什么时候别这么干。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="searchrow">
+    <input id="q" type="search" placeholder="搜：撤销提交、找回分支、push 被拒、还原文件……" autocomplete="off">
+    <span class="lbl" id="cnt"></span>
+  </div>
+  <div class="row" id="cats"></div>
+
+  <div id="out"></div>
+  <div class="msg" id="msg"></div>
+
+  <p class="hint">
+    三条保命常识：<b>没提交的东西 git 救不回来</b>（<code>checkout</code> / <code>reset --hard</code> 之前先 <code>git stash</code>）；
+    <b>推上去的东西别改写历史</b>，用 <code>revert</code> 而不是 <code>reset</code>；
+    真弄丢了先敲 <code>git reflog</code> —— 它记着每个 HEAD 去过哪儿，绝大多数「丢了的提交」都还在里面。
+    <br>下面的命令里 <code>&lt;提交号&gt;</code> 就是 <code>git log --oneline</code> 里那串短哈希，前 7 位就够。
+  </p>
+
+  <footer>纯手册页，不连你的仓库、不上传任何东西。命令自己看清再跑。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+
+  var DATA = [
+    /* 提交改错了 */
+    { g: '提交改错了', t: '刚提交，提交信息写错了',
+      d: '只改最近一条的说明文字，改动内容一个字不动。',
+      c: 'git commit --amend -m "新的提交信息"',
+      w: '已经 push 过就别用：改了哈希，别人拉过就分叉。' },
+
+    { g: '提交改错了', t: '刚提交，发现漏了一个文件',
+      d: '把漏的文件补进上一次提交，提交信息保持不变。',
+      c: 'git add 漏掉的文件\ngit commit --amend --no-edit' },
+
+    { g: '提交改错了', t: '提交多了，想撤回来但改动要留着',
+      d: '撤销提交本身，把改动退回暂存区，文件内容还在。',
+      c: 'git reset --soft HEAD~1' },
+
+    { g: '提交改错了', t: '这次提交整个不要了，改动也别留',
+      d: '连工作区一起退回上一次提交的状态。',
+      c: 'git reset --hard HEAD~1',
+      w: '改过的内容会被清掉，救不回来。先跑 git stash 存一下更稳。' },
+
+    { g: '提交改错了', t: '倒数第三条的提交信息写错了',
+      d: '交互式变基，把要改那行的 pick 改成 reword，保存退出后填新信息。',
+      c: 'git rebase -i HEAD~3',
+      w: '只改没推过的提交。中途慌了按 Esc 再输 :q! 退出，或 git rebase --abort。' },
+
+    { g: '提交改错了', t: '一堆碎提交想合成一条',
+      d: '同样进交互式变基，把后面的 pick 改成 squash，会依次让你合并提交信息。',
+      c: 'git rebase -i HEAD~4' },
+
+    { g: '提交改错了', t: '撤销中间某一条提交，后面的要保留',
+      d: '反做某次提交，生成一条新的「反向提交」，历史不改写，最安全。',
+      c: 'git revert <提交号>\ngit push' },
+
+    { g: '提交改错了', t: '提交里混进了密码、密钥',
+      d: '还没推：撤回这次提交，删掉那一行再重新提交。',
+      c: 'git reset HEAD~1\n# 删掉密钥后\ngit add -A && git commit -m "提交信息"',
+      w: '只要推过一次就当泄露处理：立刻去平台作废并换新的，别指望改历史能收回。' },
+
+    /* 分支与暂存 */
+    { g: '分支与暂存', t: '改到一半，必须先切去别的分支',
+      d: '把当前改动存进储藏室，切回来再取出来。',
+      c: 'git stash push -m "写了一半"\ngit switch 别的分支\n# 回来后\ngit stash pop' },
+
+    { g: '分支与暂存', t: '删错分支了，想找回',
+      d: 'reflog 记着分支头之前在哪，找到那次提交再建个分支指过去。',
+      c: 'git reflog\ngit branch 分支名 <提交号>' },
+
+    { g: '分支与暂存', t: '只想把别的分支某一个提交搬过来',
+      d: '挑一条提交，在当前分支上复制一份。',
+      c: 'git cherry-pick <提交号>' },
+
+    { g: '分支与暂存', t: '本地和远端分叉，push 被拒',
+      d: '先把远端的新提交拉下来接到自己后面，再推。',
+      c: 'git pull --rebase\ngit push' },
+
+    { g: '分支与暂存', t: '分支名起错了',
+      d: '本地改名；已经推过的话，再推新名字并把远端旧名删掉。',
+      c: 'git branch -m 新名字\ngit push -u origin 新名字\ngit push origin --delete 旧名字' },
+
+    { g: '分支与暂存', t: '想看自己这几天提交了什么',
+      d: '按作者和时间筛提交记录。',
+      c: 'git log --author="你的名字" --since="3 days ago" --oneline' },
+
+    /* 文件还原 */
+    { g: '文件还原', t: '文件改坏了，想还原成上次提交的样子',
+      d: '只丢这个文件没提交的改动，别的文件不动。',
+      c: 'git restore 文件名',
+      w: 'Git 2.23 以前没有 restore，用 git checkout -- 文件名。' },
+
+    { g: '文件还原', t: '文件被误删了',
+      d: '还没提交删除：直接从暂存区/HEAD 取回来。',
+      c: 'git restore 文件名',
+      w: '如果删除已经提交过，就取上一个版本：git checkout HEAD~1 -- 文件名。' },
+
+    { g: '文件还原', t: '文件不想再被 git 管，但磁盘上要留着',
+      d: '从版本控制里摘出去，文件还在，然后写进 .gitignore。',
+      c: 'git rm --cached 文件名\necho "文件名" >> .gitignore\ngit commit -m "停止跟踪"' },
+
+    { g: '文件还原', t: '本地改了某个配置，但永远不想提交',
+      d: '让 git 假装这个文件没被改过（拉代码也不会覆盖它）。',
+      c: 'git update-index --skip-worktree 配置文件\n# 想恢复跟踪\ngit update-index --no-skip-worktree 配置文件' },
+
+    { g: '文件还原', t: 'reset 之后发现提交弄丢了',
+      d: 'reflog 里能找到 reset 之前的位置，直接回去。',
+      c: 'git reflog\ngit reset --hard <提交号>' },
+
+    { g: '文件还原', t: '工作区彻底乱套，想回到干净状态',
+      d: '先看清楚 clean 会删掉哪些没被跟踪的文件，确认了再删。',
+      c: 'git reset --hard HEAD\ngit clean -nd\ngit clean -fd',
+      w: 'git clean -fd 删的是「从没提交过」的文件，删了就没了。先跑 -n 那行看清楚。' },
+
+    /* 推送出事 */
+    { g: '推送出事', t: 'push 提示 rejected / non-fast-forward',
+      d: '远端有你本地没有的提交。拉下来接上再推（会变成一条直线）。',
+      c: 'git pull --rebase\ngit push' },
+
+    { g: '推送出事', t: '已经推上去的提交要撤销',
+      d: '生成一条反向提交，历史不改写，别人拉不会出问题。',
+      c: 'git revert <提交号>\ngit push' },
+
+    { g: '推送出事', t: '非改写历史不可（推错了敏感内容）',
+      d: '改写后用 --force-with-lease 推：远端若有别人的新提交，它会拒绝而不是覆盖。',
+      c: 'git push --force-with-lease',
+      w: '比 --force 安全，但仍然会打断别人。改完通知一下协作者。' },
+
+    { g: '推送出事', t: '远端分支推错了，想删掉',
+      d: '删远端分支（本地分支不受影响）。',
+      c: 'git push origin --delete 分支名' },
+
+    { g: '推送出事', t: '换远端仓库地址',
+      d: '改了地址但历史还在，不用重新 clone。',
+      c: 'git remote set-url origin <新地址>\ngit remote -v' },
+
+    { g: '推送出事', t: '只想推当前分支，别带别的上去',
+      d: '明确指定分支名，避免推到默认分支。',
+      c: 'git push origin 当前分支名' },
+
+    /* 查问题 */
+    { g: '查问题', t: '想看提交历史长什么样',
+      d: '一行一条、带分支标记的树状图，比默认输出好读。',
+      c: 'git log --graph --oneline --decorate --all' },
+
+    { g: '查问题', t: '这行代码是谁改的、哪次提交',
+      d: '逐行标出最后改动它的提交和作者，只看 20–40 行。',
+      c: 'git blame -L 20,40 文件名' },
+
+    { g: '查问题', t: '找出哪次提交引入了 bug',
+      d: '二分查找：标记好和坏，git 每次帮你切一半，几次就定位到。',
+      c: 'git bisect start\ngit bisect bad\ngit bisect good <已知正常的提交号>\n# 每次测试后标 git bisect good / bad\ngit bisect reset' },
+
+    { g: '查问题', t: '某个文件历史上怎么变的',
+      d: '跟着改名走，一次看全每版改动。',
+      c: 'git log --follow -p -- 文件名' },
+
+    { g: '查问题', t: '两个分支差哪些文件',
+      d: '只看文件清单和增删行数，不看具体内容。',
+      c: 'git diff --stat main..feature' },
+
+    { g: '查问题', t: '这次到底暂存了什么',
+      d: '看暂存区和上次提交的差别，push 前扫一眼防误提交。',
+      c: 'git diff --cached' },
+
+    /* 一次配置 */
+    { g: '一次配置', t: '提交作者写错了',
+      d: '改最近一次提交的作者；全局身份另配。',
+      c: 'git commit --amend --author="名字 <邮箱>"\ngit config --global user.name "名字"\ngit config --global user.email "邮箱"' },
+
+    { g: '一次配置', t: '中文文件名显示成 \\344\\275\\240',
+      d: '关掉路径转义，中文原样显示。',
+      c: 'git config --global core.quotepath false' },
+
+    { g: '一次配置', t: 'Windows 上老是提示换行符 will be replaced',
+      d: '让 git 自动处理 CRLF。老项目原来存的就是 LF 时，用 input 更稳。',
+      c: 'git config --global core.autocrlf true' },
+
+    { g: '一次配置', t: '每次 push 都要输账号密码',
+      d: '让 git 记住凭据（明文存在用户目录下）。',
+      c: 'git config --global credential.helper store',
+      w: '凭据是明文保存的，公用电脑别开。更稳的是配 SSH 密钥。' }
+  ];
+
+  var CAT = '全部', KEY = '', CATS = ['全部'];
+  DATA.forEach(function(d){ if (CATS.indexOf(d.g) < 0) CATS.push(d.g); });
+
+  function esc(s){
+    return String(s).replace(/[&<>]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; });
+  }
+  function say(t){ $('msg').textContent = t || ''; }
+
+  function paintCats(){
+    $('cats').innerHTML = CATS.map(function(c){
+      return '<button class="chip' + (c === CAT ? ' on' : '') + '" data-cat="' + esc(c) + '">' + esc(c) + '</button>';
+    }).join('');
+  }
+
+  function card(d, i){
+    return '<div class="sc">' +
+      '<div class="sct"><b>' + esc(d.t) + '</b>' +
+        '<button data-copy="' + i + '">复制命令</button></div>' +
+      '<p class="scd">' + esc(d.d) + '</p>' +
+      '<pre class="cmd" data-copy="' + i + '">' + esc(d.c) + '</pre>' +
+      (d.w ? '<p class="warn">' + esc(d.w) + '</p>' : '') +
+      '</div>';
+  }
+
+  function paint(){
+    var hit = DATA.map(function(d, i){ return { d: d, i: i }; }).filter(function(o){
+      if (CAT !== '全部' && o.d.g !== CAT) return false;
+      if (!KEY) return true;
+      var hay = (o.d.t + ' ' + o.d.d + ' ' + o.d.c + ' ' + (o.d.w || '') + ' ' + o.d.g).toLowerCase();
+      return hay.indexOf(KEY) > -1;
+    });
+
+    $('cnt').textContent = hit.length + ' / ' + DATA.length + ' 条';
+    if (!hit.length){
+      $('out').innerHTML = '<div class="empty">没找到这个场景。试试「撤销」「找回」「push」这类词。</div>';
+      return;
+    }
+    var parts = [], cur = null;
+    hit.forEach(function(o){
+      if (o.d.g !== cur){ parts.push({ g: o.d.g, items: [] }); cur = o.d.g; }
+      parts[parts.length - 1].items.push(o);
+    });
+    $('out').innerHTML = parts.map(function(p){
+      return '<div class="group">' + esc(p.g) + '</div><div class="cards">' +
+        p.items.map(function(o){ return card(o.d, o.i); }).join('') + '</div>';
+    }).join('');
+  }
+
+  $('out').addEventListener('click', function(e){
+    var t = e.target.closest('[data-copy]');
+    if (!t) return;
+    var d = DATA[+t.getAttribute('data-copy')];
+    copyText(d.c, t.tagName === 'BUTTON' ? t : null, '复制命令');
+    say('已复制「' + d.t + '」的命令。');
+  });
+
+  $('cats').addEventListener('click', function(e){
+    var b = e.target.closest('[data-cat]');
+    if (!b) return;
+    CAT = b.getAttribute('data-cat');
+    paintCats(); paint();
+  });
+
+  $('q').addEventListener('input', function(){
+    KEY = $('q').value.trim().toLowerCase();
+    paint();
+  });
+
+  paintCats(); paint();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
