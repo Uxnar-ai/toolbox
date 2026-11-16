@@ -60,7 +60,7 @@
   .testlbl{font-size:12.5px; color:var(--dim); margin:16px 0 6px; display:flex; gap:10px; align-items:center}
   .testlbl b{color:var(--fg); font-weight:600}
   textarea#test{
-    height:110px; min-height:80px; border:1px solid var(--line); border-radius:9px;
+    height:150px; min-height:80px; border:1px solid var(--line); border-radius:9px;
     font:13px/1.7 ui-monospace,Menlo,Consolas,monospace; padding:10px 12px; background:var(--card);
   }
   #hit{
@@ -119,9 +119,15 @@
   var CATS = ['全部'];
   ALL.forEach(function(p){ if (CATS.indexOf(p.cat) < 0) CATS.push(p.cat); });
 
-  var TEST = ['13800138000', '+86 13912345678', '12345678901', 'hi@example.com',
-    'https://example.com/a?b=1', '2026-11-17T04:00:00Z', '1,234.56',
-    '11010519491231002X', '#2F6DF6', '550e8400-e29b-41d4-a716-446655440000'].join(String.fromCharCode(10));
+  // 示例每行一条：选哪条规则，都能在其中找到该匹配的行
+  var TEST = ['13800138000', 'hi@example.com', '11010519491231002X', '6222021234567890',
+    '张三', '100084', '203.0.113.24', 'example.com', '8080',
+    '00:1A:2B:3C:4D:5E', '2001:0db8:0000:0000:0000:ff00:0042:8329',
+    'https://example.com/a?b=1', '2026-11-17', '09:30', '2026-11-17T04:00:00Z',
+    '1731792000', '1,234.56', '12.5%', '#2F6DF6', '550e8400-e29b-41d4-a716-446655440000',
+    'aGVsbG8=', 'userName', 'Abc12345', '这是中文一行', 'the the cat',
+    '<div class="a">', '[文档](https://example.com)', 'SELECT 1 -- 说明',
+    '中文abc', '', '  缩进行'].join(String.fromCharCode(10));
 
   function esc(s){
     return String(s).replace(/[&<>]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; });
@@ -185,7 +191,7 @@
       '<div class="rebox"><code>' + esc(p.re.source) + '</code>' +
         '<button data-copy="1">复制正则</button></div>' +
       '<div class="ex">' + yes + no + '</div>' +
-      '<div class="testlbl"><b>自己试一段</b><span>匹配到的地方会标出来</span></div>' +
+      '<div class="testlbl"><b>自己试一段</b><span>示例三十行，换哪条规则都能找到该匹配的行</span></div>' +
       '<textarea id="test" spellcheck="false">' + esc(TEST) + '</textarea>' +
       '<div id="hit"></div>';
     runTest();
