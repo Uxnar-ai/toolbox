@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>代码美化 · 挤成一团的 HTML / CSS / JS 排回人看的样子</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{align-items:stretch}
+  .pane{padding-bottom:2px}
+  .pane h2{height:38px}
+  textarea{height:400px; font:12.5px/1.7 ui-monospace,Menlo,Consolas,monospace}
+  pre.out{height:400px; font:12.5px/1.7 ui-monospace,Menlo,Consolas,monospace; white-space:pre; overflow:auto}
+  .stats{margin-top:0}
+  .note{
+    margin-top:10px; padding:10px 12px; border-radius:9px; background:var(--soft);
+    font-size:12.5px; color:var(--dim); line-height:1.8; min-height:0;
+  }
+  .note:empty{display:none}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.95; margin-top:12px}
+  .hint b{color:var(--fg); font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>代码美化</h1>
+      <p class="lede">从网页或构建产物里扒出来的一行 HTML、CSS、JS，粘进来就按缩进排好；反过来也能压成一行。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="row">
+    <span class="lbl">类型</span>
+    <button class="chip on" data-type="auto" type="button">自动认</button>
+    <button class="chip" data-type="html" type="button">HTML</button>
+    <button class="chip" data-type="css" type="button">CSS</button>
+    <button class="chip" data-type="js" type="button">JS</button>
+    <span class="sep"></span>
+    <span class="lbl">模式</span>
+    <button class="chip on" data-mode="pretty" type="button">美化</button>
+    <button class="chip" data-mode="min" type="button">压成一行</button>
+    <span class="sep"></span>
+    <span class="lbl">缩进</span>
+    <button class="chip on" data-ind="2" type="button">2 空格</button>
+    <button class="chip" data-ind="4" type="button">4 空格</button>
+    <button class="chip" data-ind="t" type="button">Tab</button>
+  </div>
+
+  <div class="row" style="margin-top:-4px">
+    <span class="lbl">示例</span>
+    <button class="chip quick" data-demo="html" type="button">一段压成一行的 HTML</button>
+    <button class="chip quick" data-demo="css" type="button">压缩过的 CSS</button>
+    <button class="chip quick" data-demo="js" type="button">挤在一起的 JS</button>
+  </div>
+
+  <div class="panes">
+    <div class="pane">
+      <h2><span>原文</span><span id="inTag">HTML · 1 行</span></h2>
+      <textarea id="src" spellcheck="false"></textarea>
+    </div>
+    <div class="pane">
+      <h2><span>排好的</span><button id="copy" type="button">复制</button></h2>
+      <pre class="out" id="out"></pre>
+    </div>
+  </div>
+
+  <div class="stats">
+    <span>现在按 <b id="typNow">HTML</b> 处理</span>
+    <span>行数 <b id="nOut">0</b></span>
+    <span>体积 <b id="szOut">0 B</b></span>
+    <span id="gain"></span>
+  </div>
+
+  <div class="note" id="note"></div>
+
+  <p class="hint">
+    <b>它只动空白，不动内容</b>：标签、属性、字符串一个都不改，所以排完还能照常跑。JS 里的字符串、模板字符串、正则和注释也都原样保留。<br>
+    <b>JS 不提供压缩</b>：JS 压缩要处理自动补分号（换行在某些地方是语法），压错了页面直接白屏，这种事交给构建工具做更稳。
+    <b>HTML 压缩</b>会去掉标签之间的空白，行内元素并排时可能贴在一起，介意就别压。
+    <b>CSS 压缩</b>会删注释和多余空格，`calc(100% - 20px)` 里的空格会保留。
+  </p>
+
+  <footer>全部在本机算，代码不上传。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var st = { type: 'auto', mode: 'pretty', ind: 2 };
+
+  var DEMO = {
+    html: '<div class="card"><h2>今天的菜</h2><p>冰箱里只剩 <b>两个鸡蛋</b> 和半根葱，<a href="https://example.com/recipe">照着这个做</a>。</p><ul><li>先炒蛋</li><li>再下番茄</li></ul><!-- 备注：火别太大 --></div>',
+    css: '@media screen and (max-width:600px){.card{padding:8px;border-radius:8px}.card h2{font-size:15px;color:#1b1d21}.card p{margin:0;line-height:1.7;color:rgba(0,0,0,.6)}.btn{background:url(data:image/png;base64,AAA);}}.btn:hover{transform:translateY(-1px)}',
+    js: 'function sum(a,b){var t=0;for(var i=0;i<a.length;i++){t+=a[i]*b}return t}var re=/^\\d{2,}$/g,msg="总价: ";if(sum([1,2,3],2)>10){console.log(msg+sum([1,2,3],2))}else{console.log("便宜")}'
+  };
+
+  // ---------- HTML ----------
+  var VOID = {area:1,base:1,br:1,col:1,embed:1,hr:1,img:1,input:1,link:1,meta:1,param:1,source:1,track:1,wbr:1};
+  var INLINE = {a:1,abbr:1,b:1,bdi:1,bdo:1,br:1,button:1,cite:1,code:1,data:1,del:1,dfn:1,em:1,i:1,img:1,input:1,ins:1,kbd:1,label:1,mark:1,q:1,s:1,samp:1,small:1,span:1,strong:1,sub:1,sup:1,time:1,u:1,var:1,wbr:1};
+  var RAWTAG = {script:1,style:1,pre:1,textarea:1};
+
+  function htmlTokens(s){
+    var out = [], i = 0, n = s.length;
+    while (i < n){
+      if (s.charAt(i) === '<'){
+        if (s.startsWith('<!--', i)){
+          var e = s.indexOf('-->', i); e = e < 0 ? n : e + 3;
+          out.push({ t: 'cmt', v: s.slice(i, e) }); i = e; continue;
+        }
+        if (s.startsWith('<![CDATA[', i)){
+          var e2 = s.indexOf(']]>', i); e2 = e2 < 0 ? n : e2 + 3;
+          out.push({ t: 'decl', v: s.slice(i, e2) }); i = e2; continue;
+        }
+        if (s.charAt(i + 1) === '!' || s.charAt(i + 1) === '?'){
+          var e3 = s.indexOf('>', i); e3 = e3 < 0 ? n : e3 + 1;
+          out.push({ t: 'decl', v: s.slice(i, e3) }); i = e3; continue;
+        }
+        var j = i + 1, q = null;
+        while (j < n){
+          var ch = s.charAt(j);
+          if (q){ if (ch === q) q = null; }
+          else if (ch === '"' || ch === "'") q = ch;
+          else if (ch === '>') break;
+          j++;
+        }
+        var raw = s.slice(i, j + 1);
+        var m = raw.match(/^<\/?\s*([a-zA-Z][\w:-]*)/);
+        out.push({
+          t: 'tag', raw: raw,
+          name: m ? m[1].toLowerCase() : '',
+          close: /^<\//.test(raw),
+          self: /\/>$/.test(raw) || (m ? !!VOID[m[1].toLowerCase()] : false)
+        });
+        i = j + 1; continue;
+      }
+      var k = s.indexOf('<', i); if (k < 0) k = n;
+      out.push({ t: 'text', v: s.slice(i, k) });
+      i = k;
+    }
+    return out;
+  }
+
+  function padOf(){
+    return st.ind === 't' ? '\t' : new Array(st.ind + 1).join(' ');
+  }
+
+  function fmtHTML(s){
+    var toks = htmlTokens(s), U = padOf(), lines = [], buf = '', lvl = 0;
+    function ind(){ return new Array(lvl + 1).join(U); }
+    function push(l){ if (l !== null && l.trim() !== '') lines.push(ind() + l.trim()); }
+    function flush(){ if (buf.trim()) push(buf); buf = ''; }
+
+    for (var i = 0; i < toks.length; i++){
+      var t = toks[i];
+      if (t.t === 'text'){
+        buf += t.v.replace(/\s+/g, ' ');
+        continue;
+      }
+      if (t.t === 'cmt' || t.t === 'decl'){
+        flush(); push(t.v); continue;
+      }
+      if (t.t === 'tag' && t.close){
+        if (INLINE[t.name]){ buf += t.raw; continue; }
+        flush(); lvl = Math.max(0, lvl - 1); push(t.raw);
+        continue;
+      }
+      // 开标签
+      if (VOID[t.name] || INLINE[t.name]){ buf += t.raw; continue; }
+
+      flush();
+      var t1 = toks[i + 1], t2 = toks[i + 2];
+      // <h1>标题</h1> 这种纯文字内容，排在一行里更易读
+      if (t1 && t1.t === 'text' && t1.v.trim() && t2 && t2.t === 'tag' && t2.close && t2.name === t.name){
+        push(t.raw + t1.v.trim().replace(/\s+/g, ' ') + t2.raw);
+        i += 2;
+        continue;
+      }
+      if (t1 && t1.t === 'tag' && t1.close && t1.name === t.name){
+        push(t.raw + t1.raw);
+        i += 1;
+        continue;
+      }
+      // script / style / pre：里面原样保留，只整体加缩进
+      if (RAWTAG[t.name]){
+        push(t.raw);
+        var inner = [], depth = 1, j = i + 1;
+        while (j < toks.length){
+          var u = toks[j];
+          if (u.t === 'tag' && u.name === t.name && !u.close) depth++;
+          if (u.t === 'tag' && u.name === t.name && u.close){ depth--; if (depth === 0) break; }
+          inner.push(u.raw || u.v);
+          j++;
+        }
+        var body = inner.join('').replace(/^\s*\n/, '').replace(/\s+$/, '');
+        if (body) body.split('\n').forEach(function(ln){ lines.push(ind() + U + ln.replace(/\s+$/, '')); });
+        lvl = Math.max(0, lvl);
+        if (j < toks.length){ lines.push(ind() + toks[j].raw); i = j; }
+        continue;
+      }
+      push(t.raw);
+      lvl++;
+    }
+    flush();
+    return lines.join('\n');
+  }
+
+  function minHTML(s){
+    var toks = htmlTokens(s), res = '', rawDepth = 0, rawName = '';
+    for (var i = 0; i < toks.length; i++){
+      var t = toks[i];
+      if (t.t === 'cmt'){ if (!rawDepth) continue; res += t.v; continue; }
+      if (t.t === 'decl'){ res += t.v; continue; }
+      if (t.t === 'text'){
+        if (rawDepth){ res += t.v; continue; }
+        if (!t.v.trim()) continue;            // 只有空白 = 源码格式缩进，丢掉
+        res += t.v.replace(/\s+/g, ' ');      // 有意义文字里的空格要留住（hi <b> 别变 hithere）
+        continue;
+      }
+      res += t.raw;
+      if (t.name === 'script' || t.name === 'style' || t.name === 'pre' || t.name === 'textarea'){
+        if (!t.close && !t.self){ rawDepth++; rawName = t.name; }
+        else if (t.close && rawDepth){ rawDepth--; }
+      }
+    }
+    return res.replace(/^\s+|\s+$/g, '');
+  }
+
+  // ---------- CSS ----------
+  function scanString(s, i){
+    var q = s.charAt(i), j = i + 1, n = s.length;
+    while (j < n){
+      if (s.charAt(j) === '\\'){ j += 2; continue; }
+      if (s.charAt(j) === q){ j++; break; }
+      j++;
+    }
+    return j;
+  }
+
+  function declFix(l){
+    var t = l.replace(/\s+$/, '');
+    if (!t || /[{}]$/.test(t)) return t;
+    if (!/;$/.test(t)) t += ';';
+    var m = t.match(/^([^:]+):\s*/);
+    if (!m) return t;
+    return m[1] + ': ' + t.slice(m[0].length);
+  }
+
+  function fmtCSS(s){
+    var U = padOf(), out = [], line = '', lvl = 0, i = 0, n = s.length, paren = 0;
+    function ind(){ return new Array(lvl + 1).join(U); }
+    function push(l){ if (l.trim()) out.push(ind() + l.trim()); }
+
+    while (i < n){
+      var c = s.charAt(i);
+      if (c === '/' && s.charAt(i + 1) === '*'){
+        var e = s.indexOf('*/', i); e = e < 0 ? n : e + 2;
+        if (line.trim()){ push(line); line = ''; }
+        out.push(ind() + s.slice(i, e).replace(/\s+/g, ' '));
+        i = e; continue;
+      }
+      if (c === '"' || c === "'"){
+        var j = scanString(s, i); line += s.slice(i, j); i = j; continue;
+      }
+      if (/\s/.test(c)){
+        if (line && !/\s$/.test(line)) line += ' ';
+        i++; continue;
+      }
+      if (c === '{'){
+        var head = line.replace(/\s+$/, '');
+        out.push(ind() + head + ' {');
+        lvl++; line = ''; i++; continue;
+      }
+      if (c === '}'){
+        if (line.trim()) push(declFix(line));
+        line = ''; lvl = Math.max(0, lvl - 1);
+        out.push(ind() + '}');
+        i++; continue;
+      }
+      if (c === ';'){
+        if (paren > 0){ line += ';'; i++; continue; }   // url(data:...;base64,) 里的分号不断行，也不加空格
+        line += ';'; push(declFix(line)); line = ''; i++; continue;
+      }
+      if (c === '('){ paren++; line += c; i++; continue; }
+      if (c === ')'){ paren = Math.max(0, paren - 1); line += c; i++; continue; }
+      line += c; i++;
+    }
+    if (line.trim()) push(line);
+    return out.join('\n');
+  }
+
+  function minCSS(s){
+    var out = '', i = 0, n = s.length;
+    while (i < n){
+      var c = s.charAt(i);
+      if (c === '/' && s.charAt(i + 1) === '*'){
+        var e = s.indexOf('*/', i); i = e < 0 ? n : e + 2; continue;
+      }
+      if (c === '"' || c === "'"){
+        var j = scanString(s, i); out += s.slice(i, j); i = j; continue;
+      }
+      if (/\s/.test(c)){
+        if (out && !/\s$/.test(out) && !/[{};:,>(]$/.test(out)) out += ' ';
+        i++; continue;
+      }
+      if ('{};:,>'.indexOf(c) > -1){
+        out = out.replace(/\s+$/, '') + c;
+        i++; continue;
+      }
+      out += c; i++;
+    }
+    return out.trim();
+  }
+
+  // ---------- JS ----------
+  // 只调换行和缩进：字符串、模板串、正则、注释都先切出来不动，
+  // 新换行只加在 ; { } 后面（for(;;) 里的分号除外），避免踩自动补分号的坑
+  function jsTokens(s){
+    var out = [], i = 0, n = s.length, prev = '', lastWord = '';
+    var KW = /^(return|typeof|case|in|of|void|delete|new|do|else|yield|await|instanceof)$/;
+    while (i < n){
+      var c = s.charAt(i);
+      if (/\s/.test(c)){ i++; continue; }
+      if (c === '/' && s.charAt(i + 1) === '/'){ var e = s.indexOf('\n', i); e = e < 0 ? n : e; out.push({ t: 'cmt', v: s.slice(i, e) }); i = e; continue; }
+      if (c === '/' && s.charAt(i + 1) === '*'){ var e2 = s.indexOf('*/', i); e2 = e2 < 0 ? n : e2 + 2; out.push({ t: 'cmt', v: s.slice(i, e2) }); i = e2; continue; }
+      if (c === '"' || c === "'"){ var j = scanString(s, i); out.push({ t: 'str', v: s.slice(i, j) }); prev = 'v'; i = j; continue; }
+      if (c === '`'){
+        var j2 = i + 1;
+        while (j2 < n){ if (s.charAt(j2) === '\\'){ j2 += 2; continue; } if (s.charAt(j2) === '`'){ j2++; break; } j2++; }
+        out.push({ t: 'str', v: s.slice(i, j2) }); prev = 'v'; i = j2; continue;
+      }
+      if (c === '/'){
+        var j3 = i + 1, inClass = false, ok = false;
+        while (j3 < n){
+          var d = s.charAt(j3);
+          if (d === '\\'){ j3 += 2; continue; }
+          if (d === '\n'){ break; }
+          if (inClass){ if (d === ']') inClass = false; }
+          else if (d === '[') inClass = true;
+          else if (d === '/'){ j3++; ok = true; break; }
+          j3++;
+        }
+        if (ok && (prev !== 'v' || KW.test(lastWord))){
+          while (j3 < n && /[gimsuy]/.test(s.charAt(j3))) j3++;
+          out.push({ t: 'str', v: s.slice(i, j3) }); prev = 'v'; lastWord = ''; i = j3; continue;
+        }
+      }
+      var m = s.slice(i).match(/^[A-Za-z_$][\w$]*/);
+      if (m){ out.push({ t: 'w', v: m[0] }); prev = 'w'; lastWord = m[0]; i += m[0].length; continue; }
+      var m2 = s.slice(i).match(/^\d[\w.]*/);
+      if (m2){ out.push({ t: 'v', v: m2[0] }); prev = 'v'; lastWord = ''; i += m2[0].length; continue; }
+      // 多字符运算符要整体切，不然后面按单字符加空格会把 ++ 拆成 + +
+      var m3 = s.slice(i).match(/^(>>>=|===|!==|\*\*=|>>>|<<=|>>=|=>|==|!=|<=|>=|&&|\|\||\?\?|\?\.|\+\+|--|\+=|-=|\*=|\/=|%=|&=|\|=|\^=|<<|>>|\*\*|\.\.\.)/);
+      var op = m3 ? m3[0] : c;
+      out.push({ t: 'p', v: op }); lastWord = '';
+      prev = /^[)\]}]$/.test(op) ? 'v' : 'p';
+      i += op.length;
+    }
+    return out;
+  }
+
+  var OPS = {};
+  ('= += -= *= /= %= **= &= |= ^= <<= >>= >>>= == === != !== < > <= >= && || ?? ? : => & | ^ << >> >>> ** + - * / % ! ~')
+    .split(' ').forEach(function(k){ OPS[k] = 1; });
+
+  function fmtJS(s){
+    var toks = jsTokens(s), U = padOf(), out = [], line = '', lvl = 0, paren = 0, bracket = 0;
+    function ind(){ return new Array(lvl + 1).join(U); }
+    function push(){ if (line.trim()) out.push(ind() + line.replace(/^\s+/, '')); line = ''; }
+
+    for (var i = 0; i < toks.length; i++){
+      var t = toks[i], v = t.v;
+      if (t.t === 'cmt'){
+        push(); out.push(ind() + v); continue;
+      }
+      if (t.t === 'p'){
+        if (v === '('){
+          var pw = toks[i - 1];
+          if (pw && pw.t === 'w' && /^(if|for|while|switch|catch)$/.test(pw.v)) line = line.replace(/\s+$/, '') + ' ';
+          paren++;
+        }
+        if (v === ')'){ paren = Math.max(0, paren - 1); }
+        if (v === '['){ bracket++; }
+        if (v === ']'){ bracket = Math.max(0, bracket - 1); }
+        if (v === '{'){
+          var head = line.replace(/\s+$/, '').replace(/^\s+/, '');
+          line = '';
+          if (!head){
+            if (out.length) out[out.length - 1] += ' {';
+            else out.push('{');
+          } else {
+            out.push(ind() + head + ' {');
+          }
+          lvl++; continue;
+        }
+        if (v === '}'){
+          push(); lvl = Math.max(0, lvl - 1);
+          var nl2 = ind() + '}';
+          var nx = toks[i + 1];
+          if (nx && nx.t === 'w' && /^(else|catch|finally)$/.test(nx.v)){ nl2 += ' ' + nx.v; i++; }
+          out.push(nl2);
+          continue;
+        }
+        if (v === ';'){
+          if (paren > 0){ line = line.replace(/\s+$/, '') + '; '; continue; }
+          line = line.replace(/\s+$/, '') + ';';
+          push();
+          continue;
+        }
+        if (v === ','){ line = line.replace(/\s+$/, '') + ', '; continue; }
+        if (v === '.' || v === '?.' || v === '++' || v === '--'){
+          line = line.replace(/\s+$/, '') + v; continue;
+        }
+        if (OPS[v]){
+          line = line.replace(/\s+$/, '');
+          var prevTok = toks[i - 1], nextTok = toks[i + 1];
+          var unary = (v === '!' || v === '~' || v === '-' || v === '+' || v === '...') &&
+                      (!prevTok || (prevTok.t === 'p' && !/^[)\]}]$/.test(prevTok.v)) ||
+                       (prevTok && prevTok.t === 'w' && /^(return|typeof|case|in|of|void|delete|new|yield|await)$/.test(prevTok.v)));
+          if (unary){ line += v; }
+          else {
+            line += ' ' + v + ' ';
+            if (nextTok && nextTok.t === 'p' && /^[)\]]$/.test(nextTok.v)) line = line.replace(/\s+$/, '');
+          }
+          continue;
+        }
+        line += v; continue;
+      }
+      if (t.t === 'w' || t.t === 'v' || t.t === 'str'){
+        if (line && !/[\s(\[{.,;:=+\-*/%<>!&|?:]$/.test(line)) line += ' ';
+        line += v;
+        continue;
+      }
+      line += v;
+    }
+    if (line.trim()) push();
+    return out.join('\n');
+  }
+
+  // ---------- 主流程 ----------
+  function detect(s){
+    var t = s.trim();
+    if (!t) return 'html';
+    if (/^</.test(t) || /<\/[a-zA-Z][^>]*>/.test(t)) return 'html';
+    if (/\{[\s\S]*:[^{}]*\}/.test(t) && !/\bfunction\b|=>|\b(var|let|const)\b/.test(t)) return 'css';
+    return 'js';
+  }
+
+  function bytes(n){
+    if (n < 1024) return n + ' B';
+    return (n / 1024).toFixed(1) + ' KB';
+  }
+
+  function render(){
+    var src = $('src').value;
+    var type = st.type === 'auto' ? detect(src) : st.type;
+    $('typNow').textContent = { html: 'HTML', css: 'CSS', js: 'JS' }[type];
+    $('inTag').textContent = $('typNow').textContent + ' · ' + (src ? src.split('\n').length : 0) + ' 行';
+    $('note').textContent = '';
+
+    if (!src.trim()){
+      $('out').textContent = '';
+      $('nOut').textContent = '0';
+      $('szOut').textContent = '0 B';
+      $('gain').textContent = '';
+      return;
+    }
+
+    var res = '';
+    try {
+      if (st.mode === 'min' && type === 'js'){
+        $('note').textContent = 'JS 不压缩：自动补分号会让「压成一行」在 return、++ 这类地方改语义，页面可能直接白屏。想压 JS 用构建工具，这页只负责排好看。';
+        res = fmtJS(src);
+      } else if (type === 'html'){
+        res = st.mode === 'min' ? minHTML(src) : fmtHTML(src);
+      } else if (type === 'css'){
+        res = st.mode === 'min' ? minCSS(src) : fmtCSS(src);
+      } else {
+        res = fmtJS(src);
+      }
+    } catch (e){
+      res = '';
+      $('note').textContent = '这段代码没法排：' + e.message;
+    }
+
+    $('out').textContent = res;
+    $('nOut').textContent = res ? res.split('\n').length : 0;
+    var a = new Blob([src]).size, b = new Blob([res]).size;
+    $('szOut').textContent = bytes(b);
+    if (st.mode === 'min' && a > b) $('gain').textContent = '省了 ' + Math.round((1 - b / a) * 100) + '%（原来 ' + bytes(a) + '）';
+    else if (a !== b) $('gain').textContent = (b > a ? '多了 ' : '省了 ') + bytes(Math.abs(b - a)) + '（原文 ' + bytes(a) + '）';
+    else $('gain').textContent = '';
+  }
+
+  $('copy').addEventListener('click', function(){
+    var txt = $('out').textContent;
+    if (!txt) return;
+    var btn = this, old = btn.textContent;
+    if (typeof copyText === 'function') copyText(txt);
+    else { try { navigator.clipboard.writeText(txt); } catch (e) {} }
+    btn.textContent = '已复制';
+    setTimeout(function(){ btn.textContent = old; }, 1200);
+  });
+
+  document.addEventListener('click', function(e){
+    var el = e.target.closest ? e.target.closest('[data-type],[data-mode],[data-ind],[data-demo]') : null;
+    if (!el) return;
+    if (el.hasAttribute('data-demo')){
+      var k = el.getAttribute('data-demo');
+      $('src').value = DEMO[k];
+      setChips('[data-type]', 'type', k);
+      setChips('[data-mode]', 'mode', 'pretty');
+      render();
+      return;
+    }
+    if (el.hasAttribute('data-type')){ st.type = el.getAttribute('data-type'); setChips('[data-type]', 'type', st.type); }
+    else if (el.hasAttribute('data-mode')){ st.mode = el.getAttribute('data-mode'); setChips('[data-mode]', 'mode', st.mode); }
+    else { st.ind = el.getAttribute('data-ind') === 't' ? 't' : parseInt(el.getAttribute('data-ind'), 10);
+           setChips('[data-ind]', 'ind', String(st.ind)); }
+    render();
+  });
+
+  function setChips(sel, attr, val){
+    var list = document.querySelectorAll(sel);
+    for (var i = 0; i < list.length; i++){
+      list[i].classList.toggle('on', list[i].getAttribute('data-' + attr) === val);
+    }
+  }
+
+  $('src').value = DEMO.html;
+  $('src').addEventListener('input', render);
+  render();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

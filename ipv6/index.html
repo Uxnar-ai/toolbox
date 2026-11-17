@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IPv6 地址 · 展开、压缩、网段范围一眼看清</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{align-items:flex-start}
+  .pane{padding-bottom:2px}
+  .body{padding:12px 13px 14px}
+  .f{display:flex; flex-direction:column; gap:4px; min-width:0}
+  .f label{font-size:12px; color:var(--dim)}
+  .f input{
+    font:13.5px/1.5 ui-monospace,Menlo,Consolas,monospace; padding:9px 11px; border-radius:8px;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); width:100%; min-width:0;
+  }
+  .f input:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .kv{display:flex; flex-direction:column; gap:0; margin-top:2px}
+  .kv .r{display:flex; gap:10px; align-items:baseline; padding:7px 0; border-bottom:1px solid var(--line); flex-wrap:wrap}
+  .kv .r:last-child{border-bottom:0}
+  .kv .k{font-size:12px; color:var(--dim); width:86px; flex:0 0 auto}
+  .kv .v{
+    font:12.5px/1.6 ui-monospace,Menlo,Consolas,monospace; color:var(--fg);
+    word-break:break-all; flex:1 1 200px; min-width:0;
+  }
+  .kv .v em{font-style:normal; color:var(--dim); font-family:inherit}
+  .cp{font:11.5px/1 inherit; padding:3px 7px; border-radius:6px; border:1px solid var(--line);
+      background:var(--soft); color:var(--dim); cursor:pointer; flex:0 0 auto}
+  .cp:hover{color:var(--accent); border-color:var(--accent)}
+  .tag{display:inline-block; font-size:12px; padding:3px 9px; border-radius:999px; background:var(--soft); color:var(--dim)}
+  .tag.ok{color:var(--ok)} .tag.warn{color:var(--warn)} .tag.err{color:var(--err)}
+  .prefix{display:flex; align-items:center; gap:10px; margin-top:11px}
+  .prefix input[type=range]{flex:1 1 auto; accent-color:var(--accent)}
+  .prefix b{font:600 15px/1 ui-monospace,Menlo,monospace; color:var(--accent); min-width:38px}
+  .msg{font-size:12.5px; margin-top:9px; min-height:18px; color:var(--err)}
+  table{width:100%; border-collapse:collapse; font-size:12.5px}
+  th,td{text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{font-size:12px; color:var(--dim); font-weight:600; background:var(--soft); white-space:nowrap}
+  td.mono{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; white-space:nowrap}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.95; margin-top:12px}
+  .hint b{color:var(--fg); font-weight:600}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:9px}
+  .tips{margin-top:14px; padding-top:12px; border-top:1px solid var(--line); font-size:12.5px; color:var(--dim); line-height:2}
+  .tips b{display:block; color:var(--fg); font-weight:600; margin-bottom:2px}
+  .tips code{font:12px/1.6 ui-monospace,Menlo,Consolas,monospace; color:var(--fg); background:var(--soft); padding:1px 5px; border-radius:4px}
+  @media (max-width:640px){ .grid2{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>IPv6 地址</h1>
+      <p class="lede">一个地址粘进来：展开成全写、网段首末地址、能放多少台、属于哪类地址，都摊开给你看。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="row">
+    <span class="lbl">试试</span>
+    <button class="chip" data-demo="2408:8207:1234:5678::1/64" type="button">运营商地址段</button>
+    <button class="chip" data-demo="fe80::1ce:5eff:fe6a:1b2c" type="button">局域网 fe80</button>
+    <button class="chip" data-demo="2001:db8:abcd::/48" type="button">文档示例段</button>
+    <button class="chip" data-demo="::ffff:198.51.100.10" type="button">兼容 IPv4</button>
+    <button class="chip" data-demo="ff02::1" type="button">组播</button>
+  </div>
+
+  <div class="panes">
+    <div class="pane">
+      <h2><span>地址或网段</span><span id="state">—</span></h2>
+      <div class="body">
+        <div class="f">
+          <label>地址（可带 /64 这种前缀长度）</label>
+          <input id="addr" value="2408:8207:1234:5678::1/64" spellcheck="false" autocomplete="off">
+        </div>
+        <div class="prefix">
+          <span class="lbl">前缀</span>
+          <input id="pfx" type="range" min="0" max="128" value="64">
+          <b id="pfxTxt">/64</b>
+        </div>
+        <div class="grid2" style="margin-top:12px">
+          <div class="f">
+            <label>判断是否在这个段里（可空）</label>
+            <input id="probe" placeholder="例如 fe80::abcd" spellcheck="false" autocomplete="off">
+          </div>
+          <div class="f">
+            <label>由 MAC 生成局域网地址（可空）</label>
+            <input id="mac" placeholder="例如 00:1c:25:6a:1b:2c" spellcheck="false" autocomplete="off">
+          </div>
+        </div>
+        <div class="msg" id="msg"></div>
+        <div class="tips">
+          <b>认得这些写法</b>
+          <code>2408:8207::1</code> 带双冒号省略 · <code>2408:8207:0:0:0:0:0:1</code> 全写 ·
+          <code>fe80::1/64</code> 带前缀 · <code>::ffff:198.51.100.10</code> 内嵌 IPv4 ·
+          <code>ff02::1%eth0</code> 带网卡名
+        </div>
+      </div>
+    </div>
+
+    <div class="pane">
+      <h2><span>拆解结果</span><button id="copyAll" type="button">复制全部</button></h2>
+      <div class="body">
+        <div class="kv" id="kv"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pane" style="margin-top:12px">
+    <h2><span>常见 IPv6 地址段（点一行套进去）</span></h2>
+    <table>
+      <thead><tr><th>地址段</th><th>是什么</th></tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+  </div>
+
+  <p class="hint">
+    <b>压缩规则</b>：一串连续的 0 只能缩成一次 <code>::</code>，所以 <code>2001:0:0:1:0:0:0:1</code> 必须写成
+    <code>2001:0:0:1::1</code>，不能两头都缩。<b>前缀长度</b>像 IPv4 的掩码：/64 是标准的一个子网（一台家用路由器分到的就是它），
+    /128 表示单独一个地址。<br>
+    <b>地址数量</b>按 2 的 (128 − 前缀) 次方算：/64 是 2 的 64 次方，多到用不完，所以 IPv6 里不用再算「剩几个可用」。
+    <b>fe80::</b> 开头是每块网卡自己生成的局域网地址，出了这个网段就没用；<b>2000::/3</b> 才是能在公网上跑的地址。
+  </p>
+
+  <footer>地址在本机算，不联网查询。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+
+  // ---- IPv6 解析 / 格式化 ----
+  function parseIPv6(s){
+    s = String(s).trim().replace(/^\[|\]$/g, '').replace(/%.*$/, '');
+    if (!s) return null;
+    // 末尾内嵌 IPv4（::ffff:198.51.100.10 → ::ffff:c633:640a）
+    var m = s.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+    if (m){
+      var p = m[1].split('.').map(Number);
+      if (p.some(function(x){ return x < 0 || x > 255; })) return null;
+      s = s.slice(0, s.length - m[1].length) +
+          ((p[0] << 8) | p[1]).toString(16) + ':' + ((p[2] << 8) | p[3]).toString(16);
+    }
+    var halves = s.split('::');
+    if (halves.length > 2) return null;
+    var head = halves[0] ? halves[0].split(':') : [];
+    var tail = halves.length > 1 ? (halves[1] ? halves[1].split(':') : []) : null;
+    var groups;
+    if (tail === null){
+      groups = head;
+      if (groups.length !== 8) return null;
+    } else {
+      var fill = 8 - head.length - tail.length;
+      if (fill < 0) return null;
+      groups = head.concat(new Array(fill).fill('0'), tail);
+    }
+    var big = 0n;
+    for (var i = 0; i < 8; i++){
+      var g = groups[i];
+      if (!/^[0-9a-fA-F]{1,4}$/.test(g)) return null;
+      big = (big << 16n) | BigInt(parseInt(g, 16));
+    }
+    return big;
+  }
+
+  function toGroups(v){
+    var a = [];
+    for (var i = 0; i < 8; i++){ a.push(((v >> BigInt(112 - i * 16)) & 0xffffn).toString(16)); }
+    return a;
+  }
+
+  function full6(v){ return toGroups(v).map(function(g){ return ('0000' + g).slice(-4); }).join(':'); }
+
+  function compress6(v){
+    var g = toGroups(v), best = -1, bestLen = 1, i = 0;
+    while (i < 8){
+      if (g[i] === '0'){
+        var j = i;
+        while (j < 8 && g[j] === '0') j++;
+        if (j - i > bestLen){ best = i; bestLen = j - i; }
+        i = j;
+      } else i++;
+    }
+    if (best < 0) return g.join(':');
+    var left = g.slice(0, best).join(':'), right = g.slice(best + bestLen).join(':');
+    return left + '::' + right;
+  }
+
+  function maskOf(p){
+    if (p <= 0) return 0n;
+    return ((1n << BigInt(128)) - 1n) ^ ((1n << BigInt(128 - p)) - 1n);
+  }
+
+  function groupNum(s){
+    return String(s).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  function pow2(n){
+    if (n === 0) return '1';
+    if (n > 128) return '—';
+    var v = 1n << BigInt(n);
+    return groupNum(v.toString());
+  }
+
+  // ---- 地址类型判定 ----
+  var RANGES = [
+    ['2000::', 3, '公网单播', '能在互联网上直接跑，运营商给你家分的就是这种', 'ok'],
+    ['fe80::', 10, '局域网（链路本地）', '每块网卡自动生成，只在本网段有效，不能跨路由', 'warn'],
+    ['fc00::', 7, '内网专用（唯一本地）', '相当于 IPv4 的私有网段（10/8），自己内部用', 'warn'],
+    ['fec0::', 10, '老式内网站点（已废弃）', '早期规范留下的，新设备不要再用', 'warn'],
+    ['ff00::', 8, '组播', '一对多发送，ff02::1 是本网段所有设备', 'warn'],
+    ['2001:db8::', 32, '文档示例专用', '写教程、做测试用，真实网络里不会出现', 'warn'],
+    ['2002::', 16, '6to4 隧道', '早期过渡技术，现在基本不用了', 'warn'],
+    ['2001:0::', 32, 'Teredo 隧道', '早年穿透 NAT 的方案，现在多已关闭', 'warn'],
+    ['64:ff9b::', 96, 'NAT64 转换', '把 IPv4 地址翻译成 IPv6 用', 'warn'],
+    ['::ffff:0:0', 96, 'IPv4 映射', '::ffff:1.2.3.4 这种写法，内部表示 IPv4 用', 'warn']
+  ];
+
+  function classify(v){
+    if (v === 0n) return { label: '未指定地址', desc: '还没拿到地址时占位用，不能当目标', tone: 'err' };
+    if (v === 1n) return { label: '本机环回', desc: '相当于 127.0.0.1，只指自己', tone: 'warn' };
+    for (var i = 0; i < RANGES.length; i++){
+      var base = parseIPv6(RANGES[i][0]);
+      if (base === null) continue;
+      var p = RANGES[i][1];
+      if ((v & maskOf(p)) === (base & maskOf(p)))
+        return { label: RANGES[i][2], desc: RANGES[i][3], tone: RANGES[i][4] };
+    }
+    return { label: '未归类', desc: '不在常见的几个大段里，多半是特殊用途段', tone: 'warn' };
+  }
+
+  function revDNS(v){
+    var h = full6(v).replace(/:/g, '');
+    return h.split('').reverse().join('.') + '.ip6.arpa';
+  }
+
+  function macToLinkLocal(mac){
+    var h = mac.replace(/[^0-9a-fA-F]/g, '').toLowerCase();
+    if (h.length !== 12) return null;
+    var b = [];
+    for (var i = 0; i < 6; i++) b.push(parseInt(h.substr(i * 2, 2), 16));
+    b[0] = b[0] ^ 0x02;                    // 翻转 U/L 位
+    // EUI-64：3 字节 MAC + ff fe + 3 字节 MAC，所以是 021c:25ff:fe6a:1b2c 这种切法
+    var iid = [
+      ((b[0] << 8) | b[1]).toString(16),
+      ((b[2] << 8) | 0xff).toString(16),
+      ((0xfe << 8) | b[3]).toString(16),
+      ((b[4] << 8) | b[5]).toString(16)
+    ].join(':');
+    var v = parseIPv6('fe80::' + iid);
+    return v === null ? null : compress6(v);
+  }
+
+  function stripTags(h){
+    var d = document.createElement('div');
+    d.innerHTML = h;
+    return d.textContent.replace(/\s+/g, ' ').trim();
+  }
+
+  function esc(s){
+    return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  }
+
+  // ---- 渲染 ----
+  function row(k, v, copy){
+    var c = (copy === undefined) ? stripTags(v) : copy;
+    return '<div class="r"><span class="k">' + k + '</span><span class="v">' + v + '</span>' +
+           (c ? '<button class="cp" type="button" data-copy="' + esc(c) + '">复制</button>' : '') +
+           '</div>';
+  }
+
+  var lastText = '';
+
+  function render(){
+    var raw = $('addr').value.trim();
+    var pfx = parseInt($('pfx').value, 10);
+    var msg = $('msg');
+    msg.textContent = '';
+
+    // 地址里自带 /n 时同步滑块
+    var mm = raw.match(/\/(\d{1,3})\s*$/);
+    if (mm){
+      var p0 = parseInt(mm[1], 10);
+      if (p0 >= 0 && p0 <= 128 && String($('pfx').value) !== String(p0)) $('pfx').value = p0;
+      pfx = parseInt($('pfx').value, 10);
+      raw = raw.replace(/\/\d{1,3}\s*$/, '');
+    }
+    $('pfxTxt').textContent = '/' + pfx;
+
+    var v = parseIPv6(raw);
+    if (v === null){
+      $('state').textContent = raw ? '看不懂' : '空';
+      $('kv').innerHTML = '<div class="r"><span class="k">提示</span><span class="v">粘一个 IPv6 地址进来，比如 2408:8207::1 或 fe80::1/64</span></div>';
+      lastText = '';
+      return;
+    }
+    $('state').textContent = '已解析';
+
+    var cls = classify(v);
+    var net = v & maskOf(pfx);
+    var lastAddr = net | (((1n << BigInt(128)) - 1n) ^ maskOf(pfx));
+    var count = 128 - pfx;
+    var typeTag = '<span class="tag ' + (cls.tone || '') + '">' + cls.label + '</span>';
+
+    var rows = [];
+    rows.push(row('压缩写法', compress6(v)));
+    rows.push(row('完整写法', full6(v)));
+    rows.push(row('地址类型', typeTag + ' <em style="font-size:12px;color:var(--dim)">' + cls.desc + '</em>', cls.label));
+    rows.push(row('网络地址', compress6(net) + ' <em>/' + pfx + '</em>', compress6(net) + '/' + pfx));
+
+    if (pfx < 128){
+      rows.push(row('第一个可用', compress6(net + 1n)));
+      rows.push(row('最后可用', compress6(lastAddr - 1n)));
+    }
+    rows.push(row('段末地址', compress6(lastAddr)));
+    rows.push(row('地址数量', pfx === 128 ? '1 个' : pow2(count) + ' 个 <em>（2 的 ' + count + ' 次方）</em>'));
+
+    // 判断归属
+    var probe = $('probe').value.trim();
+    if (probe){
+      var pv = parseIPv6(probe);
+      if (pv === null){
+        rows.push(row('归属判断', '<span style="color:var(--err)">判断用的地址写错了</span>'));
+      } else {
+        var inside = (pv & maskOf(pfx)) === net;
+        rows.push(row('归属判断', '<span class="tag ' + (inside ? 'ok' : 'err') + '">' + (inside ? '在这个段里' : '不在这个段里') + '</span> <em>' + compress6(pv) + '</em>'));
+      }
+    }
+
+    // MAC
+    var mac = $('mac').value.trim();
+    if (mac){
+      var ll = macToLinkLocal(mac);
+      rows.push(row('由 MAC 生成', ll ? ll : '<span style="color:var(--err)">MAC 要 12 位十六进制，例如 00:1c:25:6a:1b:2c</span>'));
+    }
+
+    rows.push(row('反向解析名', revDNS(v)));
+
+    // 前缀为 64 时按标准拆成 网络 + 接口标识
+    if (pfx === 64){
+      var iid = v & ((1n << 64n) - 1n);
+      rows.push(row('接口标识', full6(iid).split(':').slice(4).join(':') + '<em>（后 64 位）</em>'));
+    }
+
+    $('kv').innerHTML = rows.join('');
+    lastText = rows.map(function(h){
+      var d = document.createElement('div');
+      d.innerHTML = h;
+      return d.textContent.replace(/\s+/g, ' ').trim();
+    }).join('\n');
+  }
+
+  // 复制
+  document.addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('[data-copy]') : null;
+    if (!b) return;
+    var t = b.getAttribute('data-copy');
+    if (typeof copyText === 'function') copyText(t);
+    else { try { navigator.clipboard.writeText(t); } catch (err) {} }
+    var old = b.textContent;
+    b.textContent = '已复制';
+    setTimeout(function(){ b.textContent = old; }, 1200);
+  });
+
+  $('copyAll').addEventListener('click', function(){
+    if (!lastText) return;
+    var btn = this, old = btn.textContent;
+    if (typeof copyText === 'function') copyText(lastText);
+    else { try { navigator.clipboard.writeText(lastText); } catch (err) {} }
+    btn.textContent = '已复制';
+    setTimeout(function(){ btn.textContent = old; }, 1200);
+  });
+
+  // 常见段表格
+  var TB = [
+    ['::1', '本机环回，等价 127.0.0.1'],
+    ['::', '未指定地址，仅启动时占位'],
+    ['::ffff:0:0/96', 'IPv4 映射地址（::ffff:1.2.3.4）'],
+    ['64:ff9b::/96', 'NAT64，把 IPv4 译成 IPv6'],
+    ['2001:db8::/32', '文档示例专用，教程里都用它'],
+    ['2001:0::/32', 'Teredo 隧道，基本淘汰'],
+    ['2002::/16', '6to4 隧道，基本淘汰'],
+    ['2400::/12', '亚太区公网地址（含国内运营商）'],
+    ['fc00::/7', '内网唯一本地地址，自己组网用'],
+    ['fe80::/10', '链路本地，每块网卡自动生成'],
+    ['ff00::/8', '组播，ff02::1 = 本网段所有设备']
+  ];
+  $('tb').innerHTML = TB.map(function(r){
+    return '<tr data-demo="' + r[0] + '"><td class="mono">' + r[0] + '</td><td>' + r[1] + '</td></tr>';
+  }).join('');
+
+  document.addEventListener('click', function(e){
+    var t = e.target.closest ? e.target.closest('[data-demo]') : null;
+    if (!t) return;
+    var d = t.getAttribute('data-demo');
+    $('addr').value = d;
+    $('probe').value = '';
+    $('mac').value = '';
+    render();
+  });
+
+  $('addr').addEventListener('input', render);
+  $('pfx').addEventListener('input', render);
+  $('probe').addEventListener('input', render);
+  $('mac').addEventListener('input', render);
+
+  // 首屏：前缀滑块跟地址里的 /64 对齐
+  var m0 = $('addr').value.match(/\/(\d{1,3})/);
+  if (m0) $('pfx').value = m0[1];
+  render();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

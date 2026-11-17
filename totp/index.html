@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>两步验证码 · 密钥算六位码，30 秒一换</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{align-items:flex-start}
+  .pane{padding-bottom:2px}
+  .body{padding:12px 13px 14px}
+  .f{display:flex; flex-direction:column; gap:5px; min-width:0}
+  .f label{font-size:12px; color:var(--dim)}
+  .f input{
+    font:13.5px/1.5 ui-monospace,Menlo,Consolas,monospace; padding:9px 11px; border-radius:8px;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); width:100%; min-width:0;
+  }
+  .f input:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .rowline{display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-top:12px}
+  .rowline .lbl{margin-right:0}
+  .code{
+    font:600 46px/1.1 ui-monospace,Menlo,Consolas,monospace; letter-spacing:5px;
+    color:var(--fg); text-align:center; padding:14px 0 6px; user-select:all;
+  }
+  .code span{display:inline-block; width:16px}
+  .bar{height:7px; border-radius:999px; background:var(--soft); overflow:hidden; margin:8px 0 6px}
+  .bar i{display:block; height:100%; width:0%; background:var(--accent); border-radius:999px; transition:width .18s linear}
+  .bar i.hot{background:var(--warn)}
+  .meta{display:flex; justify-content:space-between; font-size:12px; color:var(--dim)}
+  .next{margin-top:14px; padding-top:12px; border-top:1px solid var(--line); display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+  .next span{font-size:12px; color:var(--dim)}
+  .next b{font:500 18px/1 ui-monospace,Menlo,monospace; color:var(--dim); letter-spacing:2px}
+  .err{font-size:12.5px; color:var(--err); margin-top:9px; min-height:17px}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.95; margin-top:12px}
+  .hint b{color:var(--fg); font-weight:600}
+  .hint code{font-family:ui-monospace,Menlo,Consolas,monospace; color:var(--fg); font-size:12px}
+  .note{
+    margin-top:12px; padding:10px 12px; border-radius:9px; background:var(--soft);
+    font-size:12.5px; color:var(--dim); line-height:1.8;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>两步验证码</h1>
+      <p class="lede">网站给你的那串备份密钥粘进来，直接算出当前 6 位验证码，30 秒一换，不联网。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div class="pane">
+      <h2><span>密钥</span><span id="state">示例</span></h2>
+      <div class="body">
+        <div class="f">
+          <label>密钥（Base32，空格和短横线会自动去掉）</label>
+          <input id="secret" value="JBSWY3DPEHPK3PXP" spellcheck="false" autocomplete="off" autocapitalize="off">
+        </div>
+        <div class="f" style="margin-top:11px">
+          <label>或者粘整条 otpauth:// 链接（从二维码里解出来那种）</label>
+          <input id="uri" placeholder="otpauth://totp/xxx?secret=..." spellcheck="false" autocomplete="off">
+        </div>
+        <div class="rowline">
+          <span class="lbl">位数</span>
+          <button class="chip on" data-opt="digits" data-v="6" type="button">6 位</button>
+          <button class="chip" data-opt="digits" data-v="8" type="button">8 位</button>
+          <span class="sep"></span>
+          <span class="lbl">周期</span>
+          <button class="chip on" data-opt="period" data-v="30" type="button">30 秒</button>
+          <button class="chip" data-opt="period" data-v="60" type="button">60 秒</button>
+        </div>
+        <div class="rowline">
+          <span class="lbl">算法</span>
+          <button class="chip on" data-opt="alg" data-v="SHA-1" type="button">SHA-1</button>
+          <button class="chip" data-opt="alg" data-v="SHA-256" type="button">SHA-256</button>
+          <button class="chip" data-opt="alg" data-v="SHA-512" type="button">SHA-512</button>
+        </div>
+        <div class="err" id="err"></div>
+        <div class="note">
+          九成以上的网站都是 6 位 / 30 秒 / SHA-1，先用默认值试；出来的码不对再换 8 位或 SHA-256。
+        </div>
+      </div>
+    </div>
+
+    <div class="pane">
+      <h2><span>当前验证码</span><button id="copy" type="button">复制</button></h2>
+      <div class="body">
+        <div class="code" id="code">------</div>
+        <div class="bar"><i id="bar"></i></div>
+        <div class="meta"><span id="left">还剩 — 秒</span><span id="clock"></span></div>
+        <div class="next"><span>下一组</span><b id="next">----------</b></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">
+    <b>这是怎么算的</b>：密钥和「当前是第几个 30 秒」一起做一次加密签名，从签名里取出一段数字，再截成 6 位 ——
+    所以只要密钥和设备时间一致，谁算都一样，服务器那边不用知道你的码。<br>
+    <b>码不对，先查这三样</b>：① 电脑时间有没有偏（差 30 秒以上就全错）；② 位数是不是 8 位；
+    ③ 网站用的是不是 SHA-256。<b>别把密钥发给任何人</b>：它等价于你的账号，页面刷新就没了，这里不做任何保存。
+  </p>
+
+  <footer>全部在本机算，密钥不上传、不写本地存储。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var opts = { digits: 6, period: 30, alg: 'SHA-1' };
+  var cache = { key: '', counter: -1, code: '', next: '' };
+  var busy = false;
+
+  var B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  function base32Decode(s){
+    s = String(s).toUpperCase().replace(/[\s\-_=]/g, '');
+    if (!s) return null;
+    var bits = 0, val = 0, out = [];
+    for (var i = 0; i < s.length; i++){
+      var idx = B32.indexOf(s.charAt(i));
+      if (idx < 0) return null;
+      val = (val << 5) | idx;
+      bits += 5;
+      if (bits >= 8){
+        out.push((val >>> (bits - 8)) & 0xff);
+        bits -= 8;
+      }
+    }
+    return out.length ? new Uint8Array(out) : null;
+  }
+
+  function counterBytes(c){
+    var buf = new Uint8Array(8);
+    var v = BigInt(c);
+    for (var i = 7; i >= 0; i--){
+      buf[i] = Number(v & 0xffn);
+      v >>= 8n;
+    }
+    return buf;
+  }
+
+  function hmac(key, msg, alg){
+    return crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: alg }, false, ['sign'])
+      .then(function(k){ return crypto.subtle.sign('HMAC', k, msg); })
+      .then(function(sig){ return new Uint8Array(sig); });
+  }
+
+  function hotp(h, digits){
+    var off = h[h.length - 1] & 0x0f;
+    var bin = ((h[off] & 0x7f) << 24) | (h[off + 1] << 16) | (h[off + 2] << 8) | h[off + 3];
+    var mod = Math.pow(10, digits);
+    var code = String(bin % mod);
+    while (code.length < digits) code = '0' + code;
+    return code;
+  }
+
+  function readURI(v){
+    v = String(v).trim();
+    if (!/^otpauth:\/\//i.test(v)) return false;
+    var q = v.split('?')[1] || '';
+    var p = {};
+    q.split('&').forEach(function(kv){
+      var i = kv.indexOf('=');
+      if (i > 0) p[kv.slice(0, i).toLowerCase()] = decodeURIComponent(kv.slice(i + 1));
+    });
+    if (!p.secret) return false;
+    $('secret').value = p.secret;
+    if (p.digits && (p.digits === '6' || p.digits === '8')) setOpt('digits', p.digits);
+    if (p.period && (p.period === '30' || p.period === '60')) setOpt('period', p.period);
+    if (p.algorithm){
+      var a = p.algorithm.toUpperCase().replace('SHA1', 'SHA-1').replace('SHA256', 'SHA-256').replace('SHA512', 'SHA-512');
+      if (['SHA-1', 'SHA-256', 'SHA-512'].indexOf(a) > -1) setOpt('alg', a);
+    }
+    $('state').textContent = '来自链接';
+    return true;
+  }
+
+  function setOpt(k, v){
+    opts[k] = (k === 'digits' || k === 'period') ? parseInt(v, 10) : v;
+    var chips = document.querySelectorAll('[data-opt="' + k + '"]');
+    for (var i = 0; i < chips.length; i++){
+      chips[i].classList.toggle('on', chips[i].getAttribute('data-v') === String(v));
+    }
+  }
+
+  function paint(){
+    var now = Math.floor(Date.now() / 1000);
+    var c = Math.floor(now / opts.period);
+    var left = opts.period - (now % opts.period);
+    $('left').textContent = '还剩 ' + left + ' 秒';
+    $('bar').style.width = Math.round((1 - left / opts.period) * 100) + '%';
+    $('bar').className = left <= 5 ? 'hot' : '';
+    $('clock').textContent = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+    return c;
+  }
+
+  function tick(){
+    var c = paint();
+    var key = $('secret').value.trim();
+    if (!key){ $('code').textContent = '------'; $('next').textContent = '—'; return; }
+    var kb = base32Decode(key);
+    if (!kb){
+      $('err').textContent = '这串密钥看不懂：Base32 只含 A–Z 和 2–7。';
+      $('code').textContent = '------';
+      return;
+    }
+    $('err').textContent = '';
+    $( 'state').textContent = (opts.digits + ' 位 · ' + opts.period + ' 秒 · ' + opts.alg);
+    if (cache.key === key + opts.digits + opts.period + opts.alg && cache.counter === c) return;
+    if (busy) return;
+    busy = true;
+    var stamp = key + opts.digits + opts.period + opts.alg;
+    Promise.all([
+      hmac(kb, counterBytes(c), opts.alg),
+      hmac(kb, counterBytes(c + 1), opts.alg)
+    ]).then(function(r){
+      cache = { key: stamp, counter: c, code: hotp(r[0], opts.digits), next: hotp(r[1], opts.digits) };
+      var code = cache.code;
+      $('code').innerHTML = opts.digits === 6
+        ? code.slice(0, 3) + '<span> </span>' + code.slice(3)
+        : code.slice(0, 4) + '<span> </span>' + code.slice(4);
+      $('code').setAttribute('data-code', code);
+      $('next').textContent = cache.next;
+    }).catch(function(e){
+      $('err').textContent = '浏览器不支持本地加密计算：' + e.message;
+    }).then(function(){ busy = false; });
+  }
+
+  $('copy').addEventListener('click', function(){
+    var code = $('code').getAttribute('data-code') || '';
+    if (!code) return;
+    var btn = this, old = btn.textContent;
+    if (typeof copyText === 'function') copyText(code);
+    else { try { navigator.clipboard.writeText(code); } catch (e) {} }
+    btn.textContent = '已复制';
+    setTimeout(function(){ btn.textContent = old; }, 1200);
+  });
+
+  document.addEventListener('click', function(e){
+    var c = e.target.closest ? e.target.closest('[data-opt]') : null;
+    if (!c) return;
+    setOpt(c.getAttribute('data-opt'), c.getAttribute('data-v'));
+    cache.counter = -1;
+    tick();
+  });
+
+  $('secret').addEventListener('input', function(){ cache.counter = -1; tick(); });
+  $('uri').addEventListener('input', function(){
+    if (readURI(this.value)){ cache.counter = -1; tick(); }
+  });
+
+  setInterval(tick, 250);
+  tick();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

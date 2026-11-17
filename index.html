@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>工具台 toolbox</title>
-<meta name="description" content="一堆打开就能用的小工具：JSON、文本、CSV 表格、Markdown 预览、字数统计、中英混排、网址拆解、乱码修复、时间戳、对比、Cron、日期、命名转换、金额大写、百分比、贷款计算、单位、网段计算、颜色、图片压缩、二维码、哈希、编码、SQL 排版、JSON 转类型、号码校验、curl 转代码、HTTP 状态码、.gitignore 生成、网站图标、HTML 转 Markdown、假数据生成、时区对照、特殊符号、隐藏字符体检、表格对齐、阴影与圆角、JSON 树、个税与到手、JSON 转表格、体重与热量、番茄钟、字符查询、图片尺寸换算、Git 急救、常用正则。全在浏览器里算，不上传服务器。">
+<meta name="description" content="一堆打开就能用的小工具：JSON、文本、CSV 表格、Markdown 预览、字数统计、中英混排、网址拆解、乱码修复、时间戳、对比、Cron、日期、命名转换、金额大写、百分比、贷款计算、单位、网段计算、颜色、图片压缩、二维码、哈希、编码、SQL 排版、JSON 转类型、号码校验、curl 转代码、HTTP 状态码、.gitignore 生成、网站图标、HTML 转 Markdown、假数据生成、时区对照、特殊符号、隐藏字符体检、表格对齐、阴影与圆角、JSON 树、个税与到手、JSON 转表格、体重与热量、番茄钟、字符查询、图片尺寸换算、Git 急救、常用正则、IPv6 地址、菜谱份量换算、两步验证码、代码美化。全在浏览器里算，不上传服务器。">
 <link rel="stylesheet" href="assets/theme.css">
 <style>
   .grid{display:grid; gap:12px; grid-template-columns:1fr}
@@ -288,6 +288,18 @@
       <p>手机号、邮箱、身份证该用哪条：每条都带着该匹配和不该匹配的例子，还能当场试自己的文字。</p>
       <div class="tags"><span>手机号 / 邮箱</span><span>当场验</span><span>一键复制</span></div>
     </a>
+    <a class="card" href="totp/" data-k="totp 两步验证码 网站给的备份密钥粘进来，直接算出当前 6 位码，30 秒一换，带倒计时和下一组。 6 / 8 位 30 / 60 秒 不联网" data-slug="totp">
+      <div class="top"><span class="ico">◉</span><span class="arrow">↗</span></div>
+      <h2>两步验证码</h2>
+      <p>网站给的备份密钥粘进来，直接算出当前 6 位码，30 秒一换，带倒计时和下一组。</p>
+      <div class="tags"><span>6 / 8 位</span><span>30 / 60 秒</span><span>不联网</span></div>
+    </a>
+    <a class="card" href="beautify/" data-k="beautify 代码美化 从网页扒出来挤成一行的 HTML、CSS、JS，粘进来按缩进排好；反过来也能压成一行。 HTML / CSS / JS 缩进可调 压成一行" data-slug="beautify">
+      <div class="top"><span class="ico">≣</span><span class="arrow">↗</span></div>
+      <h2>代码美化</h2>
+      <p>从网页扒出来挤成一行的 HTML、CSS、JS，粘进来按缩进排好；反过来也能压成一行。</p>
+      <div class="tags"><span>HTML / CSS / JS</span><span>缩进可调</span><span>压成一行</span></div>
+    </a>
   </div>
   <div class="group">时间与任务</div>
   <div class="grid">
@@ -378,6 +390,12 @@
       <p>填身高体重看 BMI 落在哪一档，顺带算出基础代谢和减脂每天该吃多少卡。</p>
       <div class="tags"><span>BMI 分级</span><span>基础代谢</span><span>每天热量</span></div>
     </a>
+    <a class="card" href="cook/" data-k="cook 菜谱份量换算 两人份想改三人份：克数、勺数、个数按比例重算，炉温和分钟不动，改了哪几个数都标出来。 按份数缩放 克勺换算表 区间也认" data-slug="cook">
+      <div class="top"><span class="ico">勺</span><span class="arrow">↗</span></div>
+      <h2>菜谱份量换算</h2>
+      <p>两人份想改三人份：克数、勺数、个数按比例重算，炉温和分钟不动，改了哪几个数都标出来。</p>
+      <div class="tags"><span>按份数缩放</span><span>克勺换算表</span><span>区间也认</span></div>
+    </a>
   </div>
   <div class="group">网络与编码</div>
   <div class="grid">
@@ -398,6 +416,12 @@
       <h2>字符查询</h2>
       <p>一个字在电脑里到底存成什么：码点、UTF-8 字节、各种转义写法；反过来填码点也能查出是哪个字。</p>
       <div class="tags"><span>码点</span><span>UTF-8 字节</span><span>反向查</span></div>
+    </a>
+    <a class="card" href="ipv6/" data-k="ipv6 IPv6 地址 一个地址粘进来：展开成全写、压成最短写法、算出网段首末和能放多少台，顺带看它属于哪类地址。 展开 / 压缩 网段范围 MAC 转局域网地址" data-slug="ipv6">
+      <div class="top"><span class="ico">6</span><span class="arrow">↗</span></div>
+      <h2>IPv6 地址</h2>
+      <p>一个地址粘进来：展开成全写、压成最短写法、算出网段首末和能放多少台，顺带看它属于哪类地址。</p>
+      <div class="tags"><span>展开 / 压缩</span><span>网段范围</span><span>MAC 转局域网地址</span></div>
     </a>
   </div>
   <div class="group">图片</div>
@@ -481,7 +505,7 @@
 
   <footer>
     同一个仓库里长出来的东西：新工具加个目录、挂进这张表就行。需要后端的（短码暂存、天气、主机指标、资讯聚合）各自独立跑，不塞进这里。
-    <br>更新于 2026-11-17 · 共 64 个工具
+    <br>更新于 2026-11-18 · 共 68 个工具
   </footer>
 </div>
 <script src="assets/base.js"></script>

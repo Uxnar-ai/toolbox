@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>菜谱份量换算 · 两人份改三人份，用量自动算</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{align-items:stretch}
+  .pane{padding-bottom:2px}
+  .pane h2{height:38px}
+  .body{padding:12px 13px 14px}
+  .unitrow{display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap}
+  .f{display:flex; flex-direction:column; gap:4px; min-width:0}
+  .f label{font-size:12px; color:var(--dim)}
+  .f input{
+    font:14px/1.4 ui-monospace,Menlo,Consolas,monospace; padding:8px 10px; border-radius:8px;
+    border:1px solid var(--line); background:var(--card); color:var(--fg); width:92px;
+  }
+  .f input:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .mult{margin-left:auto; font-size:12.5px; color:var(--dim)}
+  .mult b{font:600 15px/1 ui-monospace,Menlo,monospace; color:var(--accent)}
+  textarea{height:330px; font:13px/1.75 ui-monospace,Menlo,Consolas,monospace}
+  pre.out{height:330px; font:13px/1.75 ui-monospace,Menlo,Consolas,monospace; white-space:pre-wrap}
+  pre.out i{font-style:normal; color:var(--accent); font-weight:600}
+  .stats{margin-top:0}
+  table{width:100%; border-collapse:collapse; font-size:12.5px}
+  th,td{text-align:left; padding:7px 10px; border-bottom:1px solid var(--line)}
+  th{font-size:12px; color:var(--dim); font-weight:600; background:var(--soft); white-space:nowrap}
+  td.n{font-family:ui-monospace,Menlo,Consolas,monospace; color:var(--fg); white-space:nowrap}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.95; margin-top:12px}
+  .hint b{color:var(--fg); font-weight:600}
+  .msg{font-size:12.5px; color:var(--err); margin-top:8px; min-height:17px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>菜谱份量换算</h1>
+      <p class="lede">整段菜谱粘进来，填原份数和要做的份数：所有克数、勺数、个数按比例重算，温度和时间不动。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="row">
+    <span class="lbl">倍数</span>
+    <button class="chip" data-m="0.5" type="button">一半</button>
+    <button class="chip" data-m="1" type="button">不变</button>
+    <button class="chip" data-m="1.5" type="button">×1.5</button>
+    <button class="chip" data-m="2" type="button">双份</button>
+    <button class="chip" data-m="3" type="button">三份</button>
+    <span class="sep"></span>
+    <span class="lbl" id="demoTip">示例是一份番茄炒蛋，改数字看右边变化</span>
+  </div>
+
+  <div class="panes">
+    <div class="pane">
+      <h2><span>菜谱原文（原份数 <span id="fromTag">2</span>）</span><span id="nLine">0 行</span></h2>
+      <textarea id="src" spellcheck="false"></textarea>
+    </div>
+    <div class="pane">
+      <h2><span>按 <span id="toTag">3</span> 份算</span><button id="copy" type="button">复制</button></h2>
+      <pre class="out" id="out"></pre>
+    </div>
+  </div>
+
+  <div class="unitrow" style="margin-top:10px">
+    <div class="f"><label>原份数</label><input id="from" type="number" value="2" min="0.5" step="0.5"></div>
+    <div class="f"><label>要做几份</label><input id="to" type="number" value="3" min="0.5" step="0.5"></div>
+    <div class="mult">换算倍数 <b id="mTxt">×1.5</b></div>
+  </div>
+
+  <div class="pane" style="margin-top:12px">
+    <h2><span>勺子杯子到底是多少（按常见食材估）</span></h2>
+    <table>
+      <thead><tr><th>一单位</th><th>体积</th><th>面粉</th><th>白砂糖</th><th>盐</th><th>大米</th><th>食用油</th></tr></thead>
+      <tbody id="tb"></tbody>
+    </table>
+  </div>
+
+  <p class="hint">
+    <b>它改哪些数字</b>：紧跟着 g、克、千克、ml、毫升、升、斤、两、勺、汤匙、茶匙、杯、碗，以及个、只、颗、根、片、瓣这些的用量；
+    还会识别 100-150 g 这种区间写法，两头一起缩放。<b>它不动</b>：180 度、25 分钟、第 3 步这类数字，因为它们跟份数无关。<br>
+    <b>取整规则</b>：100 以上按 5 取整，10 以上取整，10 以下留一位小数 —— 半个蛋没法称，做饭也不需要 137.25 克。
+    <b>盐和糖别按倍数全加</b>：份量翻倍时调味料通常只加 1.6~1.8 倍，先少放，尝了再补。
+  </p>
+
+  <footer>全部在本机算，菜谱不上传。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+
+  var SAMPLE = [
+    '番茄炒蛋（2 人份）',
+    '',
+    '材料',
+    '番茄 2 个',
+    '鸡蛋 3 个',
+    '小葱 1 根',
+    '盐 2 g',
+    '白糖 5 g',
+    '食用油 30 ml',
+    '',
+    '做法',
+    '1. 番茄切块；鸡蛋打散，加 1 g 盐搅匀。',
+    '2. 锅烧热倒 15 ml 油，倒入蛋液炒到刚凝固就盛出。',
+    '3. 再倒 15 ml 油，下番茄中火炒 2 分钟，加白糖和剩下的盐。',
+    '4. 倒回鸡蛋翻匀，撒葱花出锅。'
+  ].join('\n');
+
+  // 重量/体积/计数单位（长的排前面，避免「千克」被「克」抢先）
+  var UNITS = ['千克','公斤','毫升','汤匙','茶匙','大勺','小勺','人份',
+               'kg','ml','mg','克','g','斤','两','升','l',
+               '个','只','颗','棵','瓣','根','片','勺','杯','碗','把','撮',
+               '块','条','张','段','粒','朵','包','袋','瓶','罐','盒','寸'];
+  var U = UNITS.join('|');
+  // 也认 1/2 这种分数写法（先匹配分数，避免只把分母当成用量）
+  var RE = new RegExp('(?:(\\d+)\\s*\\/\\s*(\\d+)|(\\d+(?:\\.\\d+)?))(?:\\s*([-–~至到])\\s*(\\d+(?:\\.\\d+)?))?(\\s*)(' + U + ')', 'g');
+  var COUNT = /^(个|只|颗|棵|瓣|根|片|块|条|张|段|粒|朵|包|袋|瓶|罐|盒)$/;
+  var PEOPLE = /^(人份)$/;
+
+  function trimNum(v){
+    var s = v.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+    return s;
+  }
+
+  function fmt(v, unit){
+    if (PEOPLE.test(unit)) return String(Math.max(1, Math.round(v)));
+    if (COUNT.test(unit)){
+      if (Math.abs(v - Math.round(v)) < 0.12) return String(Math.round(v));
+      return trimNum(Math.round(v * 10) / 10);
+    }
+    if (v >= 100) return String(Math.round(v / 5) * 5);
+    if (v >= 10) return String(Math.round(v));
+    if (v >= 1) return trimNum(Math.round(v * 10) / 10);
+    return trimNum(Math.round(v * 100) / 100);
+  }
+
+  function scale(src, m){
+    var n = 0;
+    var out = src.replace(RE, function(all, fn, fd, num, sep, b, sp, unit){
+      var va = fn ? parseFloat(fn) / parseFloat(fd) : parseFloat(num);
+      if (sep === undefined){ n++; return fmt(va * m, unit) + sp + unit; }
+      var vb = parseFloat(b);
+      n += 2;
+      return fmt(va * m, unit) + ' ' + sep + ' ' + fmt(vb * m, unit) + sp + unit;
+    });
+    return { text: out, count: n };
+  }
+
+  function esc(s){
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // 把结果里被改过的数字标出来（只标与原文不同的）
+  function highlight(orig, next){
+    var o = orig.split('\n'), p = next.split('\n'), html = [];
+    for (var i = 0; i < p.length; i++){
+      if (o[i] === undefined || o[i] === p[i]){ html.push(esc(p[i])); continue; }
+      var oa = o[i].split(/(\s+)/), pb = p[i].split(/(\s+)/);
+      var same = oa.length === pb.length;
+      if (!same){ html.push(esc(p[i])); continue; }
+      var seg = [];
+      for (var j = 0; j < pb.length; j++){
+        if (pb[j] === oa[j]) seg.push(esc(pb[j]));
+        else if (/^\s+$/.test(pb[j])) seg.push(pb[j]);
+        else seg.push('<i>' + esc(pb[j]) + '</i>');
+      }
+      html.push(seg.join(''));
+    }
+    return html.join('\n');
+  }
+
+  function render(){
+    var src = $('src').value;
+    var from = parseFloat($('from').value) || 1;
+    var to = parseFloat($('to').value) || 1;
+    if (from <= 0) from = 1;
+    var m = to / from;
+    $('mTxt').textContent = '×' + trimNum(Math.round(m * 100) / 100);
+    $('fromTag').textContent = trimNum(from);
+    $('toTag').textContent = trimNum(to);
+    $('nLine').textContent = src.split('\n').length + ' 行';
+
+    if (!src.trim()){
+      $('out').textContent = '把菜谱贴到左边，这里就是换算好的。';
+      return;
+    }
+    var r = scale(src, m);
+    $('out').innerHTML = highlight(src, r.text);
+    $('out').setAttribute('data-n', r.count);
+  }
+
+  $('copy').addEventListener('click', function(){
+    var txt = $('out').textContent;
+    if (!txt || txt.indexOf('把菜谱贴到左边') === 0) return;
+    var btn = this, old = btn.textContent;
+    if (typeof copyText === 'function') copyText(txt);
+    else { try { navigator.clipboard.writeText(txt); } catch (e) {} }
+    btn.textContent = '已复制';
+    setTimeout(function(){ btn.textContent = old; }, 1200);
+  });
+
+  document.addEventListener('click', function(e){
+    var c = e.target.closest ? e.target.closest('[data-m]') : null;
+    if (!c) return;
+    var m = parseFloat(c.getAttribute('data-m'));
+    $('from').value = 1;
+    $('to').value = m;
+    render();
+  });
+
+  $('src').value = SAMPLE;
+  $('src').addEventListener('input', render);
+  $('from').addEventListener('input', render);
+  $('to').addEventListener('input', render);
+
+  // 换算速查表：体积按 ml，固体按密度折成克
+  var TB = [
+    ['1 汤匙（大勺）', '15 ml', '9 g', '12 g', '18 g', '12 g', '14 ml'],
+    ['1 茶匙（小勺）', '5 ml', '3 g', '4 g', '6 g', '4 g', '5 ml'],
+    ['1 杯（240 ml）', '240 ml', '128 g', '200 g', '290 g', '190 g', '220 ml'],
+    ['1 碗（约 250 ml）', '250 ml', '133 g', '208 g', '300 g', '198 g', '230 ml'],
+    ['1 斤', '500 g', '500 g', '500 g', '500 g', '500 g', '约 540 ml'],
+    ['1 两', '50 g', '50 g', '50 g', '50 g', '50 g', '约 54 ml']
+  ];
+  $('tb').innerHTML = TB.map(function(r){
+    return '<tr>' + r.map(function(c, i){ return '<td' + (i ? ' class="n"' : '') + '>' + c + '</td>'; }).join('') + '</tr>';
+  }).join('');
+
+  render();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
