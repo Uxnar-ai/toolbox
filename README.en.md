@@ -1,6 +1,6 @@
-# toolbox — seventy-three small tools that open and work
+# toolbox — seventy-four small tools that open and work
 
-> Seventy-three tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table, whitespace detective, table aligner, shadow generator, JSON tree, income tax and take-home, JSON to table, BMI and calories, pomodoro timer. CSS gradient, image cropper, JSON diff, SVG minifier, subtitle timeline, image watermark, photo metadata, barcode generator, text splitter, character inspector, print size calculator, git rescue manual, regex cookbook, IPv6 address toolkit, recipe scaler, TOTP codes, code beautifier, punctuation converter, nginx reverse-proxy generator, age calculator, image stitcher, Chinese numerals. No backend, no ports.
+> Seventy-four tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table, whitespace detective, table aligner, shadow generator, JSON tree, income tax and take-home, JSON to table, BMI and calories, pomodoro timer. CSS gradient, image cropper, JSON diff, SVG minifier, subtitle timeline, image watermark, photo metadata, barcode generator, text splitter, character inspector, print size calculator, git rescue manual, regex cookbook, IPv6 address toolkit, recipe scaler, TOTP codes, code beautifier, punctuation converter, nginx reverse-proxy generator, age calculator, image stitcher, Chinese numerals, image comparison. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -8,13 +8,17 @@ English | [中文](README.md)
 
 Every tool computes in the browser; no server is involved. `scripts/build_toolbox.py` reads each tool template, rewrites asset paths, injects the back-to-index capsule, and assembles a grouped home page; theme.css and base.js exist once. The output is a plain static directory.
 
-This round (2026-11-19) brings it to seventy-three, with five new tools:
+This round (2026-11-19) brings it to seventy-four, with six new tools:
 
 - **Punctuation converter**: Chinese to ASCII punctuation, ASCII to Chinese, full-width and half-width, four directions. URLs, e-mails, decimals, times, thousands separators, file names and inline code are lifted out with placeholders before conversion, so links in the text survive intact.
 - **Nginx reverse proxy**: type a hostname and a local port, get a ready-to-paste `server` block with 80-to-443 redirect, TLS paths, proxy headers, WebSocket upgrade, timeouts, body size and gzip, plus an optional `/_fonts/` alias block.
 - **Age calculator**: exact years/months/days by calendar arithmetic, plus nominal age, zodiac, star sign, days lived, next birthday countdown and the next round-thousandth day.
 - **Image stitcher**: stack screenshots into one long image, place images side by side for comparison, or build a grid; adjustable gap and background, PNG/JPG export, all local.
 - **Chinese numerals**: two-way conversion. `1234567.89` becomes 一百二十三万四千五百六十七点八九, and 三千零五 comes back as 3005.
+
+- **Image comparison**: put a before and an after image together, drag the divider to see each half, view them side by side, or diff pixel by pixel with changed areas highlighted in red plus a percentage of changed pixels.
+
+- **Image comparison**: put a before and an after image together, drag the divider to see each half, view them side by side, or diff pixel by pixel with changed areas highlighted in red plus a percentage of changed pixels.
 
 ## Features
 
@@ -23,6 +27,8 @@ This round (2026-11-19) brings it to seventy-three, with five new tools:
 - Age calculator: exact years/months/days, nominal age, zodiac, star sign, days lived, next birthday countdown, copyable sentence
 - Image stitcher: vertical long image, side-by-side comparison or grid, adjustable gap and background, PNG/JPG export
 - Chinese numerals: two-way conversion, understands 两 / 壹贰叁 / 点 / 负, rejects mixed input instead of guessing
+- Image comparison: drag divider, side by side, or diff highlight with changed-pixel count and percentage
+- Image comparison: drag divider, side by side, or diff highlight with changed-pixel count and percentage
 - Everything computes in the browser: images, text and JSON never leave the page
 
 ## Stack

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>图片对比 · 两张图叠起来看差别在哪</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:900px){ .panes{grid-template-columns:340px 1fr; align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:13px}
+  .slot{display:block; border:1.5px dashed var(--line); border-radius:10px; padding:10px; cursor:pointer; margin-bottom:9px; transition:border-color .15s, background .15s}
+  .slot:hover, .slot.over{border-color:var(--accent); background:var(--soft)}
+  .slot input{display:none}
+  .slot .lab{font-size:12px; color:var(--dim); margin-bottom:6px; display:flex; justify-content:space-between}
+  .slot .lab b{color:var(--fg); font-weight:600}
+  .slot img{display:block; width:100%; max-height:120px; object-fit:contain; border-radius:6px; background:var(--soft)}
+  .slot .empty{font-size:12.5px; color:var(--dim); text-align:center; padding:16px 0}
+  .modes{display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px; margin:11px 0}
+  .modes button{padding:8px 4px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); font:inherit; font-size:12.5px; cursor:pointer}
+  .modes button.on{border-color:var(--accent); background:var(--soft); font-weight:600}
+  .row{display:flex; align-items:center; gap:9px; font-size:12px; color:var(--dim); margin:10px 0}
+  .row input[type=range]{flex:1 1 auto; accent-color:var(--accent); min-width:0}
+  .canvaswrap{padding:13px; display:flex; justify-content:center; background:repeating-conic-gradient(var(--soft) 0% 25%, transparent 0% 50%) 50%/16px 16px}
+  canvas{max-width:100%; height:auto; border-radius:6px; cursor:ew-resize; touch-action:none}
+  .stat{padding:11px 13px; border-top:1px solid var(--line); font-size:12.5px; color:var(--dim); display:flex; gap:12px; flex-wrap:wrap}
+  .stat b{color:var(--fg); font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>图片对比</h1>
+      <p class="lede">两张图放一起：拖动中间的线看左右两半，或者直接把不一样的像素标红。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <div class="hd"><span>两张图</span><span id="dim">—</span></div>
+      <div class="bd">
+        <label class="slot" id="slotA">
+          <div class="lab"><b>A · 原图</b><span id="sizeA">未选</span></div>
+          <div id="prevA"><div class="empty">点这里选一张</div></div>
+          <input type="file" id="fileA" accept="image/*">
+        </label>
+        <label class="slot" id="slotB">
+          <div class="lab"><b>B · 新图</b><span id="sizeB">未选</span></div>
+          <div id="prevB"><div class="empty">点这里选一张</div></div>
+          <input type="file" id="fileB" accept="image/*">
+        </label>
+
+        <div class="modes" id="modes">
+          <button type="button" data-mode="slide" class="on">拖动对比</button>
+          <button type="button" data-mode="side">并排</button>
+          <button type="button" data-mode="diff">差异标红</button>
+        </div>
+
+        <div class="row" id="thRow" style="display:none">
+          <span>灵敏度</span>
+          <input type="range" id="th" min="4" max="80" value="20" step="2">
+          <span id="thv">20</span>
+        </div>
+
+        <div class="row">
+          <button class="chip" id="bDemo" type="button">放两张示例</button>
+          <button class="chip" id="bSwap" type="button">A / B 互换</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="hd"><span>对比</span><span id="hint">拖动分割线</span></div>
+      <div class="canvaswrap"><canvas id="cv" width="640" height="360"></canvas></div>
+      <div class="stat">
+        <span>尺寸 <b id="sDim">—</b></span>
+        <span>不同像素 <b id="sDiff">—</b></span>
+        <span id="sNote"></span>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">
+    <b>拖动对比</b>：中间一条竖线，左边 A、右边 B，按住图左右拖。<b>并排</b>：左右各一半放着看。
+    <b>差异标红</b>：逐像素比，差得多的标红、一样的变灰，调「灵敏度」可以忽略压缩噪点。<br>
+    <b>尺寸不一致</b>时，B 会先缩放到 A 的尺寸再比 —— 所以尽量用同尺寸的两张（同一页面截的图）。
+  </p>
+
+  <footer>图片只在内存里，不上传、不落盘。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var cv = $('cv'), ctx = cv.getContext('2d');
+  var A = null, B = null;        // { el, w, h }
+  var mode = 'slide';
+  var split = 0.5;
+  var bufA = null, bufB = null;  // 同尺寸的 ImageData
+
+  function setImg(which, file){
+    var url = URL.createObjectURL(file);
+    var im = new Image();
+    im.onload = function(){
+      var o = { el: im, w: im.naturalWidth, h: im.naturalHeight };
+      if (which === 'A'){ A = o; $('sizeA').textContent = o.w + '×' + o.h; $('prevA').innerHTML = '<img src="' + url + '" alt="A">'; }
+      else { B = o; $('sizeB').textContent = o.w + '×' + o.h; $('prevB').innerHTML = '<img src="' + url + '" alt="B">'; }
+      bufA = bufB = null;
+      draw();
+    };
+    im.src = url;
+  }
+
+  function prepare(){
+    if (!A || !B) return false;
+    if (bufA && bufB) return true;
+    var w = A.w, h = A.h;
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    var g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(A.el, 0, 0, w, h);
+    bufA = g.getImageData(0, 0, w, h);
+    g.clearRect(0, 0, w, h);
+    g.drawImage(B.el, 0, 0, w, h);
+    bufB = g.getImageData(0, 0, w, h);
+    return true;
+  }
+
+  function drawDiff(){
+    var th = parseInt($('th').value, 10) || 20;
+    var a = bufA.data, b = bufB.data, n = a.length;
+    var out = ctx.createImageData(bufA.width, bufA.height);
+    var o = out.data;
+    var cnt = 0;
+    for (var i = 0; i < n; i += 4){
+      var d = Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]);
+      var g0 = (a[i] * 0.299 + a[i + 1] * 0.587 + a[i + 2] * 0.114) * 0.35 + 150;
+      if (d > th * 3){
+        o[i] = 230; o[i + 1] = 52; o[i + 2] = 47; o[i + 3] = 255;
+        cnt++;
+      } else {
+        o[i] = o[i + 1] = o[i + 2] = g0; o[i + 3] = 255;
+      }
+    }
+    ctx.putImageData(out, 0, 0);
+    var pct = (cnt / (bufA.width * bufA.height) * 100);
+    $('sDiff').textContent = cnt.toLocaleString('zh-CN') + ' 像素（' + pct.toFixed(2) + '%）';
+    $('sNote').textContent = cnt ? '红的就是不一样的' : '两张图看起来一样';
+  }
+
+  function draw(){
+    if (!A){ blank(); return; }
+    if (!B){ 
+      cv.width = A.w; cv.height = A.h;
+      ctx.drawImage(A.el, 0, 0, A.w, A.h);
+      $('dim').textContent = A.w + '×' + A.h;
+      $('sDim').textContent = A.w + '×' + A.h;
+      $('sDiff').textContent = '—';
+      $('sNote').textContent = '再选一张 B 开始比';
+      return;
+    }
+    if (!prepare()) return;
+
+    var w = A.w, h = A.h;
+    cv.width = w; cv.height = h;
+    $('dim').textContent = w + '×' + h;
+    $('sDim').textContent = w + '×' + h + (B.w !== A.w || B.h !== A.h ? '（B 已缩放到 A）' : '');
+
+    if (mode === 'diff'){ drawDiff(); return; }
+
+    ctx.clearRect(0, 0, w, h);
+    if (mode === 'side'){
+      ctx.drawImage(A.el, 0, 0, w / 2, h);
+      ctx.drawImage(B.el, w / 2, 0, w / 2, h);
+      ctx.fillStyle = 'rgba(0,0,0,.45)';
+      ctx.fillRect(w / 2 - 1, 0, 2, h);
+    } else {
+      var x = Math.round(w * split);
+      ctx.drawImage(A.el, 0, 0, w, h);
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x, 0, w - x, h); ctx.clip();
+      ctx.drawImage(B.el, 0, 0, w, h);
+      ctx.restore();
+      ctx.fillStyle = 'rgba(255,255,255,.9)';
+      ctx.fillRect(x - 1, 0, 2, h);
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.beginPath(); ctx.arc(x, h / 2, 13, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = '13px system-ui, sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('⇄', x, h / 2);
+    }
+    $('sDiff').textContent = '—';
+    $('sNote').textContent = '左边 A · 右边 B';
+  }
+
+  function blank(){
+    cv.width = 640; cv.height = 300;
+    ctx.fillStyle = '#e9eaec'; ctx.fillRect(0, 0, 640, 300);
+    ctx.fillStyle = '#8a9099'; ctx.font = '15px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('选两张图，或者点「放两张示例」', 320, 155);
+    $('dim').textContent = '—';
+    $('sDim').textContent = '—';
+    $('sDiff').textContent = '—';
+  }
+
+  function demo(){
+    var c = document.createElement('canvas');
+    c.width = 640; c.height = 360;
+    var g = c.getContext('2d');
+    g.fillStyle = '#f7f8fa'; g.fillRect(0, 0, 640, 360);
+    g.fillStyle = '#2f6df6'; g.fillRect(40, 40, 180, 26);
+    g.fillStyle = '#d8dde6'; g.fillRect(40, 92, 560, 10);
+    g.fillRect(40, 116, 520, 10);
+    g.fillRect(40, 140, 470, 10);
+    g.fillStyle = '#2f9e6b'; g.fillRect(40, 200, 140, 40);
+    g.fillStyle = '#c9cfd8'; g.fillRect(210, 200, 120, 40);
+    g.fillStyle = '#8a9099'; g.font = '14px system-ui, sans-serif';
+    g.fillText('示例页面 · 版本 A', 40, 300);
+
+    var imA = new Image();
+    var imB = new Image();
+    var left = 2;
+    function done(){
+      if (--left) return;
+      A = { el: imA, w: 640, h: 360 }; B = { el: imB, w: 640, h: 360 };
+      $('sizeA').textContent = '640×360'; $('sizeB').textContent = '640×360';
+      $('prevA').innerHTML = '<img src="' + imA.src + '" alt="A">';
+      $('prevB').innerHTML = '<img src="' + imB.src + '" alt="B">';
+      bufA = bufB = null;
+      draw();
+    }
+    imA.onload = done; imB.onload = done;
+    imA.src = c.toDataURL('image/png');
+
+    // B：改标题宽度、挪按钮、换一行文字
+    var g2 = c.getContext('2d');
+    g2.fillStyle = '#2f6df6'; g2.fillRect(40, 40, 240, 26);
+    g2.fillStyle = '#f7f8fa'; g2.fillRect(210, 200, 120, 40);
+    g2.fillStyle = '#e0562f'; g2.fillRect(180, 200, 150, 40);
+    imB.src = c.toDataURL('image/png');
+  }
+
+  function pos(e){
+    var r = cv.getBoundingClientRect();
+    var cx = (e.touches ? e.touches[0].clientX : e.clientX);
+    return Math.min(1, Math.max(0, (cx - r.left) / r.width));
+  }
+  var dragging = false;
+  function start(e){ if (mode !== 'slide') return; dragging = true; split = pos(e); draw(); e.preventDefault(); }
+  function move(e){ if (!dragging) return; split = pos(e); draw(); e.preventDefault(); }
+  function end(){ dragging = false; }
+  cv.addEventListener('mousedown', start);
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  cv.addEventListener('touchstart', start, { passive: false });
+  cv.addEventListener('touchmove', move, { passive: false });
+  window.addEventListener('touchend', end);
+
+  function hookSlot(slot, input, which){
+    input.addEventListener('change', function(){
+      if (this.files && this.files[0]) setImg(which, this.files[0]);
+      this.value = '';
+    });
+    ['dragenter', 'dragover'].forEach(function(ev){ slot.addEventListener(ev, function(e){ e.preventDefault(); slot.classList.add('over'); }); });
+    ['dragleave', 'drop'].forEach(function(ev){ slot.addEventListener(ev, function(e){ e.preventDefault(); slot.classList.remove('over'); }); });
+    slot.addEventListener('drop', function(e){
+      if (e.dataTransfer && e.dataTransfer.files[0]) setImg(which, e.dataTransfer.files[0]);
+    });
+  }
+  hookSlot($('slotA'), $('fileA'), 'A');
+  hookSlot($('slotB'), $('fileB'), 'B');
+
+  $('modes').addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('button[data-mode]') : null;
+    if (!b) return;
+    mode = b.getAttribute('data-mode');
+    var all = this.querySelectorAll('button');
+    for (var i = 0; i < all.length; i++) all[i].classList.toggle('on', all[i] === b);
+    $('thRow').style.display = mode === 'diff' ? 'flex' : 'none';
+    $('hint').textContent = mode === 'slide' ? '拖动分割线' : (mode === 'diff' ? '红色即差异' : '左 A 右 B');
+    draw();
+  });
+
+  $('th').addEventListener('input', function(){ $('thv').textContent = this.value; if (mode === 'diff') draw(); });
+  $('bDemo').addEventListener('click', demo);
+  $('bSwap').addEventListener('click', function(){
+    var t = A; A = B; B = t;
+    if (A || B){
+      $('sizeA').textContent = A ? A.w + '×' + A.h : '未选';
+      $('sizeB').textContent = B ? B.w + '×' + B.h : '未选';
+      $('prevA').innerHTML = A ? '<img src="' + A.el.src + '" alt="A">' : '<div class="empty">点这里选一张</div>';
+      $('prevB').innerHTML = B ? '<img src="' + B.el.src + '" alt="B">' : '<div class="empty">点这里选一张</div>';
+      bufA = bufB = null;
+      draw();
+    }
+  });
+
+  blank();
+  demo();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
