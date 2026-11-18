@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>标点转换 · 中英标点、全角半角一键互换</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:880px){ .panes{grid-template-columns:1fr 1fr; align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:13px}
+  textarea{height:320px; border:0; border-radius:0; font-size:14px; line-height:1.85}
+  textarea:focus{outline:0; box-shadow:inset 0 0 0 2px var(--accent)}
+  pre.out{white-space:pre-wrap; word-break:break-word; margin:0; padding:13px; height:320px; font-size:14px; line-height:1.85; font-family:inherit}
+  .modes{display:grid; grid-template-columns:1fr 1fr; gap:8px}
+  .modes button{
+    text-align:left; padding:9px 11px; border-radius:9px; border:1px solid var(--line);
+    background:var(--card); color:var(--fg); cursor:pointer; font:inherit; font-size:13px; line-height:1.4;
+  }
+  .modes button.on{border-color:var(--accent); background:var(--soft)}
+  .modes button b{display:block; font-weight:600; font-size:13.5px; margin-bottom:2px}
+  .modes button small{color:var(--dim); font-size:11.5px}
+  .opts{display:grid; gap:8px; margin-top:13px}
+  .opts label{display:flex; align-items:flex-start; gap:8px; font-size:13px; cursor:pointer; line-height:1.6}
+  .opts input{margin-top:3px; accent-color:var(--accent); flex:0 0 auto}
+  .opts small{display:block; color:var(--dim); font-size:11.5px; margin-top:1px}
+  .toggles{margin-top:12px; display:flex; gap:8px; flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>标点转换</h1>
+      <p class="lede">中文里混了英文标点、英文里混了全角逗号：挑一个方向点一下，整段统一。网址和数字不动。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <div class="hd"><span>原文</span><span id="cntIn">0 字</span></div>
+      <textarea id="src" spellcheck="false" placeholder="把要统一的文字粘进来……"></textarea>
+      <div class="bd" style="border-top:1px solid var(--line)">
+        <div class="modes" id="modes">
+          <button type="button" class="on" data-mode="c2e"><b>中文 → 英文标点</b><small>，。！？（） → ,.!?()</small></button>
+          <button type="button" data-mode="e2c"><b>英文 → 中文标点</b><small>,.!?() → ，。！？（）</small></button>
+          <button type="button" data-mode="fw2hw"><b>全角 → 半角</b><small>ＡＢＣ１２３ → ABC123</small></button>
+          <button type="button" data-mode="hw2fw"><b>半角 → 全角</b><small>ABC123 → ＡＢＣ１２３</small></button>
+        </div>
+        <div class="opts">
+          <label><input type="checkbox" id="optProto" checked><span>保护网址、邮箱、数字<small>example.com 的点和 3.14、9:30 不会被当句子标点</small></span></label>
+          <label><input type="checkbox" id="optQuote" checked><span>引号成对转换<small>“你好” ↔ "你好"，单引号同理</small></span></label>
+        </div>
+        <div class="toggles">
+          <button class="chip" id="bSample" type="button">示例</button>
+          <button class="chip" id="bClear" type="button">清空</button>
+          <button class="chip" id="bSwap" type="button">结果替换原文</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="hd"><span>转换后</span><span id="cntOut">0 字</span></div>
+      <pre class="out" id="out"></pre>
+      <div class="bd" style="border-top:1px solid var(--line); display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+        <button class="chip" id="bCopy" type="button">复制结果</button>
+        <span id="stat" style="font-size:12px;color:var(--dim)"></span>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">
+    <b>什么时候用</b>：中文稿子里不小心打了半角逗号、从英文文档复制来一段全角标点、
+    或者写代码注释时要统一成全角中文标点。<br>
+    <b>保护规则</b>：网址（<code>https://…</code>）、邮箱、小数（<code>3.14</code>）、时间（<code>9:30</code>）、
+    千分位（<code>1,000</code>）、反引号里的代码都原样保留，不会被「句号变点」这类规则改坏。
+  </p>
+
+  <footer>全部在浏览器里算，粘的东西不上传。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var src = $('src'), out = $('out'), stat = $('stat');
+  var mode = 'c2e';
+
+  var SAMPLE = '他说：“这个功能明天上线，你们先看着办。”于是我照着 v1.2.3 的文档改了一遍，\n' +
+    '提醒大家 9:30 开会（地点在三楼）；顺便清了 1,000 条缓存，\n' +
+    '参考 https://example.com/docs/getting-started.html 这一页。';
+
+  // 中文标点 → 英文
+  var C2E = {
+    '，': ',', '。': '.', '、': ',', '；': ';', '：': ':', '？': '?', '！': '!',
+    '（': '(', '）': ')', '【': '[', '】': ']', '《': '<', '》': '>',
+    '「': '"', '」': '"', '『': '"', '』': '"',
+    '“': '"', '”': '"', '‘': "'", '’': "'",
+    '～': '~', '·': '.', '　': ' '
+  };
+  // 英文标点 → 中文
+  var E2C = {
+    ',': '，', '.': '。', ';': '；', ':': '：', '?': '？', '!': '！',
+    '(': '（', ')': '）', '[': '【', ']': '】'
+  };
+  var EN = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+
+  var RE_PROTO = /(https?:\/\/[^\s<>"'`，。；：！？）】]+|www\.[^\s<>"'`，。；：！？）】]+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|\b[A-Za-z]\.[A-Za-z]\.[A-Za-z]?\.?|\b[\w-]+\.(?:md|txt|js|css|html|json|py|yml|yaml|sh|conf|log|png|jpg|jpeg|svg|zip|gz|pdf|exe|mp4)\b|\d+(?:[.,:]\d+)+|`[^`\n]*`)/g;
+
+  function protect(text){
+    var store = [];
+    var t = text.replace(RE_PROTO, function(m){
+      store.push(m);
+      return '\u0001' + (store.length - 1) + '\u0002';
+    });
+    return { t: t, store: store };
+  }
+  function restore(t, store){
+    return t.replace(/\u0001(\d+)\u0002/g, function(_, n){ return store[+n]; });
+  }
+
+  function convert(text){
+    var guard = $('optProto').checked;
+    var quote = $('optQuote').checked;
+    var p = guard ? protect(text) : { t: text, store: [] };
+    var s = p.t, res = '', cnt = 0;
+    var qd = false, qs = false;   // 双引号 / 单引号的开合状态
+
+    for (var i = 0; i < s.length; i++){
+      var ch = s.charAt(i);
+
+      // 占位符整段搬过去
+      if (ch === '\u0001'){
+        var j = s.indexOf('\u0002', i);
+        if (j < 0) j = s.length - 1;
+        res += s.slice(i, j + 1);
+        i = j;
+        continue;
+      }
+
+      if (mode === 'c2e'){
+        // 中文省略号、破折号是双字符，先合起来处理
+        if (ch === '…' && s.charAt(i + 1) === '…'){ res += '...'; cnt++; i++; continue; }
+        if (ch === '—' && s.charAt(i + 1) === '—'){ res += '--'; cnt++; i++; continue; }
+        if (ch === '…'){ res += '...'; cnt++; continue; }
+        if (ch === '—' || ch === '–'){ res += '-'; cnt++; continue; }
+        if (!quote && /[“”‘’「」『』]/.test(ch)){ res += ch; continue; }
+        if (C2E.hasOwnProperty(ch)){ res += C2E[ch]; cnt++; continue; }
+        var c = ch.charCodeAt(0);
+        if (c >= 0xff01 && c <= 0xff5e){ res += String.fromCharCode(c - 0xfee0); cnt++; continue; }
+        if (c === 0x3000){ res += ' '; cnt++; continue; }
+        res += ch;
+      } else if (mode === 'e2c'){
+        if (ch === '.' && s.charAt(i + 1) === '.' && s.charAt(i + 2) === '.'){
+          res += '……'; cnt++; i += 2; continue;
+        }
+        if (ch === '-' && s.charAt(i + 1) === '-'){ res += '——'; cnt++; i++; continue; }
+        if (quote && ch === '"'){ res += qd ? '”' : '“'; qd = !qd; cnt++; continue; }
+        if (quote && ch === "'"){
+          var prev = s.charAt(i - 1), next = s.charAt(i + 1);
+          // 夹在字母中间的是撇号（don't / it's），不当引号
+          if (EN.indexOf(prev) > -1 && EN.indexOf(next) > -1){ res += "'"; continue; }
+          res += qs ? '’' : '‘'; qs = !qs; cnt++; continue;
+        }
+        if (!quote && (ch === '"' || ch === "'")){ res += ch; continue; }
+        if (E2C.hasOwnProperty(ch)){ res += E2C[ch]; cnt++; continue; }
+        res += ch;
+      } else if (mode === 'fw2hw'){
+        var c3 = ch.charCodeAt(0);
+        if (c3 >= 0xff01 && c3 <= 0xff5e){ res += String.fromCharCode(c3 - 0xfee0); cnt++; continue; }
+        if (c3 === 0x3000){ res += ' '; cnt++; continue; }
+        res += ch;
+      } else if (mode === 'hw2fw'){
+        var c4 = ch.charCodeAt(0);
+        if (c4 >= 0x21 && c4 <= 0x7e){ res += String.fromCharCode(c4 + 0xfee0); cnt++; continue; }
+        res += ch;
+      } else {
+        res += ch;
+      }
+    }
+    return { text: restore(res, p.store), cnt: cnt };
+  }
+
+  function run(){
+    var v = src.value;
+    $('cntIn').textContent = v.replace(/\n/g, '').length + ' 字';
+    if (!v){ out.textContent = '（这里出结果）'; $('cntOut').textContent = '0 字'; stat.textContent = ''; return; }
+    var r = convert(v);
+    out.textContent = r.text;
+    $('cntOut').textContent = r.text.replace(/\n/g, '').length + ' 字';
+    stat.textContent = r.cnt ? '改了 ' + r.cnt + ' 处' : '没有需要改的地方';
+  }
+
+  $('modes').addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('button[data-mode]') : null;
+    if (!b) return;
+    mode = b.getAttribute('data-mode');
+    var all = this.querySelectorAll('button');
+    for (var i = 0; i < all.length; i++) all[i].classList.toggle('on', all[i] === b);
+    run();
+  });
+
+  $('bSample').addEventListener('click', function(){ src.value = SAMPLE; run(); });
+  $('bClear').addEventListener('click', function(){ src.value = ''; run(); src.focus(); });
+  $('bSwap').addEventListener('click', function(){ src.value = out.textContent; run(); });
+  $('bCopy').addEventListener('click', function(){
+    var btn = this, old = btn.textContent;
+    if (typeof copyText === 'function') copyText(out.textContent);
+    else { try { navigator.clipboard.writeText(out.textContent); } catch (e) {} }
+    btn.textContent = '已复制'; setTimeout(function(){ btn.textContent = old; }, 1200);
+  });
+  $('optProto').addEventListener('change', run);
+  $('optQuote').addEventListener('change', run);
+  src.addEventListener('input', run);
+
+  src.value = SAMPLE;
+  run();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

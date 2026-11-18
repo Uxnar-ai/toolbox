@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>中文数字 · 数字读法互转，两个方向都认</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:860px){ .panes{grid-template-columns:1fr 1fr; align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:13px}
+  textarea{height:150px; border:0; border-radius:0; font-size:16px; line-height:1.8}
+  textarea:focus{outline:0; box-shadow:inset 0 0 0 2px var(--accent)}
+  #out{
+    min-height:150px; padding:13px; font-size:20px; line-height:1.75; font-weight:500;
+    word-break:break-word; user-select:all;
+  }
+  #out .dim{font-size:13px; color:var(--dim); font-weight:400}
+  .seg{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:11px}
+  .err{font-size:12.5px; color:var(--err); min-height:17px; margin-top:8px}
+  .cases{display:flex; gap:7px; flex-wrap:wrap; margin-top:12px}
+  .cases button{
+    font:13px/1 inherit; padding:6px 11px; border-radius:999px; border:1px solid var(--line);
+    background:var(--card); color:var(--dim); cursor:pointer;
+  }
+  .cases button:hover{border-color:var(--accent); color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>中文数字</h1>
+      <p class="lede">数字和读法互转，粘什么都认：1234567 出读法，「三千零五」也能变回 3005。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <div class="hd"><span>输入</span><span id="kind">—</span></div>
+      <textarea id="src" spellcheck="false" placeholder="1234567.89 或者 三千零五"></textarea>
+      <div class="bd" style="border-top:1px solid var(--line)">
+        <div class="cases" id="cases">
+          <button type="button" data-v="1234567.89">1234567.89</button>
+          <button type="button" data-v="100000001">100000001</button>
+          <button type="button" data-v="三千零五">三千零五</button>
+          <button type="button" data-v="负二点五">负二点五</button>
+          <button type="button" data-v="一亿零二万">一亿零二万</button>
+        </div>
+        <div class="err" id="err"></div>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="hd"><span>结果</span><span id="lintxt"></span></div>
+      <div id="out"></div>
+      <div class="bd" style="border-top:1px solid var(--line)">
+        <div class="seg">
+          <button class="chip" id="bCopy" type="button">复制结果</button>
+          <button class="chip" id="bSwap" type="button">结果换到输入</button>
+          <span id="stat" style="font-size:12px;color:var(--dim)"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">
+    <b>怎么认</b>：输入里有汉字「一二三…十百千万亿」就按中文读，全是数字就按阿拉伯数字转中文。两种写法混着来（<code>3千</code>）不认，会直接提示。<br>
+    <b>读法规则</b>：按万、亿分段，段内的零合并成一个「零」，末尾的零不读；
+    <code>10–19</code> 开头读「十」不读「一十」（十三，不是一十三）。金额大写（壹佰贰拾叁圆整）请用工具台的「金额大写」。
+  </p>
+
+  <footer>纯本地计算，不上传。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var DIG = '零一二三四五六七八九';
+  var U4 = ['', '十', '百', '千'];
+
+  function sec4(n){
+    var s = '', zero = false, started = false;
+    var u = [1000, 100, 10, 1];
+    for (var i = 0; i < 4; i++){
+      var d = Math.floor(n / u[i]) % 10;
+      if (d === 0){
+        if (started) zero = true;
+      } else {
+        if (zero) s += '零';
+        s += DIG.charAt(d) + U4[3 - i];
+        zero = false;
+        started = true;
+      }
+    }
+    return s;
+  }
+
+  function intToCN(num){
+    if (num === 0) return '零';
+    var units = ['', '万', '亿', '万亿'];
+    var parts = [];
+    var n = num;
+    while (n > 0){ parts.push(n % 10000); n = Math.floor(n / 10000); }
+    var s = '';
+    for (var i = parts.length - 1; i >= 0; i--){
+      var p = parts[i];
+      if (p === 0){
+        if (s && s.charAt(s.length - 1) !== '零') s += '零';
+        continue;
+      }
+      if (s && p < 1000 && s.charAt(s.length - 1) !== '零') s += '零';
+      s += sec4(p) + units[i];
+    }
+    s = s.replace(/零+$/, '');
+    s = s.replace(/^一十/, '十');
+    return s;
+  }
+
+  function toCN(str){
+    var neg = /^-/.test(str);
+    var s = str.replace(/^[-+]/, '');
+    var dot = s.indexOf('.');
+    var ip = dot < 0 ? s : s.slice(0, dot);
+    var fp = dot < 0 ? '' : s.slice(dot + 1);
+    if (ip.length > 16) throw new Error('数字太大，超过一万亿了');
+    var out = intToCN(parseInt(ip || '0', 10));
+    if (fp){
+      out += '点';
+      for (var i = 0; i < fp.length; i++) out += DIG.charAt(+fp.charAt(i));
+    }
+    return (neg ? '负' : '') + out;
+  }
+
+  var MAP = { '零': 0, '〇': 0, '一': 1, '壹': 1, '二': 2, '两': 2, '贰': 2, '三': 3, '叁': 3,
+    '四': 4, '肆': 4, '五': 5, '伍': 5, '六': 6, '陆': 6, '七': 7, '柒': 7, '八': 8, '捌': 8, '九': 9, '玖': 9 };
+  var SMALL = { '十': 10, '拾': 10, '百': 100, '佰': 100, '千': 1000, '仟': 1000 };
+  var BIG = { '万': 1e4, '亿': 1e8 };
+
+  function fromCN(s){
+    s = s.replace(/[\s,，]/g, '');
+    var neg = false;
+    if (s.charAt(0) === '负'){ neg = true; s = s.slice(1); }
+    if (s.charAt(0) === '-'){ neg = true; s = s.slice(1); }
+
+    var dotPos = s.indexOf('点');
+    var ip = dotPos < 0 ? s : s.slice(0, dotPos);
+    var fp = dotPos < 0 ? '' : s.slice(dotPos + 1);
+    if (!ip) throw new Error('没有数字');
+
+    var total = 0, section = 0, num = 0, any = false;
+    for (var i = 0; i < ip.length; i++){
+      var ch = ip.charAt(i);
+      if (MAP.hasOwnProperty(ch)){ num = MAP[ch]; any = true; }
+      else if (SMALL.hasOwnProperty(ch)){
+        // 单独一个「十」前面没数字时按 1 算（十三 = 13）
+        section += (num || (any ? 0 : 1)) * SMALL[ch];
+        num = 0; any = true;
+      } else if (BIG.hasOwnProperty(ch)){
+        total += (section + num) * BIG[ch];
+        section = 0; num = 0; any = true;
+      } else {
+        throw new Error('这个字不认识：' + ch);
+      }
+    }
+    var val = total + section + num;
+    if (!any) throw new Error('没有数字');
+
+    if (fp){
+      var dec = '';
+      for (var k = 0; k < fp.length; k++){
+        var c = fp.charAt(k);
+        if (!MAP.hasOwnProperty(c)) throw new Error('小数点后只能跟数字：' + c);
+        dec += MAP[c];
+      }
+      return (neg ? '-' : '') + val + (dec ? '.' + dec : '');
+    }
+    return (neg ? '-' : '') + val;
+  }
+
+  var SAMPLE = '1234567.89';
+
+  function hasCN(s){ return /[零〇一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟]/.test(s); }
+
+  function run(){
+    var v = $('src').value.trim();
+    var out = $('out'), err = $('err');
+    err.textContent = '';
+    if (!v){ out.innerHTML = '<span class="dim">左边输入数字或读法</span>'; $('kind').textContent = '—'; $('lintxt').textContent = ''; return; }
+
+    try {
+      if (hasCN(v)){
+        var n = fromCN(v);
+        $('kind').textContent = '中文读法';
+        out.textContent = n;
+        $('lintxt').textContent = '转成数字';
+      } else {
+        var clean = v.replace(/[,\s]/g, '');
+        if (!/^[-+]?\d*\.?\d+$/.test(clean)) throw new Error('看不懂这个输入：数字里混了别的字符');
+        $('kind').textContent = '阿拉伯数字';
+        out.textContent = toCN(clean);
+        $('lintxt').textContent = '转成读法';
+      }
+      $('stat').textContent = '';
+    } catch (e){
+      err.textContent = e.message;
+      out.innerHTML = '<span class="dim">—</span>';
+      $('lintxt').textContent = '';
+    }
+  }
+
+  $('cases').addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('button[data-v]') : null;
+    if (!b) return;
+    $('src').value = b.getAttribute('data-v');
+    run();
+  });
+
+  $('bCopy').addEventListener('click', function(){
+    var t = $('out').textContent, btn = this, old = btn.textContent;
+    if (typeof copyText === 'function') copyText(t);
+    else { try { navigator.clipboard.writeText(t); } catch (e) {} }
+    btn.textContent = '已复制'; setTimeout(function(){ btn.textContent = old; }, 1200);
+  });
+
+  $('bSwap').addEventListener('click', function(){
+    var t = $('out').textContent;
+    if (!t || t === '—') return;
+    $('src').value = t;
+    run();
+  });
+
+  $('src').addEventListener('input', run);
+  $('src').value = SAMPLE;
+  run();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

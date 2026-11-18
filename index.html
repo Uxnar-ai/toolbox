@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>工具台 toolbox</title>
-<meta name="description" content="一堆打开就能用的小工具：JSON、文本、CSV 表格、Markdown 预览、字数统计、中英混排、网址拆解、乱码修复、时间戳、对比、Cron、日期、命名转换、金额大写、百分比、贷款计算、单位、网段计算、颜色、图片压缩、二维码、哈希、编码、SQL 排版、JSON 转类型、号码校验、curl 转代码、HTTP 状态码、.gitignore 生成、网站图标、HTML 转 Markdown、假数据生成、时区对照、特殊符号、隐藏字符体检、表格对齐、阴影与圆角、JSON 树、个税与到手、JSON 转表格、体重与热量、番茄钟、字符查询、图片尺寸换算、Git 急救、常用正则、IPv6 地址、菜谱份量换算、两步验证码、代码美化。全在浏览器里算，不上传服务器。">
+<meta name="description" content="一堆打开就能用的小工具：JSON、文本、CSV 表格、Markdown 预览、字数统计、中英混排、网址拆解、乱码修复、时间戳、对比、Cron、日期、命名转换、金额大写、百分比、贷款计算、单位、网段计算、颜色、图片压缩、二维码、哈希、编码、SQL 排版、JSON 转类型、号码校验、curl 转代码、HTTP 状态码、.gitignore 生成、网站图标、HTML 转 Markdown、假数据生成、时区对照、特殊符号、隐藏字符体检、表格对齐、阴影与圆角、JSON 树、个税与到手、JSON 转表格、体重与热量、番茄钟、字符查询、图片尺寸换算、Git 急救、常用正则、IPv6 地址、菜谱份量换算、两步验证码、代码美化、标点转换、Nginx 反代配置、年龄计算、图片拼接、中文数字。全在浏览器里算，不上传服务器。">
 <link rel="stylesheet" href="assets/theme.css">
 <style>
   .grid{display:grid; gap:12px; grid-template-columns:1fr}
@@ -195,6 +195,12 @@
       <p>一段长文要分几条发出去？定个字数上限，它在段落和句号处断开，不会把句子切一半。</p>
       <div class="tags"><span>按字数切</span><span>均分几段</span><span>逐条复制</span></div>
     </a>
+    <a class="card" href="punct/" data-k="punct 标点转换 中文里混了英文标点、英文里混了全角逗号：点一个方向整段统一，网址和 3.14、9:30 不动。 中英互转 全角半角 保护网址数字" data-slug="punct">
+      <div class="top"><span class="ico">。</span><span class="arrow">↗</span></div>
+      <h2>标点转换</h2>
+      <p>中文里混了英文标点、英文里混了全角逗号：点一个方向整段统一，网址和 3.14、9:30 不动。</p>
+      <div class="tags"><span>中英互转</span><span>全角半角</span><span>保护网址数字</span></div>
+    </a>
   </div>
   <div class="group">开发与校验</div>
   <div class="grid">
@@ -300,6 +306,12 @@
       <p>从网页扒出来挤成一行的 HTML、CSS、JS，粘进来按缩进排好；反过来也能压成一行。</p>
       <div class="tags"><span>HTML / CSS / JS</span><span>缩进可调</span><span>压成一行</span></div>
     </a>
+    <a class="card" href="nginx/" data-k="nginx Nginx 反代配置 填域名和本机端口，直接出能粘的 server 块：80 跳 443、反代、超时、上传大小、字体通道。 反代 443 跳转 字体通道" data-slug="nginx">
+      <div class="top"><span class="ico">N</span><span class="arrow">↗</span></div>
+      <h2>Nginx 反代配置</h2>
+      <p>填域名和本机端口，直接出能粘的 server 块：80 跳 443、反代、超时、上传大小、字体通道。</p>
+      <div class="tags"><span>反代</span><span>443 跳转</span><span>字体通道</span></div>
+    </a>
   </div>
   <div class="group">时间与任务</div>
   <div class="grid">
@@ -338,6 +350,12 @@
       <h2>字幕时间轴</h2>
       <p>字幕整体早了晚了，填个秒数一键挪正；SRT 与 VTT 也能互相转，文字和顺序都不动。</p>
       <div class="tags"><span>整体平移</span><span>SRT / VTT</span><span>可下载</span></div>
+    </a>
+    <a class="card" href="age/" data-k="age 年龄计算 填一个生日：精确到年月日的周岁、活了多少天、下次生日还有几天，还能复制成一句话。 周岁 / 虚岁 下次生日 生肖星座" data-slug="age">
+      <div class="top"><span class="ico">岁</span><span class="arrow">↗</span></div>
+      <h2>年龄计算</h2>
+      <p>填一个生日：精确到年月日的周岁、活了多少天、下次生日还有几天，还能复制成一句话。</p>
+      <div class="tags"><span>周岁 / 虚岁</span><span>下次生日</span><span>生肖星座</span></div>
     </a>
   </div>
   <div class="group">数字与金额</div>
@@ -395,6 +413,12 @@
       <h2>菜谱份量换算</h2>
       <p>两人份想改三人份：克数、勺数、个数按比例重算，炉温和分钟不动，改了哪几个数都标出来。</p>
       <div class="tags"><span>按份数缩放</span><span>克勺换算表</span><span>区间也认</span></div>
+    </a>
+    <a class="card" href="cnnum/" data-k="cnnum 中文数字 数字和读法互转，粘什么都认：1234567.89 出一百二十三万…，「三千零五」也能变回 3005。 双向互转 小数负数 一万亿也认" data-slug="cnnum">
+      <div class="top"><span class="ico">壹</span><span class="arrow">↗</span></div>
+      <h2>中文数字</h2>
+      <p>数字和读法互转，粘什么都认：1234567.89 出一百二十三万…，「三千零五」也能变回 3005。</p>
+      <div class="tags"><span>双向互转</span><span>小数负数</span><span>一万亿也认</span></div>
     </a>
   </div>
   <div class="group">网络与编码</div>
@@ -492,6 +516,12 @@
       <p>这张图打出来多大、要打印 20 厘米得多少像素，填两个数就知道，不用再算 2.54。</p>
       <div class="tags"><span>像素 ↔ 厘米</span><span>打印分辨率</span><span>常见尺寸</span></div>
     </a>
+    <a class="card" href="imgrid/" data-k="imgrid 图片拼接 几张图丢进来横排、竖排或拼成格子，间距背景可调，导出一张 PNG，全程不上传。 竖排长图 横排对比 九宫格" data-slug="imgrid">
+      <div class="top"><span class="ico">▦</span><span class="arrow">↗</span></div>
+      <h2>图片拼接</h2>
+      <p>几张图丢进来横排、竖排或拼成格子，间距背景可调，导出一张 PNG，全程不上传。</p>
+      <div class="tags"><span>竖排长图</span><span>横排对比</span><span>九宫格</span></div>
+    </a>
   </div>
   <div class="group">生成与随机</div>
   <div class="grid">
@@ -505,7 +535,7 @@
 
   <footer>
     同一个仓库里长出来的东西：新工具加个目录、挂进这张表就行。需要后端的（短码暂存、天气、主机指标、资讯聚合）各自独立跑，不塞进这里。
-    <br>更新于 2026-11-18 · 共 68 个工具
+    <br>更新于 2026-11-19 · 共 73 个工具
   </footer>
 </div>
 <script src="assets/base.js"></script>

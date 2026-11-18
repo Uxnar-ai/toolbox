@@ -1,6 +1,6 @@
-# toolbox — sixty-eight small tools that open and work
+# toolbox — seventy-three small tools that open and work
 
-> Sixty-eight tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table, whitespace detective, table aligner, shadow generator, JSON tree, income tax and take-home, JSON to table, BMI and calories, pomodoro timer. CSS gradient, image cropper, JSON diff, SVG minifier, subtitle timeline, image watermark, photo metadata, barcode generator, text splitter, character inspector, print size calculator, git rescue manual, regex cookbook, IPv6 address toolkit, recipe scaler, TOTP codes, code beautifier. No backend, no ports.
+> Seventy-three tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table, whitespace detective, table aligner, shadow generator, JSON tree, income tax and take-home, JSON to table, BMI and calories, pomodoro timer. CSS gradient, image cropper, JSON diff, SVG minifier, subtitle timeline, image watermark, photo metadata, barcode generator, text splitter, character inspector, print size calculator, git rescue manual, regex cookbook, IPv6 address toolkit, recipe scaler, TOTP codes, code beautifier, punctuation converter, nginx reverse-proxy generator, age calculator, image stitcher, Chinese numerals. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -8,20 +8,22 @@ English | [中文](README.md)
 
 Every tool computes in the browser; no server is involved. `scripts/build_toolbox.py` reads each tool template, rewrites asset paths, injects the back-to-index capsule, and assembles a grouped home page; theme.css and base.js exist once. The output is a plain static directory.
 
-This round (2026-11-18) brings it to sixty-eight, with four new tools:
+This round (2026-11-19) brings it to seventy-three, with five new tools:
 
-- **IPv6 address**: paste an address or prefix (`2408:8207::1/64`, `fe80::1`, `::ffff:198.51.100.10`, even `ff02::1%eth0`) and get the RFC 5952 short form, the full form, network and first/last usable addresses, how many addresses the block holds, and the address class (global unicast, link-local, unique-local, multicast, documentation, NAT64). Two reverse helpers: test whether an address falls inside the parsed block, and derive the `fe80::` link-local address from a MAC (EUI-64 with the U/L bit flipped).
-- **Recipe scaler**: paste a whole recipe, give the original and target serving counts, and every gram, millilitre, spoon and count is rescaled. Ranges like `100-150 g` scale at both ends; fractions like `1/2 cup` are understood; oven temperatures, minutes and step numbers are left alone. Changed numbers are highlighted in the result, and a spoon-to-gram table covers flour, sugar, salt, rice and oil.
-- **TOTP codes**: paste the Base32 backup secret or a whole `otpauth://` URI and get the current code; 6 or 8 digits, 30 or 60 seconds, SHA-1 / SHA-256 / SHA-512. Countdown bar and next-code preview included. Hashing runs in WebCrypto — the secret is never stored or sent anywhere.
-- **Code beautifier**: minified HTML, CSS or JS from a page or a build artefact is re-indented; HTML and CSS can also be collapsed back to one line. Only whitespace changes — strings, template literals, regexes and comments in JS are preserved, and line breaks are only inserted after `;`, `{` and `}` (semicolons inside `for(;;)` excepted), so automatic semicolon insertion is never triggered. JS minification is deliberately left out.
+- **Punctuation converter**: Chinese to ASCII punctuation, ASCII to Chinese, full-width and half-width, four directions. URLs, e-mails, decimals, times, thousands separators, file names and inline code are lifted out with placeholders before conversion, so links in the text survive intact.
+- **Nginx reverse proxy**: type a hostname and a local port, get a ready-to-paste `server` block with 80-to-443 redirect, TLS paths, proxy headers, WebSocket upgrade, timeouts, body size and gzip, plus an optional `/_fonts/` alias block.
+- **Age calculator**: exact years/months/days by calendar arithmetic, plus nominal age, zodiac, star sign, days lived, next birthday countdown and the next round-thousandth day.
+- **Image stitcher**: stack screenshots into one long image, place images side by side for comparison, or build a grid; adjustable gap and background, PNG/JPG export, all local.
+- **Chinese numerals**: two-way conversion. `1234567.89` becomes 一百二十三万四千五百六十七点八九, and 三千零五 comes back as 3005.
 
 ## Features
 
-- IPv6 address: short and full forms, network and usable range, address count, class detection, MAC to fe80:: link-local in one click
-- Recipe scaler: rescales a whole recipe by serving count, understands ranges and fractions, leaves oven temperature and timing alone
-- TOTP codes: Base32 secret or otpauth URI, 6 or 8 digits, three algorithms, countdown, computed locally with WebCrypto
-- Code beautifier: re-indents HTML / CSS / JS and can collapse HTML and CSS back to one line, changing whitespace only
-- Everything runs in the browser: images, text and JSON are never uploaded
+- Punctuation converter: four directions between Chinese and ASCII punctuation, full and half width, with URLs and 3.14 / 9:30 / 1,000 protected
+- Nginx reverse proxy: hostname plus port produces a complete server block with 80-to-443 redirect, WebSocket, body size and a /_fonts/ alias
+- Age calculator: exact years/months/days, nominal age, zodiac, star sign, days lived, next birthday countdown, copyable sentence
+- Image stitcher: vertical long image, side-by-side comparison or grid, adjustable gap and background, PNG/JPG export
+- Chinese numerals: two-way conversion, understands 两 / 壹贰叁 / 点 / 负, rejects mixed input instead of guessing
+- Everything computes in the browser: images, text and JSON never leave the page
 
 ## Stack
 

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>图片拼接 · 多张图横排、竖排、拼成网格</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:900px){ .panes{grid-template-columns:360px 1fr; align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:13px}
+  .drop{
+    display:block; border:1.5px dashed var(--line); border-radius:10px; padding:18px 12px;
+    text-align:center; cursor:pointer; font-size:13px; color:var(--dim); line-height:1.7;
+    transition:border-color .15s, background .15s;
+  }
+  .drop:hover, .drop.over{border-color:var(--accent); background:var(--soft); color:var(--fg)}
+  .drop b{display:block; font-size:14px; color:var(--fg); font-weight:600; margin-bottom:3px}
+  .drop input{display:none}
+  .thumbs{display:flex; gap:7px; flex-wrap:wrap; margin-top:11px}
+  .th{position:relative; width:62px; height:62px; border-radius:8px; overflow:hidden; border:1px solid var(--line); background:var(--soft)}
+  .th img{width:100%; height:100%; object-fit:cover; display:block}
+  .th button{
+    position:absolute; top:2px; right:2px; width:17px; height:17px; border-radius:999px; border:0;
+    background:rgba(0,0,0,.62); color:#fff; font-size:11px; line-height:1; cursor:pointer; padding:0;
+  }
+  .th .no{
+    position:absolute; left:2px; bottom:2px; font:600 10px/1 ui-monospace,monospace; color:#fff;
+    background:rgba(0,0,0,.55); border-radius:4px; padding:2px 4px;
+  }
+  .row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:11px}
+  .row .f{flex:1 1 96px; min-width:96px; display:flex; flex-direction:column; gap:4px}
+  .row .f label{font-size:11.5px; color:var(--dim)}
+  .row input, .row select{
+    font:13px/1.4 inherit; padding:7px 9px; border-radius:8px; border:1px solid var(--line);
+    background:var(--card); color:var(--fg); width:100%; min-width:0;
+  }
+  .modes{display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px; margin-bottom:11px}
+  .modes button{
+    padding:8px 6px; border-radius:8px; border:1px solid var(--line); background:var(--card);
+    color:var(--fg); font:inherit; font-size:12.5px; cursor:pointer;
+  }
+  .modes button.on{border-color:var(--accent); background:var(--soft); font-weight:600}
+  .canvaswrap{padding:13px; display:flex; justify-content:center; align-items:flex-start; min-height:220px; background:
+    repeating-conic-gradient(var(--soft) 0% 25%, transparent 0% 50%) 50%/16px 16px}
+  canvas{max-width:100%; height:auto; border-radius:6px; box-shadow:0 1px 10px rgba(0,0,0,.10)}
+  .seg{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>图片拼接</h1>
+      <p class="lede">几张图丢进来，横着排、竖着排或者拼成格子，间距和背景色都能调，直接导出 PNG。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <div class="hd"><span>图片</span><span id="cnt">0 张</span></div>
+      <div class="bd">
+        <label class="drop" id="drop">
+          <b>点这里选图，或者把图拖进来</b>
+          也能直接 Ctrl+V 粘贴 · 全部在本机处理
+          <input type="file" id="file" accept="image/*" multiple>
+        </label>
+        <div class="thumbs" id="thumbs"></div>
+
+        <div class="modes" id="modes" style="margin-top:13px">
+          <button type="button" data-mode="v" class="on">竖排</button>
+          <button type="button" data-mode="h">横排</button>
+          <button type="button" data-mode="g">格子</button>
+        </div>
+
+        <div class="row">
+          <div class="f"><label id="sizeLbl">统一宽度</label><input id="size" type="number" value="800" min="100" step="50"></div>
+          <div class="f"><label>间距</label><input id="gap" type="number" value="8" min="0" max="80" step="2"></div>
+        </div>
+        <div class="row">
+          <div class="f"><label>背景</label>
+            <select id="bg">
+              <option value="#ffffff">白色</option>
+              <option value="#14161a">深色</option>
+              <option value="#f2f3f5">浅灰</option>
+              <option value="transparent">透明（仅 PNG）</option>
+            </select>
+          </div>
+          <div class="f"><label>每行几张（格子用）</label><input id="cols" type="number" value="2" min="1" max="6" step="1"></div>
+        </div>
+        <div class="seg">
+          <button class="chip" id="bDemo" type="button">放三张示例</button>
+          <button class="chip" id="bClear" type="button">清空</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="hd"><span>预览</span><span id="dim">—</span></div>
+      <div class="canvaswrap"><canvas id="cv" width="600" height="300"></canvas></div>
+      <div class="bd" style="border-top:1px solid var(--line)">
+        <div class="seg">
+          <button class="chip" id="bPng" type="button">下载 PNG</button>
+          <button class="chip" id="bJpg" type="button">下载 JPG</button>
+          <span id="stat" style="font-size:12px;color:var(--dim)"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">
+    <b>竖排</b>适合把多张截图接成一张长图（宽度统一，高度自动累加）；
+    <b>横排</b>适合做效果对比（高度统一）；
+    <b>格子</b>适合九宫格展示，列数自己填。<br>
+    处理全程在浏览器里，图片不上传；导出尺寸就是你设定的宽度，原图不会更清晰，所以别指望放大。
+  </p>
+
+  <footer>图片只在内存里，关掉页面就没了。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var cv = $('cv'), ctx = cv.getContext('2d');
+  var items = [];       // { el: Image, w, h, name }
+  var mode = 'v';
+
+  function refreshCount(){
+    $('cnt').textContent = items.length + ' 张';
+    $('sizeLbl').textContent = mode === 'h' ? '统一高度' : (mode === 'g' ? '输出宽度' : '统一宽度');
+  }
+
+  function paintThumbs(){
+    var box = $('thumbs');
+    box.innerHTML = '';
+    items.forEach(function(it, i){
+      var d = document.createElement('div');
+      d.className = 'th';
+      var im = document.createElement('img');
+      im.src = it.url; im.alt = it.name;
+      var del = document.createElement('button');
+      del.type = 'button'; del.textContent = '×'; del.title = '移除';
+      del.addEventListener('click', function(){ items.splice(i, 1); paintThumbs(); render(); });
+      var no = document.createElement('span');
+      no.className = 'no'; no.textContent = i + 1;
+      d.appendChild(im); d.appendChild(del); d.appendChild(no);
+      box.appendChild(d);
+    });
+    refreshCount();
+  }
+
+  function addFiles(list){
+    var arr = Array.prototype.slice.call(list).filter(function(f){ return /^image\//.test(f.type); });
+    if (!arr.length) return;
+    var room = 12 - items.length;
+    if (room <= 0){ $('stat').textContent = '最多 12 张，先删掉几张'; return; }
+    arr.slice(0, room).forEach(function(f){
+      var url = URL.createObjectURL(f);
+      var im = new Image();
+      im.onload = function(){
+        items.push({ el: im, w: im.naturalWidth, h: im.naturalHeight, name: f.name, url: url });
+        paintThumbs(); render();
+      };
+      im.src = url;
+    });
+  }
+
+  function bgFill(){
+    var v = $('bg').value;
+    return v;
+  }
+
+  function render(){
+    var gap = Math.max(0, parseInt($('gap').value, 10) || 0);
+    var size = Math.max(100, parseInt($('size').value, 10) || 800);
+    var cols = Math.max(1, Math.min(6, parseInt($('cols').value, 10) || 2));
+    var bg = bgFill();
+
+    if (!items.length){
+      cv.width = 600; cv.height = 300;
+      ctx.clearRect(0, 0, 600, 300);
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--soft') || '#eee';
+      ctx.fillRect(0, 0, 600, 300);
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--dim') || '#888';
+      ctx.font = '15px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('把图片拖进来，或者点「放三张示例」', 300, 155);
+      $('dim').textContent = '—';
+      return;
+    }
+
+    var plan = [];   // {x,y,w,h,el}
+    var W = 0, H = 0;
+
+    if (mode === 'v'){
+      W = size;
+      var y = 0;
+      items.forEach(function(it){
+        var h = Math.round(it.h * (size / it.w));
+        plan.push({ x: 0, y: y, w: size, h: h, el: it.el });
+        y += h + gap;
+      });
+      H = Math.max(1, y - gap);
+    } else if (mode === 'h'){
+      H = size;
+      var x = 0;
+      items.forEach(function(it){
+        var w = Math.round(it.w * (size / it.h));
+        plan.push({ x: x, y: 0, w: w, h: size, el: it.el });
+        x += w + gap;
+      });
+      W = Math.max(1, x - gap);
+    } else {
+      W = size;
+      var cw = Math.floor((size - gap * (cols - 1)) / cols);
+      var rowH = Math.round(cw * 0.75);
+      for (var i = 0; i < items.length + 0; i++){
+        var r = Math.floor(i / cols), c = i % cols;
+        var it = items[i];
+        var scale = Math.min(cw / it.w, rowH / it.h);
+        var w = Math.round(it.w * scale), h = Math.round(it.h * scale);
+        plan.push({ x: c * (cw + gap), y: r * (rowH + gap), w: w, h: h, el: it.el, cx: (c * (cw + gap)) + (cw - w) / 2, cy: (r * (rowH + gap)) + (rowH - h) / 2 });
+      }
+      var rows = Math.ceil(items.length / cols);
+      H = rows * rowH + gap * (rows - 1);
+    }
+
+    cv.width = Math.max(1, Math.round(W));
+    cv.height = Math.max(1, Math.round(H));
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (bg !== 'transparent'){ ctx.fillStyle = bg; ctx.fillRect(0, 0, cv.width, cv.height); }
+
+    ctx.imageSmoothingQuality = 'high';
+    plan.forEach(function(p){
+      var x = (p.cx !== undefined) ? p.cx : p.x;
+      var y2 = (p.cy !== undefined) ? p.cy : p.y;
+      ctx.drawImage(p.el, x, y2, p.w, p.h);
+    });
+
+    $('dim').textContent = cv.width + ' × ' + cv.height;
+    $('stat').textContent = items.length + ' 张已拼好';
+  }
+
+  function demo(){
+    var colors = [
+      ['#2f6df6', '#e8efff', '第一张'],
+      ['#e0562f', '#ffeee8', '第二张'],
+      ['#2f9e6b', '#e6f7ef', '第三张']
+    ];
+    items = [];
+    colors.forEach(function(c, i){
+      var c2 = document.createElement('canvas');
+      c2.width = 640; c2.height = 360;
+      var g = c2.getContext('2d');
+      g.fillStyle = c[1]; g.fillRect(0, 0, 640, 360);
+      g.fillStyle = c[0]; g.fillRect(0, 0, 640, 74);
+      g.fillStyle = '#fff'; g.font = '600 27px system-ui, sans-serif'; g.textAlign = 'left';
+      g.fillText(c[2], 24, 49);
+      g.fillStyle = c[0]; g.font = '15px system-ui, sans-serif'; g.textAlign = 'center';
+      g.fillText('示例图 ' + (i + 1) + ' · 640 × 360', 320, 210);
+      var im = new Image();
+      im.onload = function(){ paintThumbs(); render(); };
+      im.src = c2.toDataURL('image/png');
+      items.push({ el: im, w: 640, h: 360, name: 'demo-' + (i + 1) + '.png', url: im.src });
+    });
+    paintThumbs();
+    render();
+  }
+
+  function download(type){
+    var name = 'grid.' + (type === 'jpg' ? 'jpg' : 'png');
+    if (type === 'jpg' && $('bg').value === 'transparent'){
+      $('stat').textContent = 'JPG 不支持透明，先换个背景色';
+      return;
+    }
+    cv.toBlob(function(blob){
+      if (!blob) return;
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+      $('stat').textContent = '已下载 ' + name + ' · ' + Math.round(blob.size / 1024) + ' KB';
+    }, type === 'jpg' ? 'image/jpeg' : 'image/png', 0.92);
+  }
+
+  $('file').addEventListener('change', function(){ addFiles(this.files); this.value = ''; });
+
+  var drop = $('drop');
+  ['dragenter', 'dragover'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add('over'); });
+  });
+  ['dragleave', 'drop'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove('over'); });
+  });
+  drop.addEventListener('drop', function(e){
+    if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+  });
+  document.addEventListener('paste', function(e){
+    var it = e.clipboardData && e.clipboardData.items;
+    if (!it) return;
+    var files = [];
+    for (var i = 0; i < it.length; i++) if (it[i].type.indexOf('image/') === 0) files.push(it[i].getAsFile());
+    if (files.length){ e.preventDefault(); addFiles(files); }
+  });
+
+  $('modes').addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('button[data-mode]') : null;
+    if (!b) return;
+    mode = b.getAttribute('data-mode');
+    var all = this.querySelectorAll('button');
+    for (var i = 0; i < all.length; i++) all[i].classList.toggle('on', all[i] === b);
+    $('sizeLbl').textContent = mode === 'h' ? '统一高度' : (mode === 'g' ? '输出宽度' : '统一宽度');
+    $('size').value = mode === 'h' ? 600 : 800;
+    render();
+  });
+
+  ['size', 'gap', 'bg', 'cols'].forEach(function(id){
+    $(id).addEventListener('input', render);
+    $(id).addEventListener('change', render);
+  });
+
+  $('bDemo').addEventListener('click', demo);
+  $('bClear').addEventListener('click', function(){ items = []; paintThumbs(); render(); });
+  $('bPng').addEventListener('click', function(){ download('png'); });
+  $('bJpg').addEventListener('click', function(){ download('jpg'); });
+
+  refreshCount();
+  render();
+  demo();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
