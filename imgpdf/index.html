@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>图片转 PDF · 几张图合成一个文件，排好顺序就行</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .grid2{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:880px){ .grid2{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft);
+      border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:13px}
+  #drop{
+    display:block; border:2px dashed var(--line); border-radius:var(--radius); padding:26px 14px;
+    text-align:center; cursor:pointer; color:var(--dim); font-size:13.5px; transition:border-color .12s, background .12s;
+  }
+  #drop b{display:block; color:var(--fg); font-size:15px; margin-bottom:4px}
+  #drop:hover, #drop.over{border-color:var(--accent); background:var(--soft)}
+  #list{list-style:none; margin:12px 0 0; padding:0; display:flex; flex-direction:column; gap:6px}
+  #list li{display:flex; align-items:center; gap:8px; padding:7px 9px; border:1px solid var(--line); border-radius:9px; background:var(--card)}
+  #list .nm{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px}
+  #list .sz{font-size:11.5px; color:var(--dim); flex:0 0 auto}
+  #list .k{flex:0 0 auto; width:24px; height:24px; border-radius:6px; border:1px solid var(--line);
+           background:var(--card); color:var(--dim); cursor:pointer; font:13px/1 inherit; padding:0}
+  #list .k:hover{border-color:var(--accent); color:var(--accent)}
+  #list .k:disabled{opacity:.35; cursor:default; border-color:var(--line); color:var(--dim)}
+  .opts{display:flex; flex-wrap:wrap; gap:10px 16px; align-items:center; margin-top:14px; font-size:13px; color:var(--dim)}
+  .opts label{display:flex; align-items:center; gap:6px; white-space:nowrap}
+  select, input[type=range]{border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:8px; padding:5px 8px; font:13px/1.4 inherit}
+  input[type=range]{padding:0; width:110px}
+  .go{display:flex; gap:9px; align-items:center; margin-top:14px; flex-wrap:wrap}
+  .go .primary{border:0; border-radius:9px; background:var(--accent); color:var(--accent-fg); font:600 14px/1 inherit; padding:10px 18px; cursor:pointer}
+  .go .primary:disabled{opacity:.5; cursor:default}
+  #stat{font-size:12.5px; color:var(--dim)}
+  #stat.bad{color:var(--err)}
+  #stat.ok{color:var(--ok)}
+  .empty{color:var(--dim); font-size:13px; line-height:1.9}
+  .empty b{color:var(--fg)}
+  #pages{display:flex; flex-direction:column; gap:10px; margin-top:12px}
+  .pg{border:1px solid var(--line); border-radius:9px; padding:8px; background:var(--bg); display:flex; align-items:center; gap:10px}
+  .pg .no{font-size:11.5px; color:var(--dim); flex:0 0 auto; width:34px}
+  .pg img{max-width:100%; max-height:120px; display:block; border-radius:5px; background:#fff}
+  .pg .th{flex:1 1 auto; min-width:0; display:flex; justify-content:center}
+  .tip{font-size:12.5px; color:var(--dim); line-height:1.85; margin:14px 0 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>图片转 PDF</h1>
+      <p class="lede">几张照片或截图拖进来，排好顺序，直接合成一个 PDF；全程在本机算，图不上传。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="grid2">
+    <div class="box">
+      <div class="hd"><span>图片</span><span id="cnt">0 张</span></div>
+      <div class="bd">
+        <label id="drop" for="pick">
+          <b>把图拖到这里，或者点一下选文件</b>
+          JPG / PNG / WebP / GIF 都行，一次可以选多张
+        </label>
+        <input id="pick" type="file" accept="image/*" multiple hidden>
+        <ul id="list"></ul>
+        <div class="opts">
+          <label>纸张
+            <select id="size">
+              <option value="a4" selected>A4 竖版</option>
+              <option value="a5">A5 竖版</option>
+              <option value="fit">跟图片一样大</option>
+            </select>
+          </label>
+          <label>边距
+            <select id="margin">
+              <option value="0">无边距</option>
+              <option value="10" selected>10 毫米</option>
+              <option value="20">20 毫米</option>
+            </select>
+          </label>
+          <label>画质 <input id="q" type="range" min="0.6" max="0.95" step="0.05" value="0.85"><span id="qv">85</span></label>
+        </div>
+        <div class="go">
+          <button class="primary" id="bGo" type="button">合成 PDF</button>
+          <button class="chip" id="bClear" type="button">清空</button>
+          <span id="stat"></span>
+        </div>
+        <p class="tip">一张图占一页，顺序就是上面列表的顺序，↑ ↓ 可以调。竖图横图都会自动居中缩放，不会拉变形。</p>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="hd"><span>结果</span><span id="meta">—</span></div>
+      <div class="bd">
+        <div id="emptyBox" class="empty">
+          <b>还没开始。</b><br>
+          左边加几张图，点「合成 PDF」，这里会出现每页的缩略图和下载按钮。<br>
+          适合：手机拍的证件、报销单据、作业、合同，凑成一个文件发出去。
+        </div>
+        <div id="pages"></div>
+        <div class="go" id="dlRow" style="display:none">
+          <a class="primary" id="dl" download="images.pdf" href="#">下载 PDF</a>
+          <span id="sz"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">
+    <b>为什么不用在线转换站</b>：这里的编码、压缩全在浏览器里完成，图片一个字节都不离开这台机器；断网也能用。<br>
+    <b>文件大小</b>：默认 85 画质，一张手机照片约 200–500 KB；要更小就把画质往左拉，或者先用工具台的「图片压缩」过一遍。
+  </p>
+
+  <footer>纯本地生成，不上传。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var files = [];          // {file, url}
+  var lastUrl = null;
+  var $ = function(id){ return document.getElementById(id); };
+  var listEl = $('list'), dropEl = $('drop'), pickEl = $('pick');
+
+  function fmtBytes(n){
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n/1024).toFixed(0) + ' KB';
+    return (n/1048576).toFixed(1) + ' MB';
+  }
+
+  function render(){
+    $('cnt').textContent = files.length + ' 张';
+    listEl.innerHTML = '';
+    files.forEach(function(it, i){
+      var li = document.createElement('li');
+      var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = (i+1) + '. ' + it.file.name;
+      var sz = document.createElement('span'); sz.className = 'sz'; sz.textContent = fmtBytes(it.file.size);
+      li.appendChild(nm); li.appendChild(sz);
+      var up = document.createElement('button'); up.className='k'; up.type='button'; up.textContent='↑'; up.disabled = (i===0);
+      up.onclick = function(){ swap(i, i-1); };
+      var dn = document.createElement('button'); dn.className='k'; dn.type='button'; dn.textContent='↓'; dn.disabled = (i===files.length-1);
+      dn.onclick = function(){ swap(i, i+1); };
+      var rm = document.createElement('button'); rm.className='k'; rm.type='button'; rm.textContent='✕'; rm.title='移除';
+      rm.onclick = function(){ URL.revokeObjectURL(it.url); files.splice(i,1); render(); };
+      li.appendChild(up); li.appendChild(dn); li.appendChild(rm);
+      listEl.appendChild(li);
+    });
+  }
+  function swap(a, b){
+    var t = files[a]; files[a] = files[b]; files[b] = t; render();
+  }
+
+  function addFiles(fileList){
+    var arr = Array.prototype.slice.call(fileList).filter(function(f){ return /^image\//.test(f.type); });
+    arr.forEach(function(f){ files.push({file:f, url:URL.createObjectURL(f)}); });
+    render();
+  }
+
+  dropEl.addEventListener('dragover', function(e){ e.preventDefault(); dropEl.classList.add('over'); });
+  dropEl.addEventListener('dragleave', function(){ dropEl.classList.remove('over'); });
+  dropEl.addEventListener('drop', function(e){
+    e.preventDefault(); dropEl.classList.remove('over');
+    if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+  });
+  pickEl.addEventListener('change', function(){ addFiles(pickEl.files); pickEl.value = ''; });
+
+  $('bClear').onclick = function(){
+    files.forEach(function(it){ URL.revokeObjectURL(it.url); });
+    files = []; render();
+    $('pages').innerHTML = ''; $('emptyBox').style.display = 'block';
+    $('dlRow').style.display = 'none'; $('meta').textContent = '—'; $('stat').textContent = '';
+  };
+
+  $('q').addEventListener('input', function(){ $('qv').textContent = Math.round(this.value*100); });
+
+  // ---------- 图片 -> JPEG 字节 ----------
+  function loadImage(file){
+    return new Promise(function(resolve, reject){
+      var img = new Image();
+      var url = URL.createObjectURL(file);
+      img.onload = function(){ URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error('读不了：' + file.name)); };
+      img.src = url;
+    });
+  }
+
+  function toJpegBytes(img, quality){
+    var MAXS = 2200;
+    var k = Math.min(1, MAXS / Math.max(img.naturalWidth, img.naturalHeight));
+    var w = Math.max(1, Math.round(img.naturalWidth * k));
+    var h = Math.max(1, Math.round(img.naturalHeight * k));
+    var cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    var ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(img, 0, 0, w, h);
+    return new Promise(function(resolve){
+      cv.toBlob(function(blob){
+        var fr = new FileReader();
+        fr.onload = function(){ resolve({ bytes: new Uint8Array(fr.result), w: w, h: h }); };
+        fr.readAsArrayBuffer(blob);
+      }, 'image/jpeg', quality);
+    });
+  }
+
+  // ---------- 拼 PDF ----------
+  var PT = 2.834645669;   // 1 毫米 = 2.8346 点
+
+  function sbytes(s){
+    var a = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i) & 255;
+    return a;
+  }
+  function num(v){ return (Math.round(v * 100) / 100).toString(); }
+
+  function makePDF(imgs, size, marginMm){
+    var pages = imgs.map(function(im){
+      var m = marginMm * PT, pw, ph;
+      if (size === 'fit'){
+        var k = 595.28 / Math.min(im.w, im.h);
+        pw = im.w * k; ph = im.h * k; m = 0;
+      } else if (size === 'a5'){
+        pw = 419.53; ph = 595.28;
+      } else {
+        pw = 595.28; ph = 841.89;
+      }
+      var aw = pw - 2*m, ah = ph - 2*m;
+      var s = Math.min(aw / im.w, ah / im.h);
+      if (size === 'fit') s = 1;
+      var dw = im.w * s, dh = im.h * s;
+      return {
+        pw: pw, ph: ph, dw: dw, dh: dh,
+        x: (pw - dw) / 2, y: (ph - dh) / 2, im: im,
+        pageObj: 3 + imgs.indexOf(im) * 3
+      };
+    });
+
+    var objs = [];
+    objs.push('<</Type/Catalog/Pages 2 0 R>>');
+    var kids = pages.map(function(p){ return p.pageObj + ' 0 R'; }).join(' ');
+    objs.push('<</Type/Pages/Count ' + pages.length + '/Kids[' + kids + ']>>');
+
+    pages.forEach(function(p, i){
+      var po = 3 + i*3, co = 4 + i*3, io = 5 + i*3;
+      objs.push('<</Type/Page/Parent 2 0 R/MediaBox[0 0 ' + num(p.pw) + ' ' + num(p.ph) + ']' +
+                '/Resources<</XObject<</Im0 ' + io + ' 0 R>>>>/Contents ' + co + ' 0 R>>');
+      var content = 'q ' + num(p.dw) + ' 0 0 ' + num(p.dh) + ' ' + num(p.x) + ' ' + num(p.y) + ' cm /Im0 Do Q\n';
+      objs.push({ stream: sbytes(content) });
+      objs.push({ stream: p.im.bytes,
+        dict: '<</Type/XObject/Subtype/Image/Width ' + p.im.w + '/Height ' + p.im.h +
+              '/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length ' + p.im.bytes.length + '>>' });
+    });
+
+    // 组装：记录每个对象在文件里的字节偏移
+    var chunks = [], total = 0;
+    function push(data){
+      var b = (typeof data === 'string') ? sbytes(data) : data;
+      chunks.push(b); total += b.length;
+    }
+    push('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+    var offsets = [];
+    objs.forEach(function(o, idx){
+      offsets.push(total);
+      if (typeof o === 'string'){
+        push((idx+1) + ' 0 obj\n' + o + '\nendobj\n');
+      } else {
+        push((idx+1) + ' 0 obj\n');
+        if (o.dict) push(o.dict + '\n');
+        else push('<</Length ' + o.stream.length + '>>\n');
+        push('stream\n'); push(o.stream); push('\nendstream\nendobj\n');
+      }
+    });
+
+    var xrefPos = total;
+    var xref = 'xref\n0 ' + (objs.length + 1) + '\n0000000000 65535 f \n';
+    offsets.forEach(function(off){
+      var s = '' + off;
+      while (s.length < 10) s = '0' + s;
+      xref += s + ' 00000 n \n';
+    });
+    xref += 'trailer\n<</Size ' + (objs.length + 1) + '/Root 1 0 R>>\nstartxref\n' + xrefPos + '\n%%EOF\n';
+    push(xref);
+
+    return new Blob(chunks, { type: 'application/pdf' });
+  }
+
+  $('bGo').onclick = async function(){
+    if (!files.length){ $('stat').textContent = '先加图片'; $('stat').className = 'bad'; return; }
+    var btn = this;
+    btn.disabled = true;
+    $('stat').className = '';
+    var quality = parseFloat($('q').value);
+    var imgs = [];
+    try {
+      for (var i = 0; i < files.length; i++){
+        $('stat').textContent = '正在处理第 ' + (i+1) + ' / ' + files.length + ' 张…';
+        var img = await loadImage(files[i].file);
+        imgs.push(await toJpegBytes(img, quality));
+      }
+      var blob = makePDF(imgs, $('size').value, parseFloat($('margin').value));
+      if (lastUrl) URL.revokeObjectURL(lastUrl);
+      lastUrl = URL.createObjectURL(blob);
+      $('dl').href = lastUrl;
+      $('dl').setAttribute('download', 'images-' + imgs.length + '.pdf');
+      $('dlRow').style.display = 'flex';
+      $('sz').textContent = fmtBytes(blob.size) + ' · ' + imgs.length + ' 页';
+      $('meta').textContent = imgs.length + ' 页';
+
+      var box = $('pages'); box.innerHTML = '';
+      imgs.forEach(function(im, i){
+        var row = document.createElement('div'); row.className = 'pg';
+        var no = document.createElement('span'); no.className = 'no'; no.textContent = 'P' + (i+1);
+        var th = document.createElement('div'); th.className = 'th';
+        var view = document.createElement('img');
+        view.src = files[i].url;
+        view.alt = files[i].file.name;
+        th.appendChild(view);
+        row.appendChild(no); row.appendChild(th);
+        box.appendChild(row);
+      });
+      $('emptyBox').style.display = 'none';
+      $('stat').textContent = '做好了，右边下载';
+      $('stat').className = 'ok';
+    } catch (e){
+      $('stat').textContent = '出错：' + e.message;
+      $('stat').className = 'bad';
+    } finally {
+      btn.disabled = false;
+    }
+  };
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

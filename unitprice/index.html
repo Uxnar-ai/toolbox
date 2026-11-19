@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>单价比价 · 大包划算还是小包划算，一次算清</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft);
+      border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:12px 13px}
+  table{width:100%; border-collapse:collapse; font-size:13.5px}
+  th{font-size:11.5px; font-weight:600; color:var(--dim); text-align:left; padding:0 6px 7px}
+  th.n, td.n{text-align:right}
+  td{padding:0 6px 6px; vertical-align:middle}
+  td input, td select{
+    width:100%; border:1px solid var(--line); border-radius:7px; background:var(--bg); color:var(--fg);
+    padding:6px 8px; font:13.5px/1.4 inherit
+  }
+  td input:focus, td select:focus{outline:0; border-color:var(--accent); box-shadow:0 0 0 2px var(--soft)}
+  .rm{width:26px; height:26px; border-radius:6px; border:1px solid var(--line); background:var(--card);
+      color:var(--dim); cursor:pointer; font:13px/1 inherit; padding:0}
+  .rm:hover{border-color:var(--err); color:var(--err)}
+  .rowbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px}
+  #msg{font-size:12.5px; color:var(--dim); min-height:17px}
+  #msg.bad{color:var(--err)}
+  .res{margin-top:16px}
+  .grp{margin-bottom:14px}
+  .grp h3{font-size:12.5px; color:var(--dim); font-weight:600; margin:0 0 7px}
+  .grp ul{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px}
+  .grp li{display:flex; align-items:center; gap:10px; padding:9px 11px; border:1px solid var(--line);
+          border-radius:9px; background:var(--bg); font-size:13.5px}
+  .grp li.best{border-color:var(--ok); background:var(--card)}
+  .grp .rk{flex:0 0 auto; width:19px; height:19px; border-radius:50%; background:var(--soft); color:var(--dim);
+           font-size:11px; display:flex; align-items:center; justify-content:center}
+  .grp li.best .rk{background:var(--ok); color:var(--bg)}
+  .grp .nm{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .grp .up{flex:0 0 auto; font-variant-numeric:tabular-nums; font-weight:600}
+  .grp .df{flex:0 0 auto; font-size:11.5px; color:var(--dim); width:74px; text-align:right}
+  .badge{flex:0 0 auto; font-size:10.5px; padding:2px 7px; border-radius:999px;
+         background:var(--ok); color:var(--bg); font-weight:600}
+  .tip{font-size:12.5px; color:var(--dim); line-height:1.85; margin:13px 0 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>单价比价</h1>
+      <p class="lede">同一样东西几个规格摆一起，算出每 100 克、每 100 毫升各多少钱，谁划算一眼看出。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="box">
+    <div class="hd"><span>候选商品</span><span id="cnt">3 项</span></div>
+    <div class="bd">
+      <table>
+        <thead>
+          <tr><th style="width:38%">商品</th><th style="width:22%" class="n">价格（元）</th>
+              <th style="width:20%" class="n">规格</th><th style="width:20%">单位</th><th style="width:30px"></th></tr>
+        </thead>
+        <tbody id="tb"></tbody>
+      </table>
+      <div class="rowbar">
+        <button class="chip" id="bAdd" type="button">+ 加一项</button>
+        <button class="chip" id="bDemo" type="button">填回示例</button>
+        <button class="chip" id="bClear" type="button">清空</button>
+        <span id="msg"></span>
+      </div>
+      <div class="res" id="res"></div>
+    </div>
+  </div>
+
+  <p class="hint">
+    <b>怎么比</b>：重量统一折成每 100 克，容量折成每 100 毫升，个数折成每个，不混着比。斤按 500 克、两按 50 克算。<br>
+    <b>只能作参考</b>：不同牌子、不同浓度（洗衣液尤其明显）比单价没意义，先确定是同一款再比规格。
+  </p>
+
+  <footer>纯本地计算，不上传。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var UNITS = [
+    { v: 'g',   label: '克',   cat: 'mass',   mul: 1,     base: 100, bn: '克' },
+    { v: 'kg',  label: '千克', cat: 'mass',   mul: 1000,  base: 100, bn: '克' },
+    { v: 'jin', label: '斤',   cat: 'mass',   mul: 500,   base: 100, bn: '克' },
+    { v: 'liang', label: '两', cat: 'mass',   mul: 50,    base: 100, bn: '克' },
+    { v: 'ml',  label: '毫升', cat: 'volume', mul: 1,     base: 100, bn: '毫升' },
+    { v: 'l',   label: '升',   cat: 'volume', mul: 1000,  base: 100, bn: '毫升' },
+    { v: 'pcs', label: '个',   cat: 'count',  mul: 1,     base: 1,   bn: '个' },
+    { v: 'sheet', label: '片', cat: 'count',  mul: 1,     base: 1,   bn: '片' },
+    { v: 'pack', label: '包',  cat: 'count',  mul: 1,     base: 1,   bn: '包' },
+    { v: 'm',   label: '米',   cat: 'length', mul: 1,     base: 1,   bn: '米' }
+  ];
+  var CATNAME = { mass: '按重量比（每 100 克）', volume: '按容量比（每 100 毫升）',
+                  count: '按个数比', length: '按长度比（每米）' };
+  var DEMO = [
+    { name: '洗衣液 2 千克装', price: '39.9', qty: '2', unit: 'kg' },
+    { name: '洗衣液 3 千克装', price: '52.5', qty: '3', unit: 'kg' },
+    { name: '洗衣液 5 千克装', price: '89.9', qty: '5', unit: 'kg' }
+  ];
+  var rows = JSON.parse(JSON.stringify(DEMO));
+
+  function unitOf(v){
+    for (var i = 0; i < UNITS.length; i++) if (UNITS[i].v === v) return UNITS[i];
+    return UNITS[0];
+  }
+
+  function render(){
+    var tb = $('tb');
+    tb.innerHTML = '';
+    rows.forEach(function(r, i){
+      var tr = document.createElement('tr');
+
+      var td1 = document.createElement('td');
+      var i1 = document.createElement('input'); i1.type = 'text'; i1.value = r.name; i1.placeholder = '比如：抽纸 24 包';
+      i1.oninput = function(){ rows[i].name = this.value; calc(); };
+      td1.appendChild(i1);
+
+      var td2 = document.createElement('td'); td2.className = 'n';
+      var i2 = document.createElement('input'); i2.type = 'text'; i2.inputMode = 'decimal'; i2.value = r.price; i2.placeholder = '39.9';
+      i2.oninput = function(){ rows[i].price = this.value; calc(); };
+      td2.appendChild(i2);
+
+      var td3 = document.createElement('td'); td3.className = 'n';
+      var i3 = document.createElement('input'); i3.type = 'text'; i3.inputMode = 'decimal'; i3.value = r.qty; i3.placeholder = '3';
+      i3.oninput = function(){ rows[i].qty = this.value; calc(); };
+      td3.appendChild(i3);
+
+      var td4 = document.createElement('td');
+      var sel = document.createElement('select');
+      UNITS.forEach(function(u){
+        var o = document.createElement('option');
+        o.value = u.v; o.textContent = u.label;
+        if (u.v === r.unit) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.onchange = function(){ rows[i].unit = this.value; calc(); };
+      td4.appendChild(sel);
+
+      var td5 = document.createElement('td');
+      var rm = document.createElement('button');
+      rm.className = 'rm'; rm.type = 'button'; rm.textContent = '✕'; rm.title = '删掉';
+      rm.onclick = function(){ rows.splice(i, 1); render(); calc(); };
+      td5.appendChild(rm);
+
+      tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4); tr.appendChild(td5);
+      tb.appendChild(tr);
+    });
+    $('cnt').textContent = rows.length + ' 项';
+  }
+
+  function calc(){
+    var groups = {}, bad = 0, msg = $('msg');
+    rows.forEach(function(r){
+      var price = parseFloat(r.price);
+      var qty = parseFloat(r.qty);
+      var u = unitOf(r.unit);
+      if (!isFinite(price) || price <= 0 || !isFinite(qty) || qty <= 0){ bad++; return; }
+      var total = qty * u.mul;
+      var per = price / total * u.base;     // 每个基准单位的价格
+      (groups[u.cat] = groups[u.cat] || []).push({
+        name: r.name || '未命名',
+        per: per, unitLabel: u.bn, base: u.base,
+        spec: qty + ' ' + u.label, price: price
+      });
+    });
+
+    var box = $('res');
+    box.innerHTML = '';
+    var cats = Object.keys(groups);
+    if (!cats.length){
+      box.innerHTML = '<p class="tip" style="margin:0">填上价格和规格，下面就会排出谁最划算。</p>';
+      msg.className = ''; msg.textContent = bad ? '有 ' + bad + ' 项没填全' : '';
+      return;
+    }
+    cats.forEach(function(c){
+      var list = groups[c].sort(function(a, b){ return a.per - b.per; });
+      var worst = list[list.length - 1].per;
+      var g = document.createElement('div'); g.className = 'grp';
+      var h = document.createElement('h3'); h.textContent = CATNAME[c] || c;
+      g.appendChild(h);
+      var ul = document.createElement('ul');
+      list.forEach(function(it, idx){
+        var li = document.createElement('li');
+        if (idx === 0 && list.length > 1) li.className = 'best';
+
+        var rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = (idx + 1);
+        var nm = document.createElement('span'); nm.className = 'nm';
+        nm.textContent = it.name + '（' + it.spec + ' · ' + it.price + ' 元）';
+        nm.title = nm.textContent;
+
+        var up = document.createElement('span'); up.className = 'up';
+        up.textContent = it.per.toFixed(2) + ' 元/' + it.base + it.unitLabel;
+
+        var df = document.createElement('span'); df.className = 'df';
+        if (list.length > 1 && idx === 0){
+          df.textContent = '';
+        } else if (list.length > 1){
+          df.textContent = '贵 ' + ((it.per / list[0].per - 1) * 100).toFixed(0) + '%';
+        } else {
+          df.textContent = '';
+        }
+
+        li.appendChild(rk); li.appendChild(nm); li.appendChild(up); li.appendChild(df);
+        if (idx === 0 && list.length > 1){
+          var badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = '最划算';
+          li.appendChild(badge);
+        }
+        ul.appendChild(li);
+      });
+      g.appendChild(ul);
+      box.appendChild(g);
+    });
+    msg.className = bad ? 'bad' : '';
+    msg.textContent = bad ? '有 ' + bad + ' 项没填全，暂不算它' : '';
+  }
+
+  $('bAdd').onclick = function(){
+    var last = rows[rows.length - 1];
+    rows.push({ name: '', price: '', qty: '', unit: last ? last.unit : 'g' });
+    render(); calc();
+    var inputs = document.querySelectorAll('#tb input');
+    if (inputs.length) inputs[inputs.length - 3].focus();
+  };
+  $('bDemo').onclick = function(){ rows = JSON.parse(JSON.stringify(DEMO)); render(); calc(); };
+  $('bClear').onclick = function(){ rows = [{ name: '', price: '', qty: '', unit: 'g' }]; render(); calc(); };
+
+  render();
+  calc();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

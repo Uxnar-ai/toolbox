@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>绩点换算 · 学分绩点、加权平均，一套成绩算清楚</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft);
+      border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:12px 13px}
+  table{width:100%; border-collapse:collapse; font-size:13.5px}
+  th{font-size:11.5px; font-weight:600; color:var(--dim); text-align:left; padding:0 6px 7px}
+  th.n, td.n{text-align:right}
+  td{padding:0 6px 6px; vertical-align:middle}
+  td input{
+    width:100%; border:1px solid var(--line); border-radius:7px; background:var(--bg); color:var(--fg);
+    padding:6px 8px; font:13.5px/1.4 inherit
+  }
+  td input:focus{outline:0; border-color:var(--accent); box-shadow:0 0 0 2px var(--soft)}
+  td.gp{font-size:12.5px; color:var(--dim); text-align:right; white-space:nowrap; padding-right:10px}
+  .rm{width:26px; height:26px; border-radius:6px; border:1px solid var(--line); background:var(--card);
+      color:var(--dim); cursor:pointer; font:13px/1 inherit; padding:0}
+  .rm:hover{border-color:var(--err); color:var(--err)}
+  .rowbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px}
+  .stats{display:grid; grid-template-columns:repeat(2, 1fr); gap:10px; margin-top:14px}
+  @media (min-width:760px){ .stats{grid-template-columns:repeat(4, 1fr)} }
+  .stat{background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:11px 12px}
+  .stat .k{font-size:11.5px; color:var(--dim); margin-bottom:3px}
+  .stat .v{font-size:22px; font-weight:600; letter-spacing:-.02em; font-variant-numeric:tabular-nums}
+  .stat .s{font-size:11px; color:var(--dim); margin-top:2px}
+  .stat.main{border-color:var(--accent)}
+  .stat.main .v{color:var(--accent)}
+  .tip{font-size:12.5px; color:var(--dim); line-height:1.85; margin:13px 0 0}
+  #msg{font-size:12.5px; color:var(--dim); margin-top:9px; min-height:17px}
+  #msg.bad{color:var(--err)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>绩点换算</h1>
+      <p class="lede">把一学期的课填进去，立刻看到加权平均分和 4.0 / 4.3 / 5.0 三套绩点各是多少。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="box">
+    <div class="hd"><span>课程</span><span id="cnt">5 门</span></div>
+    <div class="bd">
+      <table>
+        <thead>
+          <tr><th style="width:44%">课程名</th><th style="width:18%" class="n">学分</th>
+              <th style="width:22%" class="n">成绩</th><th style="width:12%" class="n">绩点</th><th style="width:30px"></th></tr>
+        </thead>
+        <tbody id="tb"></tbody>
+      </table>
+      <div class="rowbar">
+        <button class="chip" id="bAdd" type="button">+ 加一门</button>
+        <button class="chip" id="bDemo" type="button">填回示例</button>
+        <button class="chip" id="bClear" type="button">清空</button>
+        <span id="msg"></span>
+      </div>
+
+      <div class="stats">
+        <div class="stat main"><div class="k">加权平均分</div><div class="v" id="avg">—</div><div class="s" id="avgS">按学分加权</div></div>
+        <div class="stat"><div class="k">GPA（4.0 制）</div><div class="v" id="g40">—</div><div class="s">最常见的一套</div></div>
+        <div class="stat"><div class="k">GPA（4.3 制）</div><div class="v" id="g43">—</div><div class="s">95 以上单独一档</div></div>
+        <div class="stat"><div class="k">GPA（5.0 制）</div><div class="v" id="g50">—</div><div class="s">分数 ÷ 10 − 5</div></div>
+      </div>
+      <div class="legend" style="font-size:12.5px;color:var(--dim);margin-top:10px" id="sum">—</div>
+    </div>
+  </div>
+
+  <p class="hint">
+    <b>成绩怎么填</b>：百分制直接写 88；等级制写「优 / 良 / 中 / 及格 / 不及格」或「A / B+ / C」，按 95 / 85 / 75 / 65 / 50 折算。<br>
+    <b>4.0 制分段</b>：90+ 4.0、85–89 3.7、82–84 3.3、78–81 3.0、75–77 2.7、72–74 2.3、68–71 2.0、64–67 1.5、60–63 1.0、60 以下 0。<br>
+    <b>注意</b>：绩点没有全国统一标准，不同学校差 0.1 很常见；出国申请时以学校教务处开的成绩单为准。
+  </p>
+
+  <footer>纯本地计算，不上传。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var DEMO = [
+    { name: '高等数学', credit: '4', score: '88' },
+    { name: '大学英语', credit: '3', score: '92' },
+    { name: '数据结构', credit: '4', score: '85' },
+    { name: '体育',     credit: '1', score: '良' },
+    { name: '专业选修', credit: '2', score: '78' }
+  ];
+  var rows = JSON.parse(JSON.stringify(DEMO));
+
+  var GRADE = { '优': 95, '良': 85, '中': 75, '及格': 65, '不及格': 50,
+                'A': 95, 'A-': 90, 'B+': 85, 'B': 80, 'B-': 77, 'C+': 72, 'C': 68, 'D': 62, 'F': 50 };
+
+  function toScore(raw){
+    var s = String(raw || '').trim();
+    if (!s) return NaN;
+    if (GRADE[s] != null) return GRADE[s];
+    if (/^\d+(\.\d+)?$/.test(s)) return parseFloat(s);
+    var m = s.match(/^([A-Fa-f][+-]?)$/);
+    if (m && GRADE[m[1].toUpperCase()] != null) return GRADE[m[1].toUpperCase()];
+    return NaN;
+  }
+
+  function gp40(s){
+    if (isNaN(s)) return 0;
+    if (s >= 90) return 4.0;
+    if (s >= 85) return 3.7;
+    if (s >= 82) return 3.3;
+    if (s >= 78) return 3.0;
+    if (s >= 75) return 2.7;
+    if (s >= 72) return 2.3;
+    if (s >= 68) return 2.0;
+    if (s >= 64) return 1.5;
+    if (s >= 60) return 1.0;
+    return 0;
+  }
+  function gp43(s){
+    if (isNaN(s)) return 0;
+    if (s >= 95) return 4.3;
+    if (s >= 90) return 4.0;
+    if (s >= 85) return 3.7;
+    if (s >= 82) return 3.3;
+    if (s >= 78) return 3.0;
+    if (s >= 75) return 2.7;
+    if (s >= 72) return 2.3;
+    if (s >= 68) return 2.0;
+    if (s >= 64) return 1.5;
+    if (s >= 60) return 1.0;
+    return 0;
+  }
+  function gp50(s){
+    if (isNaN(s)) return 0;
+    return Math.max(0, Math.min(5, s / 10 - 5));
+  }
+
+  function render(){
+    var tb = $('tb');
+    tb.innerHTML = '';
+    rows.forEach(function(r, i){
+      var tr = document.createElement('tr');
+
+      var td1 = document.createElement('td');
+      var i1 = document.createElement('input'); i1.value = r.name; i1.placeholder = '课程名'; i1.type = 'text';
+      i1.oninput = function(){ rows[i].name = this.value; };
+      td1.appendChild(i1);
+
+      var td2 = document.createElement('td'); td2.className = 'n';
+      var i2 = document.createElement('input'); i2.value = r.credit; i2.placeholder = '3'; i2.inputMode = 'decimal';
+      i2.oninput = function(){ rows[i].credit = this.value; calc(); };
+      td2.appendChild(i2);
+
+      var td3 = document.createElement('td'); td3.className = 'n';
+      var i3 = document.createElement('input'); i3.value = r.score; i3.placeholder = '88 或 良'; i3.type = 'text';
+      i3.oninput = function(){ rows[i].score = this.value; calc(); };
+      td3.appendChild(i3);
+
+      var td4 = document.createElement('td'); td4.className = 'gp';
+      td4.dataset.gp = i;
+      td4.textContent = '—';
+
+      var td5 = document.createElement('td');
+      var rm = document.createElement('button'); rm.className = 'rm'; rm.type = 'button'; rm.textContent = '✕'; rm.title = '删掉这门';
+      rm.onclick = function(){ rows.splice(i, 1); render(); calc(); };
+      td5.appendChild(rm);
+
+      tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4); tr.appendChild(td5);
+      tb.appendChild(tr);
+    });
+    $('cnt').textContent = rows.length + ' 门';
+  }
+
+  function calc(){
+    var totC = 0, wSum = 0, s40 = 0, s43 = 0, s50 = 0, ok = 0, bad = [];
+    rows.forEach(function(r, i){
+      var c = parseFloat(r.credit);
+      var s = toScore(r.score);
+      if (!isFinite(c) || c <= 0 || isNaN(s)){
+        var cell = document.querySelector('[data-gp="' + i + '"]');
+        if (cell) cell.textContent = (r.credit || r.score) ? '待填' : '—';
+        if ((r.credit && isFinite(c)) || String(r.score).trim()) bad.push(i + 1);
+        return;
+      }
+      ok++;
+      totC += c;
+      wSum += s * c;
+      s40 += gp40(s) * c;
+      s43 += gp43(s) * c;
+      s50 += gp50(s) * c;
+      var cell2 = document.querySelector('[data-gp="' + i + '"]');
+      if (cell2) cell2.textContent = gp40(s).toFixed(1);
+    });
+
+    $('avg').textContent = totC ? (wSum / totC).toFixed(2) : '—';
+    $('g40').textContent = totC ? (s40 / totC).toFixed(2) : '—';
+    $('g43').textContent = totC ? (s43 / totC).toFixed(2) : '—';
+    $('g50').textContent = totC ? (s50 / totC).toFixed(2) : '—';
+    $('avgS').textContent = totC ? '共 ' + totC + ' 学分' : '按学分加权';
+    $('sum').textContent = totC
+      ? '算术平均 ' + (wSum / totC).toFixed(2) + ' 分（加权）· ' + ok + ' 门有效 · 总学分 ' + totC
+      : '填上学分和成绩就会算';
+
+    var msg = $('msg');
+    if (bad.length){
+      msg.textContent = '第 ' + bad.join('、') + ' 行看起来没填对（学分要正数，成绩填 0–100 或 优/良/中/及格）';
+      msg.className = 'bad';
+    } else {
+      msg.textContent = '';
+      msg.className = '';
+    }
+  }
+
+  $('bAdd').onclick = function(){
+    rows.push({ name: '', credit: '', score: '' });
+    render(); calc();
+    var inputs = document.querySelectorAll('#tb input');
+    if (inputs.length) inputs[inputs.length - 3].focus();
+  };
+  $('bDemo').onclick = function(){ rows = JSON.parse(JSON.stringify(DEMO)); render(); calc(); };
+  $('bClear').onclick = function(){ rows = [{ name: '', credit: '', score: '' }]; render(); calc(); };
+
+  render();
+  calc();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

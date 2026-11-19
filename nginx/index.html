@@ -86,7 +86,7 @@
 
   <p class="hint">
     <b>粘到哪里</b>：宝塔面板 <code>网站 → 设置 → 配置文件</code>（面板重写会覆盖手改内容），
-    更稳的是放到扩展目录：<code>/www/server/panel/vhost/nginx/extension/&lt;域名&gt;/</code> 下，一个 <code>.conf</code> 一个文件。<br>
+    更稳的是放到扩展目录：<code>面板目录/vhost/nginx/extension/&lt;域名&gt;/</code> 下，一个 <code>.conf</code> 一个文件。<br>
     <b>证书路径</b>：默认按宝塔申请证书的落盘位置写，实际路径以面板里显示为准；用 Cloudflare 隧道回源的可以整段删掉 ssl 三行。<br>
     <b>只监听 127.0.0.1</b>：后端别开 0.0.0.0，对外一律走这层反代。
   </p>
@@ -126,7 +126,7 @@
     if (!host || !okHost || !okUp){ out.textContent = '# 参数填好后这里出配置'; $('len').textContent = ''; return; }
 
     var L = [];
-    L.push('# /www/server/panel/vhost/nginx/extension/' + host + '/proxy.conf');
+    L.push('# 放进面板的 vhost/nginx/extension/' + host + '/proxy.conf');
     if (redir){
       L.push('server {');
       L.push('    listen 80;');
@@ -142,13 +142,13 @@
     if (h2) L.push('    http2 on;');
     L.push('    server_name ' + host + ';');
     L.push('');
-    L.push('    ssl_certificate     /www/server/panel/vhost/cert/' + host + '/fullchain.pem;');
-    L.push('    ssl_certificate_key /www/server/panel/vhost/cert/' + host + '/privkey.pem;');
+    L.push('    ssl_certificate     /path/to/cert/' + host + '/fullchain.pem;');
+    L.push('    ssl_certificate_key /path/to/cert/' + host + '/privkey.pem;');
     L.push('    ssl_protocols       TLSv1.2 TLSv1.3;');
     L.push('    ssl_session_cache   shared:SSL:10m;');
     L.push('');
-    L.push('    access_log /www/wwwlogs/' + host + '.log;');
-    L.push('    error_log  /www/wwwlogs/' + host + '.error.log;');
+    L.push('    access_log /var/log/nginx/' + host + '.log;');
+    L.push('    error_log  /var/log/nginx/' + host + '.error.log;');
     L.push('');
     L.push('    client_max_body_size ' + body + ';');
     if (gz){
@@ -178,9 +178,9 @@
     if (fonts){
       L.push('');
       L.push('');
-      L.push('# /www/server/panel/vhost/nginx/extension/' + host + '/fonts.conf');
+      L.push('# 放进面板的 vhost/nginx/extension/' + host + '/fonts.conf');
       L.push('location ^~ /_fonts/ {');
-      L.push('    alias /www/fonts/misans/;');
+      L.push('    alias /path/to/fonts/misans/;');
       L.push('    add_header Access-Control-Allow-Origin *;');
       L.push('    add_header X-Content-Type-Options nosniff;');
       L.push('    expires 30d;');

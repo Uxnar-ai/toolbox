@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JSON 转 Schema · 粘一段返回，直接得到校验用的结构</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .grid2{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:900px){ .grid2{grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft);
+      border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:12px 13px}
+  textarea{
+    width:100%; height:400px; border:0; border-radius:0; padding:12px 13px; resize:vertical;
+    font:13px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background:var(--card); color:var(--fg)
+  }
+  textarea:focus{outline:0; box-shadow:inset 0 0 0 2px var(--accent)}
+  #out{
+    margin:0; height:400px; overflow:auto; padding:12px 13px;
+    font:13px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background:var(--card); color:var(--fg); white-space:pre; tab-size:2
+  }
+  .opts{display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; font-size:13px; color:var(--dim);
+        padding:10px 13px; border-top:1px solid var(--line)}
+  .opts label{display:flex; align-items:center; gap:5px; white-space:nowrap; cursor:pointer}
+  .go{display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:0 13px 12px}
+  .chip{font-size:13px}
+  #stat{font-size:12.5px; color:var(--dim)}
+  #stat.ok{color:var(--ok)} #stat.bad{color:var(--err)}
+  .legend{display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--dim)}
+  .legend b{color:var(--fg); font-weight:600}
+  .tip{font-size:12.5px; color:var(--dim); line-height:1.85; margin:13px 0 0}
+  .key{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>JSON 转 Schema</h1>
+      <p class="lede">贴一段接口返回，直接得到能拿去校验的 JSON Schema：字段类型、必填项、数组里的结构都推好了。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="grid2">
+    <div class="box">
+      <div class="hd"><span>接口返回（JSON）</span><span id="inStat">—</span></div>
+      <textarea id="src" spellcheck="false" placeholder='{"id": 1, "name": "示例"}'></textarea>
+      <div class="opts">
+        <label><input type="checkbox" id="reqAll" checked> 字段都标成必填</label>
+        <label><input type="checkbox" id="strict" checked> 禁止多余字段</label>
+        <label><input type="checkbox" id="fmt" checked> 认日期 / 邮箱 / 链接</label>
+      </div>
+      <div class="go">
+        <button class="chip" id="bSample" type="button">换成示例</button>
+        <button class="chip" id="bCopy" type="button">复制 Schema</button>
+        <button class="chip" id="bDown" type="button">下载 .json</button>
+        <span id="stat"></span>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="hd"><span>JSON Schema</span><span id="outStat">—</span></div>
+      <pre id="out"></pre>
+      <div class="bd" style="border-top:1px solid var(--line)">
+        <div class="legend" id="legend">
+          <span>深度 <b>—</b></span><span>字段 <b>—</b></span><span>数组项 <b>—</b></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="hint">
+    <b>数组怎么推</b>：同一数组里的所有元素会合并成一套结构，只在部分元素里出现的字段不算必填。<br>
+    <b>用在哪</b>：接口联调时对返回做断言、生成表单校验规则、给后端同学对齐字段；把右边这段存成 <code>xxx.schema.json</code> 就能直接用。
+  </p>
+
+  <footer>纯本地推算，不上传。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var SAMPLE = [
+    '{',
+    '  "id": 1024,',
+    '  "name": "示例订单",',
+    '  "paid": true,',
+    '  "created_at": "2026-11-20T04:00:00+08:00",',
+    '  "amount": 129.9,',
+    '  "tags": ["新客", "加急"],',
+    '  "items": [',
+    '    {"sku": "A-01", "qty": 2, "price": 39.9, "note": null},',
+    '    {"sku": "B-07", "qty": 1, "price": 50.1}',
+    '  ],',
+    '  "buyer": {"uid": 88, "email": "a@example.com"},',
+    '  "extra": null',
+    '}'
+  ].join('\n');
+
+  var RE = {
+    'date-time': /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$/,
+    'date': /^\d{4}-\d{2}-\d{2}$/,
+    'email': /^[^@\s]+@[^@\s.]+\.[^@\s]{2,}$/,
+    'uri': /^https?:\/\/[^\s]+$/i,
+    'ipv4': /^(\d{1,3}\.){3}\d{1,3}$/,
+    'uuid': /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  };
+
+  function fmtOf(s){
+    for (var k in RE) if (RE[k].test(s)) return k;
+    return '';
+  }
+
+  function infer(v, useFmt){
+    if (v === null) return { type: 'null' };
+    if (Array.isArray(v)){
+      var o = { type: 'array' };
+      if (v.length){
+        var m = merge(v.map(function(x){ return infer(x, useFmt); }));
+        if (Object.keys(m).length) o.items = m;
+      }
+      return o;
+    }
+    if (typeof v === 'object'){
+      var props = {}, req = [];
+      Object.keys(v).forEach(function(k){
+        props[k] = infer(v[k], useFmt);
+        req.push(k);
+      });
+      var s = { type: 'object', properties: props };
+      if (req.length) s.required = req;
+      return s;
+    }
+    if (typeof v === 'string'){
+      var st = { type: 'string' };
+      var f = useFmt ? fmtOf(v) : '';
+      if (f) st.format = f;
+      return st;
+    }
+    if (typeof v === 'number') return Number.isInteger(v) ? { type: 'integer' } : { type: 'number' };
+    if (typeof v === 'boolean') return { type: 'boolean' };
+    return {};
+  }
+
+  function merge(list){
+    list = list.filter(function(s){ return s && Object.keys(s).length; });
+    if (!list.length) return {};
+    if (list.length === 1) return list[0];
+
+    var types = {}, n = list.length;
+    list.forEach(function(s){ var t = s.type || 'any'; types[t] = (types[t] || 0) + 1; });
+    var keys = Object.keys(types);
+
+    if (keys.length === 1){
+      var t = keys[0];
+      if (t === 'object'){
+        var props = {}, cnt = {};
+        list.forEach(function(s){
+          Object.keys(s.properties || {}).forEach(function(k){
+            props[k] = props[k] ? merge([props[k], s.properties[k]]) : s.properties[k];
+          });
+          (s.required || []).forEach(function(k){ cnt[k] = (cnt[k] || 0) + 1; });
+        });
+        var out = { type: 'object', properties: props };
+        var req = Object.keys(cnt).filter(function(k){ return cnt[k] === n; });
+        if (req.length) out.required = req;
+        return out;
+      }
+      if (t === 'array'){
+        var it = merge(list.map(function(s){ return s.items || {}; }));
+        var a = { type: 'array' };
+        if (Object.keys(it).length) a.items = it;
+        return a;
+      }
+      if (t === 'string'){
+        var fmts = {}, fs = { type: 'string' };
+        list.forEach(function(s){ var f = s.format || ''; fmts[f] = (fmts[f] || 0) + 1; });
+        var fk = Object.keys(fmts);
+        if (fk.length === 1 && fk[0]) fs.format = fk[0];
+        return fs;
+      }
+      if (t === 'number' || t === 'integer'){
+        var allInt = list.every(function(s){ return s.type === 'integer'; });
+        return { type: allInt ? 'integer' : 'number' };
+      }
+      return { type: t };
+    }
+
+    if (types.number && types.integer) return { type: 'number' };
+    if (types.null && keys.length === 2){
+      var other = list.filter(function(s){ return s.type !== 'null'; });
+      var m = merge(other);
+      if (m.type && typeof m.type === 'string') m.type = [m.type, 'null'];
+      return m;
+    }
+    return {};   // 类型不一致，就不限定
+  }
+
+  function walk(s, acc, depth){
+    acc.depth = Math.max(acc.depth, depth);
+    if (s.type === 'object' || (s.properties && !s.type)){
+      Object.keys(s.properties || {}).forEach(function(k){
+        acc.fields++;
+        walk(s.properties[k], acc, depth + 1);
+      });
+    } else if (s.type === 'array'){
+      acc.arrays++;
+      if (s.items) walk(s.items, acc, depth);
+    }
+  }
+
+  function build(){
+    var raw = $('src').value.trim();
+    var stat = $('stat');
+    if (!raw){ $('out').textContent = ''; stat.textContent = '先粘一段 JSON'; stat.className = 'bad'; return; }
+    var data;
+    try { data = JSON.parse(raw); }
+    catch (e){
+      stat.textContent = 'JSON 有错：' + e.message;
+      stat.className = 'bad';
+      return;
+    }
+    stat.textContent = '';
+    var schema = infer(data, $('fmt').checked);
+
+    var root = { $schema: 'http://json-schema.org/draft-07/schema#', title: 'Inferred schema' };
+    if (schema.type) root.type = schema.type;
+    if (schema.properties) root.properties = schema.properties;
+    if (schema.required) root.required = schema.required;
+    if (schema.items) root.items = schema.items;
+    if ($('strict').checked) root.additionalProperties = false;
+
+    if (!$('reqAll').checked){
+      (function strip(o){
+        if (!o || typeof o !== 'object') return;
+        delete o.required;
+        if (o.properties) Object.keys(o.properties).forEach(function(k){ strip(o.properties[k]); });
+        if (o.items) strip(o.items);
+      })(root);
+    }
+
+    var txt = JSON.stringify(root, null, 2);
+    $('out').textContent = txt;
+    $('outStat').textContent = txt.length + ' 字符';
+
+    var acc = { depth: 0, fields: 0, arrays: 0 };
+    walk(root, acc, 1);
+    $('legend').innerHTML = '<span>深度 <b>' + acc.depth + '</b></span><span>字段 <b>' + acc.fields +
+      '</b></span><span>数组项 <b>' + acc.arrays + '</b></span>';
+    $('inStat').textContent = raw.length + ' 字符';
+  }
+
+  $('src').addEventListener('input', build);
+  ['reqAll', 'strict', 'fmt'].forEach(function(id){ $(id).addEventListener('change', build); });
+  $('bSample').onclick = function(){ $('src').value = SAMPLE; build(); };
+  $('bCopy').onclick = function(){ copyText($('out').textContent, this, '复制 Schema'); };
+  $('bDown').onclick = function(){
+    var blob = new Blob([$('out').textContent], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'schema.json';
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+  };
+
+  $('src').value = SAMPLE;
+  build();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

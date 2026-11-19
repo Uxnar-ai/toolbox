@@ -1,6 +1,6 @@
-# toolbox — seventy-four small tools that open and work
+# toolbox — seventy-nine small tools that open and work
 
-> Seventy-four tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table, whitespace detective, table aligner, shadow generator, JSON tree, income tax and take-home, JSON to table, BMI and calories, pomodoro timer. CSS gradient, image cropper, JSON diff, SVG minifier, subtitle timeline, image watermark, photo metadata, barcode generator, text splitter, character inspector, print size calculator, git rescue manual, regex cookbook, IPv6 address toolkit, recipe scaler, TOTP codes, code beautifier, punctuation converter, nginx reverse-proxy generator, age calculator, image stitcher, Chinese numerals, image comparison. No backend, no ports.
+> Seventy-nine tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table, whitespace detective, table aligner, shadow generator, JSON tree, income tax and take-home, JSON to table, BMI and calories, pomodoro timer. CSS gradient, image cropper, JSON diff, SVG minifier, subtitle timeline, image watermark, photo metadata, barcode generator, text splitter, character inspector, print size calculator, git rescue manual, regex cookbook, IPv6 address toolkit, recipe scaler, TOTP codes, code beautifier, punctuation converter, nginx reverse-proxy generator, age calculator, image stitcher, Chinese numerals, image comparison, images to PDF, nine-grid splitter, JSON to schema, GPA converter, unit price comparison. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -8,27 +8,21 @@ English | [中文](README.md)
 
 Every tool computes in the browser; no server is involved. `scripts/build_toolbox.py` reads each tool template, rewrites asset paths, injects the back-to-index capsule, and assembles a grouped home page; theme.css and base.js exist once. The output is a plain static directory.
 
-This round (2026-11-19) brings it to seventy-four, with six new tools:
+This round (2026-11-20) brings it to seventy-nine, with five new tools:
 
-- **Punctuation converter**: Chinese to ASCII punctuation, ASCII to Chinese, full-width and half-width, four directions. URLs, e-mails, decimals, times, thousands separators, file names and inline code are lifted out with placeholders before conversion, so links in the text survive intact.
-- **Nginx reverse proxy**: type a hostname and a local port, get a ready-to-paste `server` block with 80-to-443 redirect, TLS paths, proxy headers, WebSocket upgrade, timeouts, body size and gzip, plus an optional `/_fonts/` alias block.
-- **Age calculator**: exact years/months/days by calendar arithmetic, plus nominal age, zodiac, star sign, days lived, next birthday countdown and the next round-thousandth day.
-- **Image stitcher**: stack screenshots into one long image, place images side by side for comparison, or build a grid; adjustable gap and background, PNG/JPG export, all local.
-- **Chinese numerals**: two-way conversion. `1234567.89` becomes 一百二十三万四千五百六十七点八九, and 三千零五 comes back as 3005.
-
-- **Image comparison**: put a before and an after image together, drag the divider to see each half, view them side by side, or diff pixel by pixel with changed areas highlighted in red plus a percentage of changed pixels.
-
-- **Image comparison**: put a before and an after image together, drag the divider to see each half, view them side by side, or diff pixel by pixel with changed areas highlighted in red plus a percentage of changed pixels.
+- **Images to PDF**: drop a few photos or screenshots, reorder them with the arrows, get one PDF. The page writes the PDF by hand — each image is re-encoded to JPEG on a canvas and embedded as a DCTDecode stream, with A4, A5 or image-sized pages, adjustable margin and quality.
+- **Nine-grid splitter**: cut one image into nine equal tiles (or 2x2, 1x3, 3x1) and download them as a single ZIP. The archive is written in stored mode — PNG is already compressed.
+- **JSON to schema**: paste an API response and get inferred types, required fields and array item structure, with date, e-mail and URL formats detected. Items of the same array are merged, so fields missing from some elements are not marked required.
+- **GPA converter**: enter credits and grades (numbers or 优/良/中/及格), get the weighted average plus GPA on the 4.0, 4.3 and 5.0 scales.
+- **Unit price comparison**: put several pack sizes side by side, normalised to price per 100 g, 100 ml or per piece, sorted with the best value highlighted and the premium of the rest shown in percent.
 
 ## Features
 
-- Punctuation converter: four directions between Chinese and ASCII punctuation, full and half width, with URLs and 3.14 / 9:30 / 1,000 protected
-- Nginx reverse proxy: hostname plus port produces a complete server block with 80-to-443 redirect, WebSocket, body size and a /_fonts/ alias
-- Age calculator: exact years/months/days, nominal age, zodiac, star sign, days lived, next birthday countdown, copyable sentence
-- Image stitcher: vertical long image, side-by-side comparison or grid, adjustable gap and background, PNG/JPG export
-- Chinese numerals: two-way conversion, understands 两 / 壹贰叁 / 点 / 负, rejects mixed input instead of guessing
-- Image comparison: drag divider, side by side, or diff highlight with changed-pixel count and percentage
-- Image comparison: drag divider, side by side, or diff highlight with changed-pixel count and percentage
+- Images to PDF: reorder images into one file, PDF written by hand, A4 / A5 / image-sized pages
+- Nine-grid splitter: six layouts, downloaded as one ZIP whose names follow posting order
+- JSON to schema: inferred types, required fields, merged array items, detected date / e-mail / URL formats
+- GPA converter: weighted average plus 4.0 / 4.3 / 5.0 scales, letter grades accepted
+- Unit price comparison: per 100 g, 100 ml or per piece, sorted with the best value highlighted
 - Everything computes in the browser: images, text and JSON never leave the page
 
 ## Stack
