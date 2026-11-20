@@ -1,6 +1,6 @@
-# toolbox — seventy-nine small tools that open and work
+# toolbox — eighty-five small tools that open and work
 
-> Seventy-nine tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table, whitespace detective, table aligner, shadow generator, JSON tree, income tax and take-home, JSON to table, BMI and calories, pomodoro timer. CSS gradient, image cropper, JSON diff, SVG minifier, subtitle timeline, image watermark, photo metadata, barcode generator, text splitter, character inspector, print size calculator, git rescue manual, regex cookbook, IPv6 address toolkit, recipe scaler, TOTP codes, code beautifier, punctuation converter, nginx reverse-proxy generator, age calculator, image stitcher, Chinese numerals, image comparison, images to PDF, nine-grid splitter, JSON to schema, GPA converter, unit price comparison. No backend, no ports.
+> Eighty-five tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table, whitespace detective, table aligner, shadow generator, JSON tree, income tax and take-home, JSON to table, BMI and calories, pomodoro timer. CSS gradient, image cropper, JSON diff, SVG minifier, subtitle timeline, image watermark, photo metadata, barcode generator, text splitter, character inspector, print size calculator, git rescue manual, regex cookbook, IPv6 address toolkit, recipe scaler, TOTP codes, code beautifier, punctuation converter, nginx reverse-proxy generator, age calculator, image stitcher, Chinese numerals, image comparison, images to PDF, nine-grid splitter, JSON to schema, GPA converter, unit price comparison. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -8,22 +8,24 @@ English | [中文](README.md)
 
 Every tool computes in the browser; no server is involved. `scripts/build_toolbox.py` reads each tool template, rewrites asset paths, injects the back-to-index capsule, and assembles a grouped home page; theme.css and base.js exist once. The output is a plain static directory.
 
-This round (2026-11-20) brings it to seventy-nine, with five new tools:
+This round (2026-11-21) brings it to eighty-five, with six new tools:
 
-- **Images to PDF**: drop a few photos or screenshots, reorder them with the arrows, get one PDF. The page writes the PDF by hand — each image is re-encoded to JPEG on a canvas and embedded as a DCTDecode stream, with A4, A5 or image-sized pages, adjustable margin and quality.
-- **Nine-grid splitter**: cut one image into nine equal tiles (or 2x2, 1x3, 3x1) and download them as a single ZIP. The archive is written in stored mode — PNG is already compressed.
-- **JSON to schema**: paste an API response and get inferred types, required fields and array item structure, with date, e-mail and URL formats detected. Items of the same array are merged, so fields missing from some elements are not marked required.
-- **GPA converter**: enter credits and grades (numbers or 优/良/中/及格), get the weighted average plus GPA on the 4.0, 4.3 and 5.0 scales.
-- **Unit price comparison**: put several pack sizes side by side, normalised to price per 100 g, 100 ml or per piece, sorted with the best value highlighted and the premium of the rest shown in percent.
+- **Lunar calendar**: pick a date and get the lunar month/day, the sexagenary year and the zodiac animal, plus countdowns to the next traditional festivals. The lunar side uses an embedded 1900-2099 table, so leap months are labelled and the New Year's Eve edge case is right.
+- **Permission converter**: type 755 (or tick nine boxes) and see `-rwxr-xr-x` with a per-bit explanation; four-digit input recognises setuid, setgid and the sticky bit, files and directories are explained differently, and common presets are one click away.
+- **Markdown TOC**: paste Markdown and get an anchored table of contents by heading level, with `#` inside code fences ignored. Slugs follow the usual rules, duplicates get -1/-2, output is a Markdown list or nested HTML, and numbers restart per level.
+- **Fuel economy**: litres and kilometres in, L/100 km, cost per kilometre, distance per litre out, plus 500 km and 15,000 km projections and a plain verdict on whether the figure is thrifty or thirsty.
+- **Sleep timing**: 90-minute cycles in both directions — sleep now and see the least-groggy wake times, or pick a wake time and see when to go to bed, with a settable fall-asleep delay and four to six cycles listed.
+- **Bill splitter**: total, headcount, service charge and discount in, per-person amount out; split by shares, round up to yuan, jiao or fen, and see exactly how much the rounding over- or under-collects.
 
 ## Features
 
-- Images to PDF: reorder images into one file, PDF written by hand, A4 / A5 / image-sized pages
-- Nine-grid splitter: six layouts, downloaded as one ZIP whose names follow posting order
-- JSON to schema: inferred types, required fields, merged array items, detected date / e-mail / URL formats
-- GPA converter: weighted average plus 4.0 / 4.3 / 5.0 scales, letter grades accepted
-- Unit price comparison: per 100 g, 100 ml or per piece, sorted with the best value highlighted
-- Everything computes in the browser: images, text and JSON never leave the page
+- Lunar calendar: 1900-2099 table, sexagenary year and zodiac, festival countdowns
+- Permission converter: octal and rwx forms both ways, including setuid / setgid / sticky
+- Markdown TOC: anchored outline by heading level, code fences skipped, Markdown or HTML
+- Fuel economy: litres and kilometres in, L/100 km, cost per kilometre and yearly estimate
+- Sleep timing: 90-minute cycles both ways, with a settable fall-asleep delay
+- Bill splitter: total, headcount and service charge in, per-person amount out, by shares
+- Everything runs in the browser: no uploads, no backend endpoints at all
 
 ## Stack
 

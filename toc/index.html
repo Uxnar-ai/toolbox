@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Markdown 目录 · 标题自动变成可点的目录</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:12px}
+  @media (min-width:900px){ .panes{grid-template-columns:1fr 1fr; align-items:start} }
+  .pane{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+        display:flex; flex-direction:column}
+  .pane h2{font-size:12.5px; font-weight:600; color:var(--dim); margin:0; padding:9px 13px;
+           background:var(--soft); border-bottom:1px solid var(--line); display:flex;
+           justify-content:space-between; align-items:center; gap:8px}
+  .pane h2 .rt{display:flex; gap:6px; align-items:center; font-weight:400}
+  .pane h2 button{font:inherit; font-size:12px; padding:4px 9px; border-radius:7px; cursor:pointer;
+                  border:1px solid var(--line); background:var(--card); color:var(--dim)}
+  .pane h2 button:hover{border-color:var(--accent); color:var(--accent)}
+  textarea{width:100%; height:360px; border:0; outline:0; resize:none; padding:12px 13px;
+           background:var(--card); color:var(--fg); font:13px/1.75 ui-monospace,Menlo,Consolas,monospace}
+  pre.out{height:360px; margin:0; overflow:auto; padding:12px 13px; border:0; border-radius:0;
+          font:13px/1.75 ui-monospace,Menlo,Consolas,monospace; background:var(--card); color:var(--fg);
+          white-space:pre-wrap; word-break:break-word}
+  .bar{display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:11px 13px;
+       border-top:1px solid var(--line); background:var(--soft)}
+  .bar select{font:12.5px/1.4 inherit; padding:5px 8px; border-radius:7px; border:1px solid var(--line);
+              background:var(--card); color:var(--fg)}
+  #msg{font-size:12px; color:var(--dim); margin-left:auto}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.85; margin:13px 0 0}
+  .hint b{color:var(--fg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Markdown 目录</h1>
+      <p class="lede">把写好的 Markdown 粘进来，按标题层级生成目录，锚点能直接点。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div class="pane">
+      <h2><span>原文</span><span class="rt"><button id="bDemo" type="button">填示例</button>
+        <button id="bClear" type="button">清空</button></span></h2>
+      <textarea id="src" spellcheck="false"></textarea>
+      <div class="bar">
+        <span style="font-size:12px; color:var(--dim)">起始层级</span>
+        <select id="from"><option value="1">H1</option><option value="2">H2</option><option value="3">H3</option></select>
+        <label class="chip" id="bNum" style="display:inline-flex; gap:6px; align-items:center">
+          <input type="checkbox" id="num" style="margin:0; accent-color:var(--accent)">带序号
+        </label>
+        <select id="mode"><option value="md">Markdown</option><option value="html">HTML</option></select>
+        <span id="msg"></span>
+      </div>
+    </div>
+
+    <div class="pane">
+      <h2><span>目录</span><span class="rt"><button id="bCopy" type="button">复制</button>
+        <button id="bDl" type="button">下载</button></span></h2>
+      <pre class="out" id="out"></pre>
+      <div class="bar"><span id="cnt" style="font-size:12px; color:var(--dim)">—</span></div>
+    </div>
+  </div>
+
+  <p class="hint">
+    <b>代码块里的 # 不算标题</b>：三个反引号围起来的内容会整段跳过，Shell 注释不会跑进目录。<br>
+    <b>锚点按常见写法生成</b>：转小写、空格换连字符、去掉标点，中文保留；同名标题自动加 <code>-1</code>、<code>-2</code>。<br>
+    <b>起始层级</b>：正文习惯用 <code>##</code> 当二级时，选 H2 可以略过文章大标题，目录从正文开始。
+  </p>
+
+  <footer>纯本地处理，不上传。</footer>
+</div>
+
+<template id="demo-src"># 家庭 NAS 折腾笔记
+
+日常记录，随缘更新。
+
+## 一、选机器
+
+先说结论：**低功耗 x86** 比 ARM 省心，硬盘兼容性好。
+
+```bash
+# 这段是代码，里面的 # 不算标题
+lsblk -f
+```
+
+### 1.1 硬盘怎么挑
+
+- 监控盘便宜但耐不住频繁休眠
+- 企业盘吵，放客厅要谨慎
+
+### 1.2 内存
+
+8G 起步，跑容器再加。
+
+## 二、系统安装
+
+### 2.1 制作启动盘
+
+用 [Rufus](https://example.com/rufus) 就行，Windows 下最省事。
+
+### 2.2 首次登录
+
+> 记得改默认端口，别直接暴露到公网。
+
+## 三、常用服务
+
+| 服务 | 用途 |
+| --- | --- |
+| 相册 | 备份手机照片 |
+| 下载 | 挂着下大文件 |
+
+## 四、踩过的坑
+
+### 4.1 硬盘休眠
+
+`hdparm -S` 谁用谁知道。
+
+### 4.2 权限
+
+共享目录给 775，别图省事 777。
+
+## 五、待办
+
+- [ ] 加一块备份盘
+- [ ] 写自动备份脚本
+</template>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+
+  function stripInline(s){
+    return s
+      .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/~~([^~]+)~~/g, '$1')
+      .replace(/<[^>]+>/g, '')
+      .replace(/\s+#+\s*$/, '')
+      .trim();
+  }
+
+  function slugify(s){
+    return s.toLowerCase()
+      .replace(/[\u0000-\u001f]/g, '')
+      .replace(/[^\w\u4e00-\u9fa5\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-');
+  }
+
+  function parseHeadings(text){
+    var lines = text.split(/\r?\n/), fence = null, out = [];
+    for (var i = 0; i < lines.length; i++){
+      var line = lines[i];
+      var f = line.match(/^\s*(```+|~~~+)/);
+      if (f){
+        if (!fence) fence = f[1].charAt(0);
+        else if (f[1].charAt(0) === fence) fence = null;
+        continue;
+      }
+      if (fence) continue;
+      var m = line.match(/^\s{0,3}(#{1,6})\s+(.+?)\s*$/);
+      if (!m) continue;
+      var title = stripInline(m[2]);
+      if (!title) continue;
+      out.push({ level: m[1].length, text: title, slug: slugify(title) });
+    }
+    // 锚点去重
+    var seen = {};
+    out.forEach(function(h){
+      var base = h.slug || 'section';
+      if (seen[base] === undefined){ seen[base] = 0; h.slug = base; }
+      else { seen[base]++; h.slug = base + '-' + seen[base]; }
+    });
+    return out;
+  }
+
+  function buildTree(heads, from){
+    var root = { level: from - 1, children: [] }, stack = [root];
+    heads.forEach(function(h){
+      var n = { level: h.level, text: h.text, slug: h.slug, children: [] };
+      while (stack.length > 1 && stack[stack.length - 1].level >= n.level) stack.pop();
+      stack[stack.length - 1].children.push(n);
+      stack.push(n);
+    });
+    return root.children;
+  }
+
+  function renderMd(nodes, depth, numbered){
+    var out = [];
+    nodes.forEach(function(n, i){
+      var mark = numbered ? (i + 1) + '. ' : '- ';
+      out.push(new Array(depth + 1).join('  ') + mark + '[' + n.text + '](#' + n.slug + ')');
+      if (n.children.length) out = out.concat(renderMd(n.children, depth + 1, numbered));
+    });
+    return out;
+  }
+
+  function renderHtml(nodes){
+    var s = '<ul>';
+    nodes.forEach(function(n){
+      s += '<li><a href="#' + n.slug + '">' + esc(n.text) + '</a>';
+      if (n.children.length) s += renderHtml(n.children);
+      s += '</li>';
+    });
+    return s + '</ul>';
+  }
+
+  function build(heads, from, numbered, mode){
+    var kept = heads.filter(function(h){ return h.level >= from; });
+    if (!kept.length) return '';
+    var tree = buildTree(kept, from);
+    if (mode === 'html') return renderHtml(tree);
+    return renderMd(tree, 0, numbered).join('\n');
+  }
+
+  function esc(s){
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function run(){
+    var text = $('src').value;
+    var from = +$('from').value, numbered = $('num').checked, mode = $('mode').value;
+    var heads = parseHeadings(text);
+    var kept = heads.filter(function(h){ return h.level >= from; });
+    var out = build(heads, from, numbered, mode);
+    $('out').textContent = out || (text.trim() ? '这段文字里没有找到标题（# 开头的行）。' : '左边贴上 Markdown，目录会出现在这里。');
+    $('cnt').textContent = kept.length ? kept.length + ' 条标题' +
+      (heads.length > kept.length ? '（另有 ' + (heads.length - kept.length) + ' 条低于起始层级）' : '') : '—';
+    $('msg').textContent = '';
+    $('bNum').className = 'chip' + (numbered ? ' on' : '');
+  }
+
+  $('src').addEventListener('input', run);
+  $('from').addEventListener('change', run);
+  $('mode').addEventListener('change', run);
+  $('num').addEventListener('change', run);
+  $('bDemo').addEventListener('click', function(){ $('src').value = $('demo-src').innerHTML.trim(); run(); });
+  $('bClear').addEventListener('click', function(){ $('src').value = ''; run(); $('src').focus(); });
+  $('bCopy').addEventListener('click', function(){
+    var t = $('out').textContent;
+    if (!t) return;
+    if (typeof copyText === 'function') copyText(t); else {
+      $('out').textContent = t; navigator.clipboard && navigator.clipboard.writeText(t);
+    }
+    $('msg').textContent = '已复制';
+    setTimeout(function(){ $('msg').textContent = ''; }, 1500);
+  });
+  $('bDl').addEventListener('click', function(){
+    var t = $('out').textContent;
+    if (!t) return;
+    var name = $('mode').value === 'html' ? 'toc.html' : 'toc.md';
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([t], { type: 'text/plain;charset=utf-8' }));
+    a.download = name; a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 3000);
+  });
+
+  $('src').value = $('demo-src').innerHTML.trim();
+  run();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

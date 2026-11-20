@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>睡眠时间 · 现在睡几点起，几点睡够 5 个周期</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:860px){ .panes{grid-template-columns:320px 1fr; align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft);
+      border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:13px}
+  .f{display:flex; flex-direction:column; gap:5px; margin-bottom:12px}
+  .f label{font-size:12px; color:var(--dim); display:flex; justify-content:space-between; gap:8px}
+  .f label i{font-style:normal; opacity:.75}
+  input, input[type=text], input[type=time]{
+    font:13.5px/1.5 inherit; padding:9px 11px; border-radius:8px; border:1px solid var(--line);
+    background:var(--card); color:var(--fg); width:100%; min-width:0; -webkit-appearance:none
+  }
+  input:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .seg{display:flex; gap:8px; flex-wrap:wrap}
+  .tabs{display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:13px 13px 0}
+  .tab{font:13px/1 inherit; padding:9px 10px; border-radius:9px; border:1px solid var(--line);
+       background:var(--bg); color:var(--dim); cursor:pointer}
+  .tab.on{background:var(--accent); color:var(--accent-fg); border-color:transparent; font-weight:600}
+  .big{padding:16px 15px 14px; border-bottom:1px solid var(--line)}
+  .big .lead{font-size:12px; color:var(--dim); margin-bottom:6px}
+  .big .num{font-size:30px; font-weight:600; line-height:1.25; letter-spacing:-.3px}
+  .big .num em{font-style:normal; color:var(--accent)}
+  .big .sub{font-size:12.5px; color:var(--dim); margin-top:7px; line-height:1.7}
+  .list{padding:12px 13px 4px; display:flex; flex-direction:column; gap:7px}
+  .item{display:flex; align-items:center; gap:11px; padding:9px 12px; border:1px solid var(--line);
+        border-radius:9px; background:var(--bg); font-size:13.5px}
+  .item.best{border-color:var(--ok)}
+  .item .cy{flex:0 0 58px; color:var(--dim); font-size:12px}
+  .item .tm{flex:0 0 96px; font:600 17px/1.2 ui-monospace,Menlo,Consolas,monospace; font-variant-numeric:tabular-nums}
+  .item .len{flex:1 1 auto; color:var(--dim); font-size:12.5px}
+  .item .tag{flex:0 0 auto; font-size:10.5px; padding:2px 7px; border-radius:999px;
+             background:var(--ok); color:var(--bg); font-weight:600}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.85; margin:13px 0 0}
+  .hint b{color:var(--fg)}
+  .err{font-size:12px; color:var(--err); min-height:16px; margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>睡眠时间</h1>
+      <p class="lede">按 90 分钟一个周期算：现在睡几点起，想几点起该几点睡，避开最困的那个点。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <div class="tabs">
+        <button class="tab on" id="tNow" type="button">现在睡</button>
+        <button class="tab" id="tWake" type="button">定点起</button>
+      </div>
+      <div class="bd" style="padding-top:12px">
+        <div class="f" id="fSleep">
+          <label>上床时间 <i>默认现在</i></label>
+          <input type="time" id="sleepAt">
+        </div>
+        <div class="f" id="fWake" style="display:none">
+          <label>要起床的时间</label>
+          <input type="time" id="wakeAt" value="07:00">
+        </div>
+        <div class="f">
+          <label>躺下到睡着 <i>分钟</i></label>
+          <input type="text" id="lat" value="15" inputmode="numeric">
+        </div>
+        <div class="seg">
+          <button class="chip" id="bNow" type="button">用当前时间</button>
+          <button class="chip" id="bReset" type="button">回到默认</button>
+        </div>
+        <div class="err" id="err"></div>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="big">
+        <div class="lead" id="lead">推荐起床时间（5 个周期）</div>
+        <div class="num" id="main">—</div>
+        <div class="sub" id="sub">算完会列出 4 到 6 个周期的起床时间。</div>
+      </div>
+      <div class="list" id="list"></div>
+      <p class="hint" style="padding:0 13px 14px; margin-top:4px">
+        <b>为什么不是整点睡</b>：睡眠按 90 分钟一个周期在深浅之间走，卡在周期末尾醒最轻；
+        中途被叫醒会在深睡段，起来最难受。<br>
+        <b>周期是平均值</b>：每个人 80–100 分钟不等，睡几天就知道自己的实际长度，这里按 90 分钟估。
+      </p>
+    </div>
+  </div>
+
+  <p class="hint">
+    <b>只是个参考</b>：睡够几个小时比卡整点更重要，别为了凑周期提前一小时上床刷手机。<br>
+    <b>入睡时间</b>：躺下到真正睡着一般要 10–20 分钟，留 15 分钟比较稳；躺下就着的填 5。
+  </p>
+
+  <footer>纯本地计算，不上传。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var CYCLE = 90, mode = 'now';
+
+  function pad(n){ return ('0' + n).slice(-2); }
+  function toMin(s){
+    var m = String(s || '').match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return NaN;
+    var h = +m[1], mi = +m[2];
+    if (h > 23 || mi > 59) return NaN;
+    return h * 60 + mi;
+  }
+  function fmt(min){
+    min = ((min % 1440) + 1440) % 1440;
+    return pad(Math.floor(min / 60)) + ':' + pad(min % 60);
+  }
+  function hours(min){
+    var h = Math.floor(min / 60), m = min % 60;
+    return h + ' 小时' + (m ? ' ' + m + ' 分' : '');
+  }
+
+  function run(){
+    var lat = parseInt($('lat').value, 10);
+    if (!isFinite(lat) || lat < 0 || lat > 120){ lat = 15; $('lat').value = '15'; }
+
+    var base, rows = [];
+    if (mode === 'now'){
+      var t = toMin($('sleepAt').value);
+      if (!isFinite(t)){ $('err').textContent = '请填上床时间'; return; }
+      $('err').textContent = '';
+      base = t + lat;
+      for (var c = 4; c <= 6; c++){
+        rows.push({ c: c, at: base + c * CYCLE, len: c * CYCLE });
+      }
+      $('lead').textContent = '推荐起床时间（5 个周期）';
+      var best = rows[1];
+      $('main').innerHTML = '<em>' + fmt(best.at) + '</em>';
+      $('sub').textContent = '上床 ' + fmt(t) + '，加上 ' + lat + ' 分钟入睡，睡 ' + best.c +
+        ' 个周期，共 ' + hours(best.len) + '。';
+    } else {
+      var w = toMin($('wakeAt').value);
+      if (!isFinite(w)){ $('err').textContent = '请填起床时间'; return; }
+      $('err').textContent = '';
+      for (var c2 = 4; c2 <= 6; c2++){
+        rows.push({ c: c2, at: w - c2 * CYCLE - lat, len: c2 * CYCLE });
+      }
+      $('lead').textContent = '推荐上床时间（5 个周期）';
+      var b2 = rows[1];
+      $('main').innerHTML = '<em>' + fmt(b2.at) + '</em>';
+      $('sub').textContent = '想 ' + fmt(w) + ' 起来，往前推 ' + b2.c + ' 个周期再减 ' + lat +
+        ' 分钟入睡，共睡 ' + hours(b2.len) + '。';
+    }
+
+    $('list').innerHTML = rows.map(function(r){
+      var isBest = r.c === 5;
+      return '<div class="item' + (isBest ? ' best' : '') + '">' +
+        '<span class="cy">' + r.c + ' 个周期</span>' +
+        '<span class="tm">' + fmt(r.at) + '</span>' +
+        '<span class="len">' + hours(r.len) + '</span>' +
+        (isBest ? '<span class="tag">推荐</span>' : '') + '</div>';
+    }).join('');
+    $('tNow').className = 'tab' + (mode === 'now' ? ' on' : '');
+    $('tWake').className = 'tab' + (mode === 'wake' ? ' on' : '');
+    $('fSleep').style.display = mode === 'now' ? 'flex' : 'none';
+    $('fWake').style.display = mode === 'wake' ? 'flex' : 'none';
+  }
+
+  $('tNow').addEventListener('click', function(){ mode = 'now'; run(); });
+  $('tWake').addEventListener('click', function(){ mode = 'wake'; run(); });
+  $('lat').addEventListener('input', run);
+  $('sleepAt').addEventListener('input', run);
+  $('wakeAt').addEventListener('input', run);
+  $('bNow').addEventListener('click', function(){
+    var n = new Date();
+    mode = 'now';
+    $('sleepAt').value = pad(n.getHours()) + ':' + pad(n.getMinutes());
+    run();
+  });
+  $('bReset').addEventListener('click', function(){
+    mode = 'now'; $('lat').value = '15';
+    $('sleepAt').value = ''; $('wakeAt').value = '07:00';
+    setNow(); run();
+  });
+
+  function setNow(){
+    var n = new Date();
+    $('sleepAt').value = pad(n.getHours()) + ':' + pad(n.getMinutes());
+  }
+
+  setNow();
+  run();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

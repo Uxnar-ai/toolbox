@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AA 分账 · 一共多少钱，每人给多少</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:860px){ .panes{grid-template-columns:320px 1fr; align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft);
+      border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:13px}
+  .f{display:flex; flex-direction:column; gap:5px; margin-bottom:12px}
+  .f label{font-size:12px; color:var(--dim); display:flex; justify-content:space-between; gap:8px}
+  .f label i{font-style:normal; opacity:.75}
+  input, input[type=text], select{
+    font:13.5px/1.5 inherit; padding:9px 11px; border-radius:8px; border:1px solid var(--line);
+    background:var(--card); color:var(--fg); width:100%; min-width:0; -webkit-appearance:none
+  }
+  input:focus, select:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .big{padding:16px 15px 14px; border-bottom:1px solid var(--line)}
+  .big .lead{font-size:12px; color:var(--dim); margin-bottom:6px}
+  .big .num{font-size:32px; font-weight:600; line-height:1.2; letter-spacing:-.4px}
+  .big .num em{font-style:normal; color:var(--accent)}
+  .big .num span{font-size:14px; font-weight:400; color:var(--dim); margin-left:4px}
+  .big .sub{font-size:12.5px; color:var(--dim); margin-top:7px; line-height:1.7}
+  .list{padding:12px 13px 4px; display:flex; flex-direction:column; gap:7px}
+  .item{display:flex; align-items:center; gap:11px; padding:9px 12px; border:1px solid var(--line);
+        border-radius:9px; background:var(--bg); font-size:13.5px; min-width:0}
+  .item .nm{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .item .sh{flex:0 0 auto; font-size:12px; color:var(--dim)}
+  .item .am{flex:0 0 96px; text-align:right; font:600 15px/1.3 ui-monospace,Menlo,Consolas,monospace;
+            font-variant-numeric:tabular-nums}
+  .foot{padding:4px 13px 14px; font-size:12.5px; color:var(--dim); line-height:1.75}
+  .foot b{color:var(--fg)}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.85; margin:13px 0 0}
+  .hint b{color:var(--fg)}
+  .err{font-size:12px; color:var(--err); min-height:16px; margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>AA 分账</h1>
+      <p class="lede">总价、人数、服务费一填，每人该给多少算清楚，抹零后差几毛也标出来。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <div class="hd"><span>账单</span><span id="cnt">4 人</span></div>
+      <div class="bd">
+        <div class="f">
+          <label>总金额 <i>元</i></label>
+          <input type="text" id="total" value="328" inputmode="decimal" autocomplete="off">
+        </div>
+        <div class="f">
+          <label>人数</label>
+          <input type="text" id="people" value="4" inputmode="numeric" autocomplete="off">
+        </div>
+        <div class="f">
+          <label>服务费 <i>%，填 0 表示没有</i></label>
+          <input type="text" id="svc" value="10" inputmode="decimal" autocomplete="off">
+        </div>
+        <div class="f">
+          <label>优惠 / 代金券 <i>元，可留空</i></label>
+          <input type="text" id="off" value="" inputmode="decimal" autocomplete="off">
+        </div>
+        <div class="f">
+          <label>抹零方式</label>
+          <select id="round">
+            <option value="1">向上取整到元（最好收）</option>
+            <option value="0.1">向上取整到角</option>
+            <option value="0.01" selected>精确到分</option>
+          </select>
+        </div>
+        <div class="f">
+          <label>份数 <i>逗号分隔，比如 1,1,2,1；留空就是每人一份</i></label>
+          <input type="text" id="shares" value="" autocomplete="off">
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <button class="chip" id="bDemo" type="button">填回示例</button>
+          <button class="chip" id="bClear" type="button">清空</button>
+        </div>
+        <div class="err" id="err"></div>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="big">
+        <div class="lead">每人应付（按一份算）</div>
+        <div class="num" id="main">—</div>
+        <div class="sub" id="sub">默认按人头均摊，抹零后差的钱会写在下面。</div>
+      </div>
+      <div class="list" id="list"></div>
+      <div class="foot" id="foot"></div>
+    </div>
+  </div>
+
+  <p class="hint">
+    <b>服务费先加再分</b>：总价 ×（1 + 服务费%）− 优惠，才是真正要分掉的钱。<br>
+    <b>有人吃得多</b>：份数里写 <code>1,1,2,1</code> 表示第三个人算两份，按份数比例分，不是人头。<br>
+    <b>抹零</b>：向上取整到元最省事，多收的那几毛当小费或者买瓶水；差得多说明份数填错了。
+  </p>
+
+  <footer>纯本地计算，不上传。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+
+  function num(v){ var n = parseFloat(String(v).replace(/[^\d.\-]/g, '')); return isFinite(n) ? n : NaN; }
+  function money(n){ return n.toFixed(2); }
+
+  function run(){
+    var total = num($('total').value);
+    var people = parseInt($('people').value, 10);
+    var svc = num($('svc').value);
+    var off = num($('off').value);
+    var step = parseFloat($('round').value);
+    if (!isFinite(svc)) svc = 0;
+    if (!isFinite(off)) off = 0;
+
+    var err = '';
+    if (!isFinite(total) || total <= 0) err = '先填总金额';
+    else if (!isFinite(people) || people < 1 || people > 60) err = '人数填 1 到 60 之间';
+    $('err').textContent = err;
+    $('cnt').textContent = (isFinite(people) && people > 0 ? people : '—') + ' 人';
+    if (err){
+      $('main').innerHTML = '—';
+      $('sub').textContent = '左边填完，右边立刻出结果。';
+      $('list').innerHTML = '';
+      $('foot').textContent = '';
+      return;
+    }
+
+    // 份数：留空则每人 1 份
+    var shares = [];
+    var raw = $('shares').value.trim();
+    if (raw){
+      var parts = raw.split(/[,，\s]+/).filter(function(x){ return x !== ''; });
+      for (var i = 0; i < parts.length; i++){
+        var s = parseInt(parts[i], 10);
+        if (!isFinite(s) || s < 1) s = 1;
+        shares.push(s);
+      }
+      if (shares.length !== people){
+        var fix = shares.slice(0, people);
+        while (fix.length < people) fix.push(1);
+        shares = fix;
+      }
+    } else {
+      for (var j = 0; j < people; j++) shares.push(1);
+    }
+
+    var bill = total * (1 + svc / 100) - off;
+    if (bill < 0) bill = 0;
+    var totalShare = shares.reduce(function(a, b){ return a + b; }, 0);
+    var perShare = bill / totalShare;
+
+    var paid = 0;
+    var rows = shares.map(function(s, idx){
+      var exact = perShare * s;
+      var pay = step > 0 ? Math.ceil(exact / step - 1e-9) * step : exact;
+      pay = Math.round(pay * 100) / 100;
+      paid += pay;
+      return { i: idx + 1, s: s, exact: exact, pay: pay };
+    });
+
+    $('main').innerHTML = '<em>' + money(perShare) + '</em><span>元 / 份</span>';
+    var bits = ['总价 ' + money(total) + ' 元'];
+    if (svc) bits.push('服务费 ' + svc + '%');
+    if (off) bits.push('优惠 ' + money(off) + ' 元');
+    bits.push('实际分 ' + money(bill) + ' 元 / ' + totalShare + ' 份');
+    $('sub').textContent = bits.join('，') + '。';
+
+    $('list').innerHTML = rows.map(function(r){
+      return '<div class="item"><span class="nm">第 ' + r.i + ' 位</span>' +
+             '<span class="sh">' + r.s + ' 份</span>' +
+             '<span class="am">' + money(r.pay) + ' 元</span></div>';
+    }).join('');
+
+    var diff = paid - bill;
+    $('foot').innerHTML = '合计收到 <b>' + money(paid) + ' 元</b>，比账单' +
+      (Math.abs(diff) < 0.005 ? '正好相等。' : (diff > 0 ? '多 <b>' + money(diff) + ' 元</b>（抹零多收）' : '少 <b>' + money(-diff) + ' 元</b>（可能要补）')) +
+      (shares.some(function(s){ return s !== 1; }) ? '<br>份数模式：按份数比例分，不是按人头。' : '');
+  }
+
+  ['total', 'people', 'svc', 'off', 'shares'].forEach(function(id){
+    $(id).addEventListener('input', run);
+  });
+  $('round').addEventListener('change', run);
+  $('bDemo').addEventListener('click', function(){
+    $('total').value = '328'; $('people').value = '4'; $('svc').value = '10';
+    $('off').value = ''; $('shares').value = ''; $('round').value = '0.01'; run();
+  });
+  $('bClear').addEventListener('click', function(){
+    $('total').value = ''; $('people').value = ''; $('svc').value = '';
+    $('off').value = ''; $('shares').value = ''; run(); $('total').focus();
+  });
+
+  run();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

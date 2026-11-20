@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>油耗计算 · 百公里几个油、每公里几毛钱</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:860px){ .panes{grid-template-columns:320px 1fr; align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft);
+      border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:13px}
+  .f{display:flex; flex-direction:column; gap:5px; margin-bottom:12px}
+  .f label{font-size:12px; color:var(--dim); display:flex; justify-content:space-between; gap:8px}
+  .f label i{font-style:normal; opacity:.75}
+  input, input[type=text]{font:13.5px/1.5 inherit; padding:9px 11px; border-radius:8px;
+        border:1px solid var(--line); background:var(--card); color:var(--fg);
+        width:100%; min-width:0; -webkit-appearance:none}
+  input:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .big{padding:16px 15px 14px; border-bottom:1px solid var(--line)}
+  .big .lead{font-size:12px; color:var(--dim); margin-bottom:6px}
+  .big .num{font-size:32px; font-weight:600; line-height:1.2; letter-spacing:-.4px}
+  .big .num em{font-style:normal; color:var(--accent)}
+  .big .num span{font-size:14px; font-weight:400; color:var(--dim); margin-left:4px}
+  .big .sub{font-size:12.5px; color:var(--dim); margin-top:7px; line-height:1.7}
+  .cards{display:grid; gap:10px; grid-template-columns:1fr 1fr; padding:13px}
+  @media (min-width:620px){ .cards{grid-template-columns:1fr 1fr 1fr} }
+  .c{background:var(--soft); border-radius:10px; padding:11px 12px; min-width:0}
+  .c .k{font-size:11.5px; color:var(--dim); margin-bottom:5px}
+  .c .v{font-size:17px; font-weight:600; line-height:1.3; word-break:break-word}
+  .c .v small{font-size:12px; font-weight:400; color:var(--dim); margin-left:3px}
+  .c .n{font-size:11px; color:var(--dim); margin-top:4px; line-height:1.5}
+  .seg{display:flex; gap:8px; flex-wrap:wrap}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.85; margin:13px 0 0}
+  .hint b{color:var(--fg)}
+  .err{font-size:12px; color:var(--err); min-height:16px; margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>油耗计算</h1>
+      <p class="lede">这次加了多少钱多少升、跑了多少公里，算出百公里几个油、每公里几毛。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <div class="hd"><span>这次的记录</span><span id="state">示例</span></div>
+      <div class="bd">
+        <div class="f">
+          <label>加油量 <i>升</i></label>
+          <input type="text" id="lit" value="38.5" inputmode="decimal" autocomplete="off">
+        </div>
+        <div class="f">
+          <label>行驶里程 <i>本次表数 − 上次表数</i></label>
+          <input type="text" id="km" value="520" inputmode="decimal" autocomplete="off">
+        </div>
+        <div class="f">
+          <label>油价 <i>元/升，可留空</i></label>
+          <input type="text" id="price" value="7.85" inputmode="decimal" autocomplete="off">
+        </div>
+        <div class="seg">
+          <button class="chip" id="bDemo" type="button">填回示例</button>
+          <button class="chip" id="bClear" type="button">清空</button>
+        </div>
+        <div class="err" id="err"></div>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="big">
+        <div class="lead">百公里油耗</div>
+        <div class="num" id="main">7.4<span>L / 100 km</span></div>
+        <div class="sub" id="sub"></div>
+      </div>
+      <div class="cards" id="cards"></div>
+    </div>
+  </div>
+
+  <p class="hint">
+    <b>怎么量才准</b>：上一次加油到跳枪，记下表数；这次同样加到跳枪，记下加了多少升、表数差多少。
+    两次都跳枪，加进去的油就是这段时间烧掉的油，一除就准。<br>
+    <b>别这么算</b>：拿油箱容积估、或者只看油表格子，误差能有 20%，比不算还误导。<br>
+    <b>单程和拥堵会很不一样</b>：同一辆车市区 9 个油、高速 6 个油都正常，看趋势比看单次有意义。
+  </p>
+
+  <footer>纯本地计算，不上传。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+
+  function num(v){ var n = parseFloat(String(v).replace(/[^\d.\-]/g, '')); return isFinite(n) ? n : NaN; }
+  function money(n){ return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function card(k, v, n){
+    return '<div class="c"><div class="k">' + k + '</div><div class="v">' + v + '</div>' +
+           (n ? '<div class="n">' + n + '</div>' : '') + '</div>';
+  }
+
+  function level(l){
+    if (l < 4) return { t: '很省', d: '混动或小排量水平' };
+    if (l < 6.5) return { t: '偏省', d: '小轿车跑得顺的水平' };
+    if (l < 8.5) return { t: '正常', d: '家用车常见区间' };
+    if (l < 11) return { t: '偏高', d: 'SUV 或市区堵车的水平' };
+    return { t: '很费', d: '大排量、重载或长期短途' };
+  }
+
+  function run(){
+    var lit = num($('lit').value), km = num($('km').value), pr = num($('price').value);
+    var err = '';
+    if (!isFinite(lit) || lit <= 0) err = '填上这次加了多少升';
+    else if (!isFinite(km) || km <= 0) err = '填上这次跑了多少公里';
+    else if (km > 5000) err = '里程超过 5000 公里，多半是表数没减，检查一下';
+    $('err').textContent = err;
+
+    if (err){
+      $('main').innerHTML = '—';
+      $('sub').textContent = '左边填完，右边立刻出结果。';
+      $('cards').innerHTML = card('每公里油钱', '—', '需要油价') + card('本次油钱', '—', '') +
+                             card('每升能跑', '—', '');
+      return;
+    }
+
+    var per100 = lit / km * 100;
+    $('main').innerHTML = per100.toFixed(1) + '<span>L / 100 km</span>';
+    $('sub').textContent = '加 ' + lit + ' 升，跑 ' + km + ' 公里；' +
+      (isFinite(pr) && pr > 0 ? '按 ' + pr + ' 元/升算。' : '填上油价还能算出每公里花多少。');
+
+    var cost = isFinite(pr) && pr > 0 ? lit * pr : NaN;
+    var perKm = isFinite(pr) && pr > 0 ? per100 / 100 * pr : NaN;
+    var perL = km / lit;
+    var lv = level(per100);
+
+    $('cards').innerHTML =
+      card('每公里油钱', isFinite(perKm) ? perKm.toFixed(2) + ' 元' : '—',
+           isFinite(perKm) ? '一公里约 ' + (perKm * 10).toFixed(1) + ' 毛' : '需要油价') +
+      card('本次油钱', isFinite(cost) ? money(cost) + ' 元' : '—', isFinite(pr) ? pr + ' 元 × ' + lit + ' 升' : '') +
+      card('每升能跑', perL.toFixed(1) + ' 公里', '') +
+      card('跑 500 公里', (per100 * 5).toFixed(1) + ' 升',
+           isFinite(perKm) ? '油钱约 ' + money(perKm * 500) + ' 元' : '') +
+      card('一年 1.5 万公里', (per100 * 150).toFixed(0) + ' 升',
+           isFinite(perKm) ? '油钱约 ' + money(perKm * 15000) + ' 元' : '') +
+      card('这个水平', lv.t, lv.d);
+
+    $('state').textContent = '已算';
+  }
+
+  ['lit', 'km', 'price'].forEach(function(id){ $(id).addEventListener('input', run); });
+  $('bDemo').addEventListener('click', function(){
+    $('lit').value = '38.5'; $('km').value = '520'; $('price').value = '7.85'; run();
+  });
+  $('bClear').addEventListener('click', function(){
+    $('lit').value = ''; $('km').value = ''; $('price').value = ''; $('state').textContent = '待填'; run(); $('lit').focus();
+  });
+
+  run();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

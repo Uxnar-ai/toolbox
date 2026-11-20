@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>权限换算 · 755 到底谁能读能写能执行</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:880px){ .panes{grid-template-columns:340px 1fr; align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft);
+      border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:13px}
+  .f{display:flex; flex-direction:column; gap:5px; margin-bottom:12px}
+  .f label{font-size:12px; color:var(--dim)}
+  input.oct{font:600 26px/1.2 ui-monospace,Menlo,Consolas,monospace; letter-spacing:3px; text-align:center;
+       padding:10px 8px; border-radius:9px; border:1px solid var(--line); background:var(--bg);
+       color:var(--fg); width:100%}
+  .oct:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  table{width:100%; border-collapse:collapse; font-size:13px}
+  th{font-size:11.5px; font-weight:600; color:var(--dim); text-align:center; padding:0 4px 7px}
+  th:first-child, td:first-child{text-align:left}
+  td{padding:3px 4px; text-align:center}
+  .cb{display:flex; align-items:center; justify-content:center; gap:5px; font-size:12.5px;
+      border:1px solid var(--line); border-radius:8px; padding:7px 4px; cursor:pointer; user-select:none;
+      background:var(--bg); color:var(--dim)}
+  .cb input{accent-color:var(--accent); margin:0}
+  .cb.on{color:var(--fg); border-color:var(--accent); background:var(--soft)}
+  .spec{display:grid; gap:8px; grid-template-columns:1fr 1fr 1fr; margin-top:10px}
+  .spec .cb{font-size:11.5px; padding:7px 2px}
+  .big{padding:16px 15px 14px; border-bottom:1px solid var(--line)}
+  .big .lead{font-size:12px; color:var(--dim); margin-bottom:6px}
+  .big .num{font:600 30px/1.25 ui-monospace,Menlo,Consolas,monospace; letter-spacing:-.5px}
+  .big .num em{font-style:normal; color:var(--accent)}
+  .big .sub{font:12.5px/1.8 ui-monospace,Menlo,Consolas,monospace; color:var(--dim); margin-top:7px}
+  .rows{padding:0 13px 4px}
+  .row3{display:flex; align-items:baseline; gap:9px; padding:9px 0; border-bottom:1px dashed var(--line); font-size:13.5px}
+  .row3:last-child{border-bottom:0}
+  .row3 .who{flex:0 0 62px; color:var(--dim); font-size:12.5px}
+  .row3 .per{flex:0 0 74px; font:12.5px/1 ui-monospace,Menlo,Consolas,monospace; color:var(--accent)}
+  .row3 .desc{flex:1 1 auto; min-width:0; color:var(--fg); line-height:1.6}
+  .presets{padding:0 13px 14px; display:flex; flex-wrap:wrap; gap:7px}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.85; margin:13px 0 0}
+  .hint code{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; background:var(--soft);
+             padding:1px 5px; border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>权限换算</h1>
+      <p class="lede">填 755 这样的数字，或者勾几个格子，看清属主、组、其他人各能干什么。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <div class="hd"><span>权限</span><span id="state">常用 755</span></div>
+      <div class="bd">
+        <div class="f">
+          <label>数字写法（八进制，可写四位）</label>
+          <input type="text" id="oct" class="oct" value="755" inputmode="numeric" autocomplete="off">
+        </div>
+        <table>
+          <thead><tr><th></th><th>读</th><th>写</th><th>执行</th></tr></thead>
+          <tbody id="tb"></tbody>
+        </table>
+        <div class="spec" id="spec">
+          <label class="cb" data-bit="4"><input type="checkbox" data-sp="u">设用户位</label>
+          <label class="cb" data-bit="2"><input type="checkbox" data-sp="g">设组位</label>
+          <label class="cb" data-bit="1"><input type="checkbox" data-sp="t">粘滞位</label>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap">
+          <button class="chip" id="bDir" type="button">这是目录</button>
+          <button class="chip" id="bReset" type="button">回到 755</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="big">
+        <div class="lead">命令行</div>
+        <div class="num" id="cmd">chmod <em>755</em> 文件名</div>
+        <div class="sub" id="ls">-rwxr-xr-x</div>
+      </div>
+      <div class="rows" id="rows"></div>
+      <div class="presets" id="presets"></div>
+    </div>
+  </div>
+
+  <p class="hint">
+    <b>三位数字怎么读</b>：每位是「读 4 + 写 2 + 执行 1」的和。755 = 7(4+2+1) 5(4+1) 5(4+1)：属主全权，其他人只读和执行。<br>
+    <b>文件与目录不一样</b>：目录的「读」是能列出里面有哪些文件，「执行」是能进入这个目录。所以目录至少要有 <code>755</code>，
+    只有读没有执行（<code>644</code>）的目录，<code>cd</code> 不进去也打不开里面的文件。<br>
+    <b>特殊位</b>：设用户位（4000）让程序以属主身份运行；设组位（2000）对目录表示新建文件继承该组；粘滞位（1000）在
+    <code>/tmp</code> 这种共享目录里，只允许删自己的文件。
+  </p>
+
+  <footer>纯本地计算，不上传。</footer>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var WHO = [['属主', 'u'], ['同组', 'g'], ['其他人', 'o']];
+  var BIT = [['r', 4, '读'], ['w', 2, '写'], ['x', 1, '执行']];
+  var state = { digits: [7, 5, 5], sp: { u:false, g:false, t:false }, dir: false };
+
+  var PRESETS = [
+    ['644', '普通文件', [6,4,4], 0, false],
+    ['755', '脚本 / 目录', [7,5,5], 0, false],
+    ['600', '只有自己能读写', [6,0,0], 0, false],
+    ['700', '私有目录', [7,0,0], 0, true],
+    ['664', '同组可改的文件', [6,6,4], 0, false],
+    ['775', '同组可写的目录', [7,7,5], 0, true],
+    ['777', '所有人都能改', [7,7,7], 0, false],
+    ['2775', '组目录（继承组）', [7,7,5], 2, true],
+    ['1777', '共享临时目录', [7,7,7], 1, true]
+  ];
+
+  function has(d, b){ return (d & b) !== 0; }
+  function tri(d){
+    return (has(d, 4) ? 'r' : '-') + (has(d, 2) ? 'w' : '-') + (has(d, 1) ? 'x' : '-');
+  }
+  function lsString(){
+    var s = (state.dir ? 'd' : '-') + tri(state.digits[0]) + tri(state.digits[1]) + tri(state.digits[2]);
+    var pos = [3, 6, 9];
+    var flags = [[state.sp.u, 's', 'S'], [state.sp.g, 's', 'S'], [state.sp.t, 't', 'T']];
+    for (var i = 0; i < 3; i++){
+      if (flags[i][0]){
+        var on = s.charAt(pos[i]) === 'x';
+        s = s.slice(0, pos[i]) + (on ? flags[i][1] : flags[i][2]) + s.slice(pos[i] + 1);
+      }
+    }
+    return s;
+  }
+  function spDigit(){
+    return (state.sp.u ? 4 : 0) + (state.sp.g ? 2 : 0) + (state.sp.t ? 1 : 0);
+  }
+  function octString(){
+    var d = spDigit();
+    return (d ? String(d) : '') + state.digits.join('');
+  }
+  function setFromOctal(v){
+    v = String(v).replace(/[^0-7]/g, '').slice(-4);
+    if (v.length < 3) return false;
+    if (v.length === 4){
+      var d0 = +v.charAt(0);
+      state.sp = { u: has(d0, 4), g: has(d0, 2), t: has(d0, 1) };
+      v = v.slice(1);
+    } else {
+      state.sp = { u:false, g:false, t:false };
+    }
+    state.digits = [+v.charAt(0), +v.charAt(1), +v.charAt(2)];
+    return true;
+  }
+  function describe(){
+    var out = [];
+    for (var i = 0; i < 3; i++){
+      var d = state.digits[i], p = [];
+      if (has(d, 4)) p.push(state.dir ? '列目录' : '读');
+      if (has(d, 2)) p.push(state.dir ? '增删文件' : '写');
+      if (has(d, 1)) p.push(state.dir ? '进入' : '执行');
+      out.push({ who: WHO[i][0], ch: tri(d), desc: p.length ? p.join('、') : '什么都不能做' });
+    }
+    return out;
+  }
+
+  function renderTable(){
+    var tb = $('tb');
+    tb.innerHTML = '';
+    for (var i = 0; i < 3; i++){
+      var tr = document.createElement('tr');
+      var th = document.createElement('td');
+      th.textContent = WHO[i][0] + '（' + WHO[i][1] + '）';
+      th.style.color = 'var(--dim)'; th.style.fontSize = '12.5px';
+      tr.appendChild(th);
+      for (var j = 0; j < 3; j++){
+        var td = document.createElement('td');
+        var lab = document.createElement('label');
+        lab.className = 'cb' + (has(state.digits[i], BIT[j][1]) ? ' on' : '');
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = has(state.digits[i], BIT[j][1]);
+        cb.setAttribute('data-who', i);
+        cb.setAttribute('data-bit', BIT[j][1]);
+        cb.addEventListener('change', function(){
+          var w = +this.getAttribute('data-who'), b = +this.getAttribute('data-bit');
+          state.digits[w] = this.checked ? (state.digits[w] | b) : (state.digits[w] & ~b);
+          paint(true);
+        });
+        var span = document.createElement('span');
+        span.textContent = BIT[j][2];
+        lab.appendChild(cb); lab.appendChild(span);
+        td.appendChild(lab);
+        tr.appendChild(td);
+      }
+      tb.appendChild(tr);
+    }
+    var boxes = $('spec').querySelectorAll('input[data-sp]');
+    for (var k = 0; k < boxes.length; k++){
+      var key = boxes[k].getAttribute('data-sp');
+      boxes[k].checked = !!state.sp[key];
+      boxes[k].parentNode.className = 'cb' + (state.sp[key] ? ' on' : '');
+    }
+  }
+
+  function paint(fromUI){
+    var o = octString();
+    if (fromUI) $('oct').value = o;
+    $('cmd').innerHTML = 'chmod <em>' + o + '</em> ' + (state.dir ? '目录名' : '文件名');
+    $('ls').textContent = lsString();
+    $('rows').innerHTML = describe().map(function(r){
+      return '<div class="row3"><span class="who">' + r.who + '</span>' +
+             '<span class="per">' + r.ch + '</span>' +
+             '<span class="desc">' + r.desc + '</span></div>';
+    }).join('');
+    $('bDir').className = 'chip' + (state.dir ? ' on' : '');
+    $('state').textContent = state.dir ? '目录' : '文件';
+    $('presets').innerHTML = PRESETS.map(function(p){
+      return '<button class="chip' + (p[0] === o ? ' on' : '') + '" type="button" data-o="' + p[0] + '">' +
+             p[0] + ' · ' + p[1] + '</button>';
+    }).join('');
+    renderTable();
+  }
+
+  $('oct').addEventListener('input', function(){
+    if (setFromOctal(this.value)) paint(false);
+  });
+  $('oct').addEventListener('blur', function(){ paint(true); });
+  $('bDir').addEventListener('click', function(){ state.dir = !state.dir; paint(true); });
+  $('bReset').addEventListener('click', function(){
+    state.digits = [7,5,5]; state.sp = { u:false, g:false, t:false }; paint(true);
+  });
+  $('spec').addEventListener('change', function(e){
+    var key = e.target.getAttribute('data-sp');
+    if (!key) return;
+    state.sp[key] = e.target.checked;
+    paint(true);
+  });
+  $('presets').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-o]');
+    if (!b) return;
+    var o = b.getAttribute('data-o');
+    setFromOctal(o);
+    for (var i = 0; i < PRESETS.length; i++){
+      if (PRESETS[i][0] === o){ state.dir = PRESETS[i][4]; break; }
+    }
+    paint(true);
+  });
+
+  paint(true);
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

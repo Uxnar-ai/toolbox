@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>工具台 toolbox</title>
-<meta name="description" content="一堆打开就能用的小工具：JSON、文本、CSV 表格、Markdown 预览、字数统计、中英混排、网址拆解、乱码修复、时间戳、对比、Cron、日期、命名转换、金额大写、百分比、贷款计算、单位、网段计算、颜色、图片压缩、二维码、哈希、编码、SQL 排版、JSON 转类型、号码校验、curl 转代码、HTTP 状态码、.gitignore 生成、网站图标、HTML 转 Markdown、假数据生成、时区对照、特殊符号、隐藏字符体检、表格对齐、阴影与圆角、JSON 树、个税与到手、JSON 转表格、体重与热量、番茄钟、字符查询、图片尺寸换算、Git 急救、常用正则、IPv6 地址、菜谱份量换算、两步验证码、代码美化、标点转换、Nginx 反代配置、年龄计算、图片拼接、中文数字、图片对比。全在浏览器里算，不上传服务器。">
+<meta name="description" content="一堆打开就能用的小工具：JSON、文本、CSV 表格、Markdown 预览、字数统计、中英混排、网址拆解、乱码修复、时间戳、对比、Cron、日期、命名转换、金额大写、百分比、贷款计算、单位、网段计算、颜色、图片压缩、二维码、哈希、编码、SQL 排版、JSON 转类型、号码校验、curl 转代码、HTTP 状态码、.gitignore 生成、网站图标、HTML 转 Markdown、假数据生成、时区对照、特殊符号、隐藏字符体检、表格对齐、阴影与圆角、JSON 树、个税与到手、JSON 转表格、体重与热量、番茄钟、字符查询、图片尺寸换算、Git 急救、常用正则、IPv6 地址、菜谱份量换算、两步验证码、代码美化、标点转换、Nginx 反代配置、年龄计算、图片拼接、中文数字、图片对比、农历与节日、权限换算、Markdown 目录、油耗计算、睡眠时间、AA 分账。全在浏览器里算，不上传服务器。">
 <link rel="stylesheet" href="assets/theme.css">
 <style>
   .grid{display:grid; gap:12px; grid-template-columns:1fr}
@@ -201,6 +201,12 @@
       <p>中文里混了英文标点、英文里混了全角逗号：点一个方向整段统一，网址和 3.14、9:30 不动。</p>
       <div class="tags"><span>中英互转</span><span>全角半角</span><span>保护网址数字</span></div>
     </a>
+    <a class="card" href="toc/" data-k="toc Markdown 目录 粘一段 Markdown，按标题层级出目录，锚点能直接点，代码块里的 # 不算。 自动锚点 自定义起始级 Markdown / HTML" data-slug="toc">
+      <div class="top"><span class="ico">☰</span><span class="arrow">↗</span></div>
+      <h2>Markdown 目录</h2>
+      <p>粘一段 Markdown，按标题层级出目录，锚点能直接点，代码块里的 # 不算。</p>
+      <div class="tags"><span>自动锚点</span><span>自定义起始级</span><span>Markdown / HTML</span></div>
+    </a>
   </div>
   <div class="group">开发与校验</div>
   <div class="grid">
@@ -318,6 +324,12 @@
       <p>贴一段接口返回，自动推断字段类型和必填项，直接得到能拿去校验的结构。</p>
       <div class="tags"><span>推断类型</span><span>数组合并</span><span>可下载</span></div>
     </a>
+    <a class="card" href="chmod/" data-k="chmod 权限换算 填 755 这种数字，看清属主、同组、其他人各能读写执行什么，常用权限一键套用。 数字互转 特殊位 常用预设" data-slug="chmod">
+      <div class="top"><span class="ico">🔑</span><span class="arrow">↗</span></div>
+      <h2>权限换算</h2>
+      <p>填 755 这种数字，看清属主、同组、其他人各能读写执行什么，常用权限一键套用。</p>
+      <div class="tags"><span>数字互转</span><span>特殊位</span><span>常用预设</span></div>
+    </a>
   </div>
   <div class="group">时间与任务</div>
   <div class="grid">
@@ -362,6 +374,18 @@
       <h2>年龄计算</h2>
       <p>填一个生日：精确到年月日的周岁、活了多少天、下次生日还有几天，还能复制成一句话。</p>
       <div class="tags"><span>周岁 / 虚岁</span><span>下次生日</span><span>生肖星座</span></div>
+    </a>
+    <a class="card" href="lunar/" data-k="lunar 农历与节日 选一个日子出农历几月几、干支生肖，再算离春节中秋这些节日还有几天。 闰月 干支生肖 节日倒数" data-slug="lunar">
+      <div class="top"><span class="ico">历</span><span class="arrow">↗</span></div>
+      <h2>农历与节日</h2>
+      <p>选一个日子出农历几月几、干支生肖，再算离春节中秋这些节日还有几天。</p>
+      <div class="tags"><span>闰月</span><span>干支生肖</span><span>节日倒数</span></div>
+    </a>
+    <a class="card" href="sleep/" data-k="sleep 睡眠时间 按 90 分钟一个周期算：现在睡得几点起，想七点起该几点睡，避开深睡被叫醒。 睡眠周期 两个方向 含入睡时间" data-slug="sleep">
+      <div class="top"><span class="ico">☾</span><span class="arrow">↗</span></div>
+      <h2>睡眠时间</h2>
+      <p>按 90 分钟一个周期算：现在睡得几点起，想七点起该几点睡，避开深睡被叫醒。</p>
+      <div class="tags"><span>睡眠周期</span><span>两个方向</span><span>含入睡时间</span></div>
     </a>
   </div>
   <div class="group">数字与金额</div>
@@ -437,6 +461,18 @@
       <h2>单价比价</h2>
       <p>同一样东西几个规格摆一起，算出每 100 克、每 100 毫升各多少钱，哪包划算一眼看出。</p>
       <div class="tags"><span>每克单价</span><span>斤两换算</span><span>自动排序</span></div>
+    </a>
+    <a class="card" href="fuel/" data-k="fuel 油耗计算 加了多少钱多少升、跑了多少公里，算出百公里几个油、每公里几毛钱。 百公里油耗 每公里油钱 年度估算" data-slug="fuel">
+      <div class="top"><span class="ico">⛽</span><span class="arrow">↗</span></div>
+      <h2>油耗计算</h2>
+      <p>加了多少钱多少升、跑了多少公里，算出百公里几个油、每公里几毛钱。</p>
+      <div class="tags"><span>百公里油耗</span><span>每公里油钱</span><span>年度估算</span></div>
+    </a>
+    <a class="card" href="aa/" data-k="aa AA 分账 总价、人数、服务费一填，算出每人多少，还能按份数分、抹零后差几毛也标出来。 均摊 按份数 抹零" data-slug="aa">
+      <div class="top"><span class="ico">元</span><span class="arrow">↗</span></div>
+      <h2>AA 分账</h2>
+      <p>总价、人数、服务费一填，算出每人多少，还能按份数分、抹零后差几毛也标出来。</p>
+      <div class="tags"><span>均摊</span><span>按份数</span><span>抹零</span></div>
     </a>
   </div>
   <div class="group">网络与编码</div>
@@ -571,7 +607,7 @@
 
   <footer>
     同一个仓库里长出来的东西：新工具加个目录、挂进这张表就行。需要后端的（短码暂存、天气、主机指标、资讯聚合）各自独立跑，不塞进这里。
-    <br>更新于 2026-11-20 · 共 79 个工具
+    <br>更新于 2026-11-21 · 共 85 个工具
   </footer>
 </div>
 <script src="assets/base.js"></script>
