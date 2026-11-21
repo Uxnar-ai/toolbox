@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>纪念日导出日历 · 生日 / 周年一次性导进手机</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:900px){ .panes{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr); align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft);
+      border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .hd .sp{flex:1 1 auto}
+  .hd button{
+    font:12px/1 inherit; padding:5px 10px; border-radius:7px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg)
+  }
+  .hd button:hover{border-color:var(--accent); color:var(--accent)}
+  .rows{padding:6px 13px 2px}
+  .r{
+    display:grid; grid-template-columns:1fr 132px 74px 28px; gap:8px; align-items:center;
+    padding:7px 0; border-bottom:1px solid var(--line); min-width:0
+  }
+  .r:last-child{border-bottom:0}
+  .r input[type=text], .r input[type=date]{
+    font:13px/1.4 inherit; padding:8px 9px; border-radius:7px; border:1px solid var(--line);
+    background:var(--card); color:var(--fg); width:100%; min-width:0; -webkit-appearance:none
+  }
+  .r input:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .r label{display:flex; align-items:center; gap:5px; font-size:12px; color:var(--dim); justify-content:center}
+  .r label input{width:14px; height:14px; accent-color:var(--accent)}
+  .r .del{
+    border:0; background:none; color:var(--dim); cursor:pointer; font-size:16px; line-height:1;
+    padding:4px; border-radius:6px
+  }
+  .r .del:hover{color:var(--err); background:var(--soft)}
+  .legend{display:grid; grid-template-columns:1fr 132px 74px 28px; gap:8px; padding:2px 13px 8px;
+          font-size:11.5px; color:var(--dim)}
+  .legend span:nth-child(2), .legend span:nth-child(3){text-align:center}
+  pre.out{
+    margin:12px 13px 0; height:300px; overflow:auto; padding:12px; border-radius:9px;
+    background:var(--bg); border:1px solid var(--line); white-space:pre; tab-size:2;
+    font:12px/1.65 ui-monospace,Menlo,Consolas,monospace; color:var(--fg)
+  }
+  .tools{display:flex; gap:8px; flex-wrap:wrap; padding:11px 13px 13px}
+  button.act{
+    font:500 13px/1 inherit; padding:9px 14px; border-radius:8px; cursor:pointer;
+    border:1px solid var(--accent); background:var(--accent); color:var(--accent-fg)
+  }
+  button.act:disabled{opacity:.45; cursor:not-allowed}
+  button.ghost{
+    font:13px/1 inherit; padding:9px 13px; border-radius:8px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg)
+  }
+  button.ghost:hover{border-color:var(--accent)}
+  .stat{padding:0 14px 12px; font-size:12.5px; color:var(--dim); line-height:1.8}
+  .stat b{color:var(--fg); font-weight:600}
+  .stat .e{color:var(--err)}
+  .next{font-size:12.5px; color:var(--dim); padding:2px 13px 8px; line-height:1.9}
+  .next b{color:var(--fg)}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.9; margin:14px 0 0}
+  .hint b{color:var(--fg)}
+  @media (max-width:560px){
+    .r, .legend{grid-template-columns:1fr 116px 30px 26px; gap:6px}
+    .r label{font-size:0}
+    .r label input{width:17px; height:17px}
+    .legend span:nth-child(3){font-size:0}
+    .legend span:nth-child(3):after{content:"年"; font-size:11.5px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>纪念日导出日历</h1>
+      <p class="lede">生日、结婚纪念、租房到期填一填，导出一个 .ics，手机日历点一下就全进去。</p>
+    </div>
+    <button class="toggle" id="theme">跟随系统</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <div class="hd">
+        <span>要记的日子</span><span class="sp"></span>
+        <button id="bAdd">+ 加一条</button>
+      </div>
+      <div class="legend"><span>名称</span><span>日期</span><span>每年</span><span></span></div>
+      <div class="rows" id="rows"></div>
+      <div class="next" id="next"></div>
+    </div>
+
+    <div class="box">
+      <div class="hd"><span>生成的 .ics</span><span id="cnt">—</span></div>
+      <pre class="out" id="out"></pre>
+      <div class="tools">
+        <button class="act" id="bDown" disabled>下载 .ics</button>
+        <button class="ghost" id="bCopy" disabled>复制内容</button>
+      </div>
+      <div class="stat" id="stat">在本机生成，不上传。</div>
+    </div>
+  </div>
+
+  <p class="hint">
+    <b>怎么导进手机</b>：下载后用微信 / 邮件发到手机，点开选「添加到日历」；iPhone 也可以直接 AirDrop，安卓一般用日历 App 的「导入」。
+    <b>勾了「每年」</b>的按年循环 —— 生日填出生那年也行，明年会自动提醒；填今年则从今年开始算，之前不提醒。
+  </p>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var rowsEl = $('rows'), out = $('out'), stat = $('stat'), cnt = $('cnt'), nextEl = $('next');
+  var bDown = $('bDown'), bCopy = $('bCopy');
+  var ics = '', seq = 0;
+
+  function pad(n){ return (n < 10 ? '0' : '') + n; }
+  function ymd(d){ return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function stamp(d){ return '' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()); }
+
+  function row(name, date, yearly){
+    seq++;
+    var el = document.createElement('div');
+    el.className = 'r';
+    el.innerHTML =
+      '<input type="text" class="nm" placeholder="比如：妈妈生日" value="' + (name || '').replace(/"/g, '&quot;') + '">' +
+      '<input type="date" class="dt" value="' + (date || '') + '">' +
+      '<label><input type="checkbox" class="yr"' + (yearly ? ' checked' : '') + '> 每年</label>' +
+      '<button class="del" title="删掉这行">×</button>';
+    el.querySelector('.del').addEventListener('click', function(){ el.remove(); build(); });
+    ['input', 'change'].forEach(function(ev){
+      el.addEventListener(ev, build);
+    });
+    rowsEl.appendChild(el);
+    return el;
+  }
+
+  function esc(s){
+    return String(s).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+  }
+  function fold(line){
+    if (line.length <= 73) return line;
+    var res = '', i = 0;
+    while (i < line.length){
+      res += (i === 0 ? '' : '\r\n ') + line.slice(i, i + (i === 0 ? 73 : 72));
+      i += (i === 0 ? 73 : 72);
+    }
+    return res;
+  }
+
+  function build(){
+    var items = [], today = new Date();
+    today = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    Array.prototype.forEach.call(rowsEl.querySelectorAll('.r'), function(r){
+      var nm = r.querySelector('.nm').value.trim();
+      var dv = r.querySelector('.dt').value;
+      var yr = r.querySelector('.yr').checked;
+      if (!nm || !dv) return;
+      var m = dv.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) return;
+      items.push({ name: nm, d: new Date(+m[1], +m[2] - 1, +m[3]), yearly: yr, raw: dv });
+    });
+
+    if (!items.length){
+      ics = ''; out.textContent = ''; bDown.disabled = true; bCopy.disabled = true;
+      cnt.textContent = '—'; stat.textContent = '至少填一条名称和日期';
+      nextEl.textContent = '';
+      return;
+    }
+
+    var d0 = new Date();
+    var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//toolbox//anniversary//CN',
+                 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+    items.forEach(function(it, i){
+      lines.push('BEGIN:VEVENT');
+      lines.push('UID:' + stamp(it.d) + '-' + (i + 1) + '-' + Math.abs(hash(it.name)) + '@toolbox.local');
+      lines.push('DTSTAMP:' + stamp(d0) + 'T000000Z');
+      lines.push('DTSTART;VALUE=DATE:' + stamp(it.d));
+      if (it.yearly) lines.push('RRULE:FREQ=YEARLY');
+      lines.push(fold('SUMMARY:' + esc(it.name)));
+      lines.push('TRANSP:TRANSPARENT');
+      lines.push('END:VEVENT');
+    });
+    lines.push('END:VCALENDAR');
+    ics = lines.join('\r\n') + '\r\n';
+
+    out.textContent = ics;
+    bDown.disabled = false; bCopy.disabled = false;
+    cnt.textContent = items.length + ' 条';
+    stat.innerHTML = '<b>' + items.length + '</b> 条事件 · ' + ics.length + ' 字节 · ' +
+                     '下载后发给手机就能导入';
+
+    // 离最近的还有几天
+    var ups = items.map(function(it){
+      var d = it.d;
+      if (it.yearly){
+        d = new Date(today.getFullYear(), it.d.getMonth(), it.d.getDate());
+        if (d < today) d = new Date(today.getFullYear() + 1, it.d.getMonth(), it.d.getDate());
+      }
+      return { name: it.name, d: d, days: Math.round((d - today) / 86400000) };
+    }).filter(function(u){ return u.days >= 0; })
+      .sort(function(a, b){ return a.days - b.days; }).slice(0, 3);
+    nextEl.innerHTML = ups.length ? ('最近的：' + ups.map(function(u){
+      return '<b>' + u.name + '</b> ' + (u.days === 0 ? '就是今天' : u.days + ' 天后') +
+             '（' + (u.d.getMonth() + 1) + '月' + u.d.getDate() + '日）';
+    }).join(' · ')) : '填的日子都已经过去了';
+  }
+
+  function hash(s){
+    var h = 0;
+    for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return h;
+  }
+
+  var y = new Date().getFullYear();
+  row('妈妈生日', y + '-05-12', true);
+  row('结婚纪念日', (y - 3) + '-09-28', true);
+  row('房租到期', (y + 1) + '-03-01', false);
+  build();
+
+  $('bAdd').addEventListener('click', function(){
+    var last = row('', '', true);
+    last.querySelector('.nm').focus();
+    build();
+  });
+
+  bDown.addEventListener('click', function(){
+    if (!ics) return;
+    var a = document.createElement('a');
+    var u = URL.createObjectURL(new Blob([ics], { type: 'text/calendar;charset=utf-8' }));
+    a.href = u; a.download = 'anniversary.ics';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(u); }, 4000);
+  });
+
+  bCopy.addEventListener('click', function(){
+    if (!ics) return;
+    navigator.clipboard.writeText(ics).then(function(){
+      bCopy.textContent = '已复制';
+      setTimeout(function(){ bCopy.textContent = '复制内容'; }, 1300);
+    }, function(){
+      stat.innerHTML = '复制被拦了，直接点「下载 .ics」';
+    });
+  });
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

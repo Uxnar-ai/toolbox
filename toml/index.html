@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TOML 转 JSON · 配置粘进来就转</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:900px){ .panes{grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft);
+      border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .hd .sp{flex:1 1 auto}
+  .bd{padding:12px 13px}
+  textarea{
+    width:100%; height:430px; resize:vertical; padding:11px 12px; border-radius:9px;
+    border:1px solid var(--line); background:var(--bg); color:var(--fg);
+    font:12.5px/1.7 ui-monospace,Menlo,Consolas,monospace; tab-size:2
+  }
+  textarea:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  pre.out{
+    margin:12px 13px 0; height:390px; overflow:auto; padding:12px; border-radius:9px;
+    background:var(--bg); border:1px solid var(--line); white-space:pre; tab-size:2;
+    font:12.5px/1.7 ui-monospace,Menlo,Consolas,monospace; color:var(--fg)
+  }
+  .tools{display:flex; gap:8px; flex-wrap:wrap; padding:11px 13px 13px}
+  button.act{
+    font:500 13px/1 inherit; padding:9px 14px; border-radius:8px; cursor:pointer;
+    border:1px solid var(--accent); background:var(--accent); color:var(--accent-fg)
+  }
+  button.act:disabled{opacity:.45; cursor:not-allowed}
+  button.ghost{
+    font:13px/1 inherit; padding:9px 13px; border-radius:8px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg)
+  }
+  button.ghost:hover{border-color:var(--accent)}
+  .stat{padding:0 14px 12px; font-size:12.5px; color:var(--dim); line-height:1.75}
+  .stat b{color:var(--fg); font-weight:600}
+  .stat .e{color:var(--err)}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.85; margin:14px 0 0}
+  .hint b{color:var(--fg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>TOML 转 JSON</h1>
+      <p class="lede">Cargo.toml、pyproject.toml 这类配置粘左边，右边立刻就是 JSON。</p>
+    </div>
+    <button class="toggle" id="theme">跟随系统</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <div class="hd">
+        <span>TOML</span><span class="sp"></span>
+        <button class="ghost" id="bDemo" style="padding:4px 10px;font-size:12px">换回示例</button>
+        <button class="ghost" id="bClear" style="padding:4px 10px;font-size:12px">清空</button>
+      </div>
+      <div class="bd"><textarea id="src" spellcheck="false"></textarea></div>
+    </div>
+
+    <div class="box">
+      <div class="hd"><span>JSON</span><span id="size">—</span></div>
+      <pre class="out" id="out"></pre>
+      <div class="tools">
+        <button class="act" id="bCopy" disabled>复制 JSON</button>
+        <button class="ghost" id="bDown" disabled>下载 .json</button>
+      </div>
+      <div class="stat" id="stat">在本地转换，不上传。</div>
+    </div>
+  </div>
+
+  <p class="hint">
+    <b>说明</b>：支持表 `[a.b]`、表数组 `[[list]]`、行内表 `{ }`、数组（含换行）、点号键 `a.b = 1`、三种字符串写法、注释、整数 / 浮点 / 布尔。
+    日期时间保持原样的字符串（JSON 没有日期类型，转成时间戳反而失真）。
+  </p>
+</div>
+
+<script>
+var DEMO_TOML = [
+  '# 示例：一个 CLI 工具的配置',
+  'name = "demo-cli"',
+  'version = "0.4.2"',
+  'edition = "2021"',
+  'keywords = ["cli", "config", "toml"]',
+  '',
+  '[package.metadata]',
+  'authors = [',
+  '  "王小明 <wang@example.com>",',
+  '  "Li Hua <li@example.com>"',
+  ']',
+  'homepage = "https://example.com/demo"',
+  '',
+  '[dependencies]',
+  'serde = { version = "1.0", features = ["derive"], optional = false }',
+  'tokio = "1.35"',
+  '',
+  '[[bin]]',
+  'name = "demo"',
+  'path = "src/main.rs"',
+  '',
+  '[[bin]]',
+  'name = "demo-worker"',
+  'path = "src/worker.rs"',
+  '',
+  '[profile.release]',
+  'opt-level = 3',
+  'lto = true',
+  'codegen-units = 1'
+].join('\n');
+</script>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var srcEl = $('src'), out = $('out'), stat = $('stat'), sizeEl = $('size');
+  var bCopy = $('bCopy'), bDown = $('bDown');
+  var result = '', timer = null;
+
+  function err(line, msg){ throw new Error('第 ' + line + ' 行：' + msg); }
+
+  function unq(s){
+    s = s.trim();
+    if ((s[0] === '"' && s[s.length - 1] === '"') || (s[0] === "'" && s[s.length - 1] === "'"))
+      return s.slice(1, -1);
+    return s;
+  }
+
+  // 在顶层按分隔符切（跳过字符串和括号内的）
+  function splitTop(s, sep){
+    var out = [], buf = '', q = null, depth = 0;
+    for (var i = 0; i < s.length; i++){
+      var c = s[i];
+      if (q){
+        buf += c;
+        if (c === '\\' && q === '"'){ buf += s[++i] || ''; continue; }
+        if (c === q) q = null;
+        continue;
+      }
+      if (c === '"' || c === "'"){ q = c; buf += c; continue; }
+      if (c === '[' || c === '{') depth++;
+      if (c === ']' || c === '}') depth--;
+      if (c === sep && depth === 0){ out.push(buf); buf = ''; continue; }
+      buf += c;
+    }
+    out.push(buf);
+    return out;
+  }
+
+  function findEq(s){
+    var q = null;
+    for (var i = 0; i < s.length; i++){
+      var c = s[i];
+      if (q){ if (c === '\\' && q === '"'){ i++; continue; } if (c === q) q = null; continue; }
+      if (c === '"' || c === "'"){ q = c; continue; }
+      if (c === '=') return i;
+    }
+    return -1;
+  }
+
+  function balanced(s){
+    var q = null, depth = 0;
+    for (var i = 0; i < s.length; i++){
+      var c = s[i];
+      if (q){ if (c === '\\' && q === '"'){ i++; continue; } if (c === q) q = null; continue; }
+      if (c === '"' || c === "'"){ q = c; continue; }
+      if (c === '[' || c === '{') depth++;
+      if (c === ']' || c === '}') depth--;
+    }
+    return !q && depth <= 0;
+  }
+
+  function complete(s){
+    var q3 = s.indexOf('"""') > -1 ? '"""' : (s.indexOf("'''") > -1 ? "'''" : null);
+    if (q3 && s.indexOf(q3) === s.lastIndexOf(q3)) return false;
+    return balanced(s);
+  }
+
+  function str(s){
+    var body = s.slice(1, -1);
+    if (s[0] === "'") return body;
+    return body.replace(/\\(u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}|.)/g, function(m, e){
+      if (e.length > 1 && (e[0] === 'u' || e[0] === 'U'))
+        return String.fromCodePoint(parseInt(e.slice(1), 16));
+      return { n: '\n', t: '\t', r: '\r', b: '\b', f: '\f', '"': '"', '\\': '\\' }[e] || e;
+    });
+  }
+
+  function value(raw, line){
+    var s = raw.trim();
+    if (!s) err(line, '等号后面没值');
+    if (s[0] === '"' && s.slice(0, 3) !== '"""') return str(s);
+    if (s[0] === "'" && s.slice(0, 3) !== "'''") return str(s);
+    if (s.slice(0, 3) === '"""' || s.slice(0, 3) === "'''"){
+      var q3 = s.slice(0, 3);
+      return s.slice(3, s.lastIndexOf(q3)).replace(/^\n/, '');
+    }
+    if (s[0] === '['){
+      var inner = s.slice(1, s.lastIndexOf(']'));
+      if (!inner.trim()) return [];
+      return splitTop(inner, ',').map(function(p){ return p.trim() ? value(p, line) : null; })
+                                 .filter(function(v){ return v !== null; });
+    }
+    if (s[0] === '{'){
+      var body = s.slice(1, s.lastIndexOf('}')), o = {};
+      if (!body.trim()) return o;
+      splitTop(body, ',').forEach(function(p){
+        if (!p.trim()) return;
+        var e = findEq(p);
+        if (e < 0) err(line, '行内表里少了个等号');
+        var k = keys(p.slice(0, e));
+        put(o, k, value(p.slice(e + 1), line), line);
+      });
+      return o;
+    }
+    if (s === 'true') return true;
+    if (s === 'false') return false;
+    if (/^[+-]?0x[0-9a-fA-F_]+$/.test(s)) return parseInt(s.replace(/_/g, ''), 16);
+    if (/^[+-]?0o[0-7_]+$/.test(s)) return parseInt(s.replace(/^[+-]?0o/, '').replace(/_/g, ''), 8);
+    if (/^[+-]?0b[01_]+$/.test(s)) return parseInt(s.replace(/^[+-]?0b/, '').replace(/_/g, ''), 2);
+    if (/^[+-]?\d[\d_]*$/.test(s)) return parseInt(s.replace(/_/g, ''), 10);
+    if (/^[+-]?\d[\d_]*\.\d[\d_]*([eE][+-]?\d+)?$/.test(s) || /^[+-]?(inf|nan)$/.test(s))
+      return Number(s.replace(/_/g, ''));
+    // 日期时间（1979-05-27 / 07:32:00 / 带 Z）原样留字符串
+    if (/^\d{4}-\d{2}-\d{2}/.test(s) || /^\d{2}:\d{2}:\d{2}/.test(s)) return s.replace(/^["']|["']$/g, '');
+    err(line, '看不懂的值 ' + s.slice(0, 30));
+  }
+
+  function keys(s){
+    return splitTop(s, '.').map(unq).filter(function(x){ return x !== ''; });
+  }
+
+  function put(obj, path, val, line){
+    var cur = obj;
+    for (var i = 0; i < path.length - 1; i++){
+      var k = path[i];
+      if (cur[k] === undefined) cur[k] = {};
+      if (typeof cur[k] !== 'object' || Array.isArray(cur[k])) err(line, '「' + k + '」已经是别的类型了');
+      cur = cur[k];
+    }
+    var last = path[path.length - 1];
+    if (cur[last] !== undefined && !Array.isArray(cur[last])) err(line, '「' + last + '」重复定义');
+    cur[last] = val;
+  }
+
+  function descend(root, path, isArray, line){
+    var cur = root;
+    for (var i = 0; i < path.length - 1; i++){
+      var k = path[i];
+      if (cur[k] === undefined) cur[k] = {};
+      if (Array.isArray(cur[k])) cur = cur[k][cur[k].length - 1];
+      else cur = cur[k];
+      if (typeof cur !== 'object' || cur === null) err(line, '「' + k + '」不是表');
+    }
+    var last = path[path.length - 1];
+    if (isArray){
+      if (!Array.isArray(cur[last])) cur[last] = [];
+      var t = {};
+      cur[last].push(t);
+      return t;
+    }
+    if (cur[last] === undefined) cur[last] = {};
+    if (Array.isArray(cur[last])) return cur[last][cur[last].length - 1];
+    return cur[last];
+  }
+
+  function parseToml(src){
+    var root = {}, cur = root, lines = src.split(/\r?\n/);
+    for (var ln = 0; ln < lines.length; ln++){
+      var line = lines[ln].trim();
+      if (!line || line[0] === '#') continue;
+
+      if (line[0] === '['){
+        var dbl = line.slice(0, 2) === '[[';
+        var end = dbl ? line.lastIndexOf(']]') : line.lastIndexOf(']');
+        if (end < 0) err(ln + 1, '方括号没闭合');
+        var path = keys(line.slice(dbl ? 2 : 1, end));
+        if (!path.length) err(ln + 1, '表名是空的');
+        cur = descend(root, path, dbl, ln + 1);
+        continue;
+      }
+
+      // 多行值：括号或三引号没闭合就往下吃
+      var joined = line, tries = 0;
+      while (tries < 400 && !complete(joined)){
+        if (ln + 1 >= lines.length) break;
+        joined += '\n' + lines[++ln];
+        tries++;
+      }
+
+      var eq = findEq(joined);
+      if (eq < 0) err(ln + 1, '这一行既不是表也不是 key = value');
+      var kpath = keys(joined.slice(0, eq));
+      if (!kpath.length) err(ln + 1, '键名是空的');
+      put(cur, kpath, value(joined.slice(eq + 1), ln + 1), ln + 1);
+    }
+    return root;
+  }
+
+  function run(){
+    var src = srcEl.value.trim();
+    bCopy.disabled = true; bDown.disabled = true;
+    if (!src){ out.textContent = ''; sizeEl.textContent = '—'; stat.textContent = '左边还空着'; return; }
+    try {
+      var obj = parseToml(src);
+      result = JSON.stringify(obj, null, 2);
+    } catch (e){
+      out.textContent = '';
+      sizeEl.textContent = '—';
+      stat.innerHTML = '<span class="e">转不了 —— ' + String(e.message).replace(/</g, '&lt;') + '</span>';
+      return;
+    }
+    out.textContent = result;
+    bCopy.disabled = false; bDown.disabled = false;
+    var keysN = 0;
+    (function walk(o){
+      for (var k in o){
+        if (o[k] && typeof o[k] === 'object'){ keysN++; walk(o[k]); }
+        else keysN++;
+      }
+    })(obj);
+    sizeEl.textContent = result.split('\n').length + ' 行';
+    stat.innerHTML = '顶层键 <b>' + Object.keys(obj).length + '</b> · 一共 <b>' + keysN +
+                     '</b> 项 · ' + src.length + ' → ' + result.length + ' 字符';
+  }
+
+  function schedule(){ clearTimeout(timer); timer = setTimeout(run, 220); }
+
+  srcEl.value = DEMO_TOML;
+  run();
+  srcEl.addEventListener('input', schedule);
+  $('bDemo').addEventListener('click', function(){ srcEl.value = DEMO_TOML; run(); });
+  $('bClear').addEventListener('click', function(){ srcEl.value = ''; run(); srcEl.focus(); });
+
+  bCopy.addEventListener('click', function(){
+    if (!result) return;
+    navigator.clipboard.writeText(result).then(function(){
+      bCopy.textContent = '已复制';
+      setTimeout(function(){ bCopy.textContent = '复制 JSON'; }, 1300);
+    }, function(){
+      var ta = document.createElement('textarea');
+      ta.value = result; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch (e){}
+      ta.remove();
+      bCopy.textContent = '已复制';
+      setTimeout(function(){ bCopy.textContent = '复制 JSON'; }, 1300);
+    });
+  });
+
+  bDown.addEventListener('click', function(){
+    if (!result) return;
+    var a = document.createElement('a');
+    var u = URL.createObjectURL(new Blob([result], { type: 'application/json' }));
+    a.href = u; a.download = 'config.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(u); }, 4000);
+  });
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
