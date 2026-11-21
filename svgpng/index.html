@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SVG 转 PNG · 代码进，图片出</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:900px){ .panes{grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft);
+      border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .hd .sp{flex:1 1 auto}
+  .bd{padding:12px 13px 13px}
+  textarea{
+    width:100%; height:290px; resize:vertical; padding:11px 12px; border-radius:9px;
+    border:1px solid var(--line); background:var(--bg); color:var(--fg);
+    font:12.5px/1.65 ui-monospace,Menlo,Consolas,monospace; tab-size:2;
+  }
+  textarea:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .row{display:grid; gap:9px; grid-template-columns:1fr 1fr; margin-top:11px}
+  .f{display:flex; flex-direction:column; gap:5px; min-width:0}
+  .f label{font-size:12px; color:var(--dim)}
+  input, input[type=text], select{
+    font:13.5px/1.5 inherit; padding:8px 10px; border-radius:8px; border:1px solid var(--line);
+    background:var(--card); color:var(--fg); width:100%; min-width:0; -webkit-appearance:none
+  }
+  input:focus, select:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .stage{
+    height:322px; display:flex; align-items:center; justify-content:center; padding:14px;
+    border-bottom:1px solid var(--line); overflow:hidden; background:var(--bg)
+  }
+  .stage.has{background-image:linear-gradient(45deg,var(--soft) 25%,transparent 25%,transparent 75%,var(--soft) 75%),
+             linear-gradient(45deg,var(--soft) 25%,transparent 25%,transparent 75%,var(--soft) 75%);
+             background-size:16px 16px; background-position:0 0,8px 8px}
+  .stage canvas{max-width:100%; max-height:292px; display:block}
+  .stage .ph{color:var(--dim); font-size:13px; text-align:center; line-height:1.9}
+  .tools{display:flex; gap:8px; flex-wrap:wrap; padding:12px 13px 0}
+  button.act{
+    font:500 13.5px/1 inherit; padding:10px 16px; border-radius:9px; cursor:pointer;
+    border:1px solid var(--accent); background:var(--accent); color:var(--accent-fg)
+  }
+  button.act:disabled{opacity:.45; cursor:not-allowed}
+  button.ghost{
+    font:13.5px/1 inherit; padding:10px 14px; border-radius:9px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg)
+  }
+  button.ghost:hover{border-color:var(--accent)}
+  .stat{padding:11px 14px 14px; font-size:12.5px; color:var(--dim); line-height:1.75}
+  .stat b{color:var(--fg); font-weight:600}
+  .stat .e{color:var(--err)}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.85; margin:14px 0 0}
+  .hint b{color:var(--fg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>SVG 转 PNG</h1>
+      <p class="lede">SVG 代码粘左边，右边出图；宽度、倍率、底色自己定，下下来就能用。</p>
+    </div>
+    <button class="toggle" id="theme">跟随系统</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <div class="hd">
+        <span>SVG 代码</span><span class="sp"></span>
+        <button class="ghost" id="bDemo" style="padding:4px 10px;font-size:12px">换个例子</button>
+      </div>
+      <div class="bd">
+        <textarea id="code" spellcheck="false" placeholder="&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; viewBox=&quot;0 0 120 120&quot;&gt;…&lt;/svg&gt;"></textarea>
+        <div class="row">
+          <div class="f">
+            <label>输出宽度（px，留空 = 原尺寸）</label>
+            <input type="text" id="w" placeholder="留空按原尺寸" inputmode="numeric" autocomplete="off">
+          </div>
+          <div class="f">
+            <label>倍率</label>
+            <select id="scale">
+              <option value="1">1 倍（原样）</option>
+              <option value="2">2 倍（高清）</option>
+              <option value="3">3 倍</option>
+              <option value="4">4 倍</option>
+            </select>
+          </div>
+          <div class="f">
+            <label>底色</label>
+            <select id="bg">
+              <option value="transparent">透明</option>
+              <option value="#ffffff">白色</option>
+              <option value="#000000">黑色</option>
+              <option value="#f2f3f5">浅灰</option>
+            </select>
+          </div>
+          <div class="f">
+            <label>自定义颜色（填了就优先）</label>
+            <input type="text" id="bgHex" placeholder="#1b1d21" autocomplete="off">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="hd"><span>导出预览</span><span id="size">—</span></div>
+      <div class="stage" id="stage">
+        <div class="ph">把 SVG 粘到左边<br>这里会立刻出图</div>
+      </div>
+      <div class="tools">
+        <button class="act" id="bDown" disabled>下载 PNG</button>
+        <button class="ghost" id="bCopy" disabled>复制为图片</button>
+      </div>
+      <div class="stat" id="stat">在这里算，不上传任何文件。</div>
+    </div>
+  </div>
+
+  <p class="hint">
+    <b>说明</b>：宽度留空就按 SVG 自己的尺寸来，填了则等比缩放；倍率在最终尺寸上再乘一次，给 2 倍 3 倍图用。
+    SVG 里的外链图片和网页字体不会被带进来 —— 能转的是图形本身：路径、形状、渐变、内联样式都正常。
+  </p>
+</div>
+
+<template id="demo1"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <rect width="120" height="120" rx="26" fill="#2f6df6"/>
+  <circle cx="60" cy="47" r="17" fill="#ffffff" opacity="0.94"/>
+  <path d="M27 99c3.6-19 17.4-29 33-29s29.4 10 33 29z" fill="#ffffff" opacity="0.94"/>
+</svg></template>
+
+<template id="demo2"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#12b886"/>
+  </linearGradient></defs>
+  <rect x="4" y="4" width="56" height="56" rx="14" fill="url(#g)"/>
+  <path d="M20 42l9-14 6 9 4-5 6 10z" fill="#fff" opacity=".9"/>
+  <circle cx="25" cy="24" r="4" fill="#fff" opacity=".9"/>
+</svg></template>
+
+<template id="demo3"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 80">
+  <rect x="1" y="1" width="198" height="78" rx="12" fill="none" stroke="#2f6df6" stroke-width="2"/>
+  <path d="M22 40h26M35 27v26" stroke="#2f6df6" stroke-width="4" stroke-linecap="round"/>
+  <path d="M70 56V24l16 16 16-16v32" fill="none" stroke="#12b886" stroke-width="4"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="160" cy="40" r="16" fill="#ffb020"/>
+</svg></template>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var code = $('code'), stage = $('stage'), stat = $('stat'), sizeEl = $('size');
+  var bDown = $('bDown'), bCopy = $('bCopy');
+  var demos = ['demo1','demo2','demo3'], dIdx = 0;
+  var curBlob = null, curName = 'image.png', timer = null;
+
+  function demoText(i){ return document.getElementById(demos[i]).innerHTML.trim(); }
+
+  function fail(msg){
+    curBlob = null; bDown.disabled = true; bCopy.disabled = true;
+    stage.className = 'stage';
+    stage.innerHTML = '<div class="ph">' + msg.replace(/</g,'&lt;') + '</div>';
+    sizeEl.textContent = '—';
+    stat.innerHTML = '<span class="e">' + msg.replace(/</g,'&lt;') + '</span>';
+  }
+
+  function parseSvg(src){
+    var doc = new DOMParser().parseFromString(src, 'image/svg+xml');
+    var pe = doc.getElementsByTagName('parsererror')[0];
+    if (pe) throw new Error('SVG 语法不对：' + (pe.textContent || '').replace(/\s+/g,' ').slice(0, 80));
+    var svg = doc.documentElement;
+    if (!svg || (svg.nodeName || '').toLowerCase() !== 'svg') throw new Error('开头得是 <svg …> 这样的根元素');
+    var vb = (svg.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+    var w = 0, h = 0;
+    if (vb.length === 4 && vb[2] > 0 && vb[3] > 0){ w = vb[2]; h = vb[3]; }
+    else {
+      w = parseFloat(svg.getAttribute('width')) || 0;
+      h = parseFloat(svg.getAttribute('height')) || 0;
+      if (!(w > 0 && h > 0)) throw new Error('读不到尺寸：给 <svg> 加个 viewBox="0 0 宽 高"');
+      svg.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+    }
+    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    if (!svg.getAttribute('xmlns:xlink')) svg.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+    return { text: new XMLSerializer().serializeToString(svg), w: w, h: h };
+  }
+
+  function target(box, outW){
+    var sc = parseFloat($('scale').value) || 1;
+    var baseW = outW > 0 ? outW : box.w;
+    baseW = Math.min(Math.max(baseW * sc, 1), 6000);
+    return { w: Math.round(baseW), h: Math.max(Math.round(baseW * box.h / box.w), 1) };
+  }
+
+  function render(){
+    var src = code.value.trim();
+    if (!src){ fail('左边还空着，粘段 SVG 或点上面的「换个例子」'); return; }
+    var box;
+    try { box = parseSvg(src); } catch (e){ fail(e.message); return; }
+
+    var outW = parseFloat($('w').value) || 0;
+    var t = target(box, outW);
+    var bg = ($('bgHex').value.trim() || $('bg').value || 'transparent');
+
+    var url = URL.createObjectURL(new Blob([box.text], { type: 'image/svg+xml;charset=utf-8' }));
+    var img = new Image();
+    img.onload = function(){
+      var cv = document.createElement('canvas');
+      cv.width = t.w; cv.height = t.h;
+      var ctx = cv.getContext('2d');
+      if (bg !== 'transparent'){
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, t.w, t.h);
+      }
+      ctx.drawImage(img, 0, 0, t.w, t.h);
+      URL.revokeObjectURL(url);
+      cv.toBlob(function(blob){
+        if (!blob){ fail('导出没成功：图可能太大，把宽度调小一点再试'); return; }
+        curBlob = blob;
+        curName = 'svg-' + t.w + 'x' + t.h + '.png';
+        stage.className = 'stage has';
+        stage.innerHTML = '';
+        cv.style.maxWidth = '100%'; cv.style.maxHeight = '292px';
+        stage.appendChild(cv);
+        bDown.disabled = false; bCopy.disabled = false;
+        sizeEl.textContent = t.w + ' × ' + t.h;
+        var kb = blob.size < 1024 ? blob.size + ' B' : (blob.size / 1024).toFixed(1) + ' KB';
+        stat.innerHTML = '原尺寸 <b>' + Math.round(box.w) + ' × ' + Math.round(box.h) + '</b> → 导出 <b>' +
+                         t.w + ' × ' + t.h + '</b> · ' + kb + ' · ' +
+                         (bg === 'transparent' ? '透明底' : '底色 ' + bg);
+      }, 'image/png');
+    };
+    img.onerror = function(){ URL.revokeObjectURL(url); fail('这张图转不出来：检查有没有外链图片或没闭合的标签'); };
+    img.src = url;
+  }
+
+  function schedule(){
+    clearTimeout(timer);
+    timer = setTimeout(render, 260);
+  }
+
+  code.value = demoText(0);
+  render();
+
+  code.addEventListener('input', schedule);
+  ['w','bgHex'].forEach(function(id){ $(id).addEventListener('input', schedule); });
+  ['scale','bg'].forEach(function(id){ $(id).addEventListener('change', schedule); });
+
+  $('bDemo').addEventListener('click', function(){
+    dIdx = (dIdx + 1) % demos.length;
+    code.value = demoText(dIdx);
+    render();
+  });
+
+  bDown.addEventListener('click', function(){
+    if (!curBlob) return;
+    var a = document.createElement('a');
+    var u = URL.createObjectURL(curBlob);
+    a.href = u; a.download = curName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(u); }, 4000);
+  });
+
+  bCopy.addEventListener('click', function(){
+    if (!curBlob || !navigator.clipboard || !window.ClipboardItem){
+      stat.innerHTML = '这个浏览器不支持直接复制图片，用「下载 PNG」吧';
+      return;
+    }
+    navigator.clipboard.write([new ClipboardItem({ 'image/png': curBlob })]).then(function(){
+      stat.innerHTML = '已复制到剪贴板，可以直接粘进聊天窗口或文档';
+    }, function(){
+      stat.innerHTML = '复制被浏览器拦了（要 https 且允许剪贴板），改用下载';
+    });
+  });
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

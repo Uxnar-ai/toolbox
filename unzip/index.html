@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>看 ZIP 里有什么 · 挑要的取出来</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft);
+      border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .hd .sp{flex:1 1 auto}
+  .drop{
+    display:block; padding:22px 16px; margin-bottom:14px; text-align:center; cursor:pointer;
+    border:1.5px dashed var(--line); border-radius:var(--radius); background:var(--card);
+    transition:border-color .15s, background .15s
+  }
+  .drop:hover, .drop.over{border-color:var(--accent); background:var(--soft)}
+  .drop .big{font-size:14.5px; font-weight:500}
+  .drop .sm{font-size:12.5px; color:var(--dim); margin-top:5px}
+  .drop input{display:none}
+  .row{
+    display:flex; align-items:center; gap:11px; padding:9px 13px; font-size:13.5px;
+    border-top:1px solid var(--line); min-width:0
+  }
+  .row:first-child{border-top:0}
+  .row .ico{
+    flex:0 0 26px; width:26px; height:26px; border-radius:6px; background:var(--soft);
+    color:var(--dim); font:600 10.5px/26px ui-monospace,Menlo,Consolas,monospace; text-align:center;
+    text-transform:uppercase; letter-spacing:.2px
+  }
+  .row .nm{flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .row .nm i{font-style:normal; color:var(--dim)}
+  .row .sz{flex:0 0 auto; font:12.5px/1.4 ui-monospace,Menlo,Consolas,monospace; color:var(--dim);
+           font-variant-numeric:tabular-nums; text-align:right}
+  .row .sz em{font-style:normal; display:block; font-size:11px; opacity:.8}
+  .row button{
+    flex:0 0 auto; font:12.5px/1 inherit; padding:7px 12px; border-radius:7px; cursor:pointer;
+    border:1px solid var(--line); background:var(--card); color:var(--fg)
+  }
+  .row button:hover{border-color:var(--accent); color:var(--accent)}
+  .row button:disabled{opacity:.5; cursor:default}
+  .stat{padding:11px 14px; font-size:12.5px; color:var(--dim); line-height:1.7; border-top:1px solid var(--line)}
+  .stat b{color:var(--fg); font-weight:600}
+  .stat .e{color:var(--err)}
+  .bar{padding:10px 13px 13px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;
+       border-top:1px solid var(--line); background:var(--card)}
+  button.act{
+    font:500 13px/1 inherit; padding:9px 14px; border-radius:8px; cursor:pointer;
+    border:1px solid var(--accent); background:var(--accent); color:var(--accent-fg)
+  }
+  button.act:disabled{opacity:.45; cursor:not-allowed}
+  .hint{font-size:12.5px; color:var(--dim); line-height:1.85; margin:14px 0 0}
+  .hint b{color:var(--fg)}
+  @media (max-width:560px){
+    .row .sz{display:none}
+    .row{gap:8px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>看 ZIP 里有什么</h1>
+      <p class="lede">拖个压缩包进来先看清单，再单独把想要的那几个取出来，不用整个解开。</p>
+    </div>
+    <button class="toggle" id="theme">跟随系统</button>
+  </header>
+
+  <label class="drop" id="drop" for="file">
+    <div class="big">把 zip 拖到这里，或点一下选文件</div>
+    <div class="sm" id="dropSm">现在显示的是示例包 · zip / jar / docx / apk 都认</div>
+    <input type="file" id="file" accept=".zip,.jar,.docx,.xlsx,.apk,.epub,.ipa,application/zip">
+  </label>
+
+  <div class="box">
+    <div class="hd"><span>包里的文件</span><span class="sp"></span><span id="cnt">—</span></div>
+    <div id="list"></div>
+    <div class="bar">
+      <button class="act" id="bAll" disabled>全部取出来</button>
+      <button class="act" id="bReset" style="background:var(--card);color:var(--fg);border-color:var(--line)">重新选一个</button>
+    </div>
+    <div class="stat" id="stat">在这里读，不上传。</div>
+  </div>
+
+  <p class="hint">
+    <b>说明</b>：只支持存储和 deflate 两种压缩方式 —— 日常的 zip / jar / docx / apk 都是这两种，7z、rar、tar.gz 不认。
+    「全部取出来」时浏览器可能会问一次「是否允许下载多个文件」，允许就好。文件夹结构会按原路径还原到文件名上。
+  </p>
+</div>
+
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var list = $('list'), stat = $('stat'), cnt = $('cnt'), drop = $('drop'), dropSm = $('dropSm');
+  var bAll = $('bAll'), bReset = $('bReset');
+  var buf = null, u8 = null, entries = [], fileName = '';
+  var DEMO = 'UEsDBBQAAAgIAFMgdl1ZNHbOggAAAIIAAAAKAAAA6K+05piOLnR4dCWMMQrCMBRAd0/R67k5O4WqZEhiBzGoVRDRwYBoEbStbXOY/P/zN69gi9sb3nvst7S5Q+niuYZO4VLF5op68W00KQvtkaXDdxF382Q6niTsczpc8FHwrKXckzkFkY7QrPsDWQmfV0wrzJ7cVUFozCzKOgjT3+JeQXnDlRtM5f8wxD9QSwMEFAAACAgAUyB2XdmL1PJcAAAA9gAAAAkAAADmuIXljZUubWRTVni6r/Vp1zwuLl2FJ/vXPdnR8GRH98tl014u3Pp8VsvL6VtebJ8LlHrW1fVs+tKn+6c/6+l8umTl0452oODz3TOf9S192r/4adeCJztWvdjW+mz6Ni7lIWAiAFBLAwQUAAAACABTIHZdUbdcHTAAAAA2AAAADQAAAGNvbmYvYXBwLmpzb26r5lJQUMpLzE1VslJQSknNzVfSAYkU5BeVAEUsDCwMwPyU1KTSdKBAWmJOcSpXLQBQSwECFAAUAAAICABTIHZdWTR2zoIAAACCAAAACgAAAAAAAAAAAAAAgAEAAAAA6K+05piOLnR4dFBLAQIUABQAAAgIAFMgdl3Zi9TyXAAAAPYAAAAJAAAAAAAAAAAAAACAAaoAAADmuIXljZUubWRQSwECFAAUAAAACABTIHZdUbdcHTAAAAA2AAAADQAAAAAAAAAAAAAAgAEtAQAAY29uZi9hcHAuanNvblBLBQYAAAAAAwADAKoAAACIAQAAAAA=';
+
+  function b64ToU8(s){
+    var bin = atob(s), n = bin.length, a = new Uint8Array(n);
+    for (var i = 0; i < n; i++) a[i] = bin.charCodeAt(i);
+    return a;
+  }
+
+  function size(n){
+    if (n < 1024) return n + ' B';
+    if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+    return (n / 1048576).toFixed(2) + ' MB';
+  }
+
+  function decodeName(bytes){
+    try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+    catch (e){
+      try { return new TextDecoder('gbk').decode(bytes); }
+      catch (e2){ return new TextDecoder('utf-8').decode(bytes); }
+    }
+  }
+
+  function dosDate(d, t){
+    var y = 1980 + ((d >> 9) & 0x7f), mo = (d >> 5) & 0x0f, da = d & 0x1f;
+    if (!mo || !da) return '';
+    return y + '-' + ('0' + mo).slice(-2) + '-' + ('0' + da).slice(-2);
+  }
+
+  function parseZip(bytes){
+    var dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    var n = bytes.length, eocd = -1;
+    for (var i = n - 22; i >= Math.max(0, n - 65558); i--){
+      if (dv.getUint32(i, true) === 0x06054b50){ eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error('这不是 zip：找不到结尾的目录记录');
+    var count = dv.getUint16(eocd + 10, true);
+    var cdOff = dv.getUint32(eocd + 16, true);
+    if (cdOff === 0xffffffff || count === 0xffff) throw new Error('这包用了 zip64（超过 4GB 或文件极多），浏览器里解不动');
+    if (cdOff + 4 > n) throw new Error('压缩包不完整，可能没传完');
+    var out = [], p = cdOff;
+    for (var k = 0; k < count; k++){
+      if (p + 46 > n || dv.getUint32(p, true) !== 0x02014b50) throw new Error('文件目录第 ' + (k + 1) + ' 项读不下去，包可能损坏');
+      var flag = dv.getUint16(p + 8, true), method = dv.getUint16(p + 10, true);
+      var dtime = dv.getUint16(p + 12, true), ddate = dv.getUint16(p + 14, true);
+      var csize = dv.getUint32(p + 20, true), usize = dv.getUint32(p + 24, true);
+      var nlen = dv.getUint16(p + 28, true), elen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true);
+      var lho = dv.getUint32(p + 42, true);
+      var name = decodeName(bytes.subarray(p + 46, p + 46 + nlen));
+      out.push({ name: name, method: method, csize: csize, usize: usize, lho: lho, date: dosDate(ddate, dtime) });
+      p += 46 + nlen + elen + clen;
+    }
+    return out;
+  }
+
+  async function extract(e){
+    var dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+    var p = e.lho;
+    if (dv.getUint32(p, true) !== 0x04034b50) throw new Error('本地文件头坏了');
+    var nlen = dv.getUint16(p + 26, true), elen = dv.getUint16(p + 28, true);
+    var start = p + 30 + nlen + elen;
+    var raw = u8.subarray(start, start + e.csize);
+    if (e.method === 0) return new Blob([raw]);
+    if (e.method === 8){
+      if (typeof DecompressionStream === 'undefined') throw new Error('浏览器太旧，不支持解压');
+      var st = new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      return await new Response(st).blob();
+    }
+    throw new Error('压缩方式 ' + e.method + ' 解不了（只认存储 / deflate）');
+  }
+
+  function save(blob, name){
+    var a = document.createElement('a');
+    var u = URL.createObjectURL(blob);
+    a.href = u; a.download = name.split('/').pop() || 'file';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(u); }, 4000);
+  }
+
+  function ico(name){
+    var m = name.match(/\.([A-Za-z0-9]{1,4})$/);
+    if (!m) return '··';
+    return m[1].slice(0, 3);
+  }
+
+  function render(){
+    var files = entries.filter(function(e){ return e.name.slice(-1) !== '/'; });
+    var dirs = entries.length - files.length;
+    if (!files.length){
+      list.innerHTML = '<div class="row"><span class="nm" style="color:var(--dim)">包里没有文件</span></div>';
+      cnt.textContent = '空包';
+      bAll.disabled = true;
+      return;
+    }
+    list.innerHTML = files.map(function(e, i){
+      var ratio = e.usize ? Math.round((1 - e.csize / e.usize) * 100) : 0;
+      return '<div class="row">' +
+        '<span class="ico">' + ico(e.name) + '</span>' +
+        '<span class="nm" title="' + e.name.replace(/"/g, '&quot;') + '">' + e.name.replace(/</g, '&lt;') + '</span>' +
+        '<span class="sz">' + size(e.usize) + (ratio > 0 ? '<em>省 ' + ratio + '%</em>' : '') + '</span>' +
+        '<button data-i="' + i + '">取出</button></div>';
+    }).join('');
+    Array.prototype.forEach.call(list.querySelectorAll('button'), function(btn){
+      btn.addEventListener('click', async function(){
+        var e = files[+btn.dataset.i];
+        btn.disabled = true; var t = btn.textContent; btn.textContent = '取出中…';
+        try {
+          var blob = await extract(e);
+          save(blob, e.name);
+          btn.textContent = '已取出';
+          stat.innerHTML = '已取出 <b>' + e.name + '</b> · ' + size(blob.size);
+        } catch (err){
+          btn.textContent = t;
+          stat.innerHTML = '<span class="e">取不出来：' + err.message + '</span>';
+        }
+        setTimeout(function(){ btn.disabled = false; if (btn.textContent === '已取出') btn.textContent = t; }, 1400);
+      });
+    });
+    var totalU = 0, totalC = 0;
+    files.forEach(function(e){ totalU += e.usize; totalC += e.csize; });
+    var pct = totalU ? Math.round((1 - totalC / totalU) * 100) : 0;
+    cnt.textContent = files.length + ' 个文件' + (dirs > 0 ? ' · ' + dirs + ' 个文件夹' : '');
+    bAll.disabled = false;
+    stat.innerHTML = '原始 <b>' + size(totalU) + '</b>，压缩后 <b>' + size(totalC) + '</b>' +
+                     (pct > 0 ? '（省 ' + pct + '%）' : '') + ' · ' +
+                     (fileName ? '来自 ' + fileName : '示例包') +
+                     ' · 全部在本地解开，不上传';
+  }
+
+  function load(bytes, name){
+    u8 = bytes;
+    buf = bytes.buffer;
+    fileName = name || '';
+    try {
+      entries = parseZip(bytes);
+    } catch (e){
+      entries = [];
+      list.innerHTML = '';
+      cnt.textContent = '—';
+      bAll.disabled = true;
+      stat.innerHTML = '<span class="e">' + e.message + '</span>';
+      return false;
+    }
+    render();
+    return true;
+  }
+
+  function readFile(f){
+    if (!f) return;
+    dropSm.textContent = '正在读 ' + f.name + '…';
+    var fr = new FileReader();
+    fr.onload = function(){
+      var ok = load(new Uint8Array(fr.result), f.name);
+      dropSm.textContent = ok ? ('当前：' + f.name + '（' + size(f.size) + '）· 想换就再拖一个') : '这个包读不了，换一个试试';
+    };
+    fr.onerror = function(){ dropSm.textContent = '读文件出错了，重试一次'; };
+    fr.readAsArrayBuffer(f);
+  }
+
+  $('file').addEventListener('change', function(e){ readFile(e.target.files[0]); e.target.value = ''; });
+
+  ['dragenter','dragover'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add('over'); });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove('over'); });
+  });
+  drop.addEventListener('drop', function(e){
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    readFile(f);
+  });
+
+  bReset.addEventListener('click', function(){ $('file').click(); });
+
+  bAll.addEventListener('click', async function(){
+    var files = entries.filter(function(e){ return e.name.slice(-1) !== '/'; });
+    if (!files.length) return;
+    if (files.length > 30 && !confirm('这个包里有 ' + files.length + ' 个文件，浏览器可能一次只放行一部分，继续？')) return;
+    bAll.disabled = true;
+    var okN = 0, failN = 0;
+    for (var i = 0; i < files.length; i++){
+      bAll.textContent = '取出中 ' + (i + 1) + '/' + files.length;
+      try { save(await extract(files[i]), files[i].name); okN++; }
+      catch (err){ failN++; }
+      await new Promise(function(r){ setTimeout(r, 320); });
+    }
+    bAll.textContent = '全部取出来';
+    bAll.disabled = false;
+    stat.innerHTML = '取出 <b>' + okN + '</b> 个' + (failN ? '，' + failN + ' 个失败' : '') +
+                     ' · 如果只下到几个，是浏览器拦了多文件下载，逐个点「取出」也一样';
+  });
+
+  load(b64ToU8(DEMO), '');
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
