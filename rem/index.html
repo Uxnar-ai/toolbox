@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>尺寸换算 · px 换 rem / vw / % 一次看全</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; margin-bottom:14px}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:13px 13px 15px}
+  .mainrow{display:flex; gap:9px; align-items:center; flex-wrap:wrap; margin-bottom:12px}
+  .mainrow input[type=number]{
+    font:600 20px/1.2 MiSans,system-ui,sans-serif; width:170px; padding:9px 11px;
+    border:1px solid var(--line); border-radius:9px; background:var(--card); color:var(--fg);
+  }
+  select, input[type=number]{font:inherit; font-size:13.5px; padding:7px 9px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg)}
+  .params{display:flex; flex-wrap:wrap; gap:10px 14px; font-size:12.5px; color:var(--dim); padding-top:11px; border-top:1px dashed var(--line)}
+  .params label{display:flex; align-items:center; gap:6px}
+  .params input{width:76px}
+  .conv{display:grid; grid-template-columns:64px 1fr 62px; gap:8px; align-items:center; padding:9px 2px; border-bottom:1px solid var(--line); font-size:14px}
+  .conv:last-child{border-bottom:0}
+  .conv .u{color:var(--dim); font-size:12.5px; font-family:ui-monospace,Menlo,monospace}
+  .conv code{font:600 15px/1.3 ui-monospace,Menlo,Consolas,monospace; color:var(--fg); overflow-wrap:anywhere}
+  .conv code i{color:var(--dim); font-style:normal; font-weight:400; font-size:12px; margin-left:6px}
+  .conv button{font:inherit; font-size:11.5px; padding:4px 0; border-radius:7px; border:1px solid var(--line); background:var(--card); color:var(--dim); cursor:pointer}
+  .conv button:hover{border-color:var(--accent); color:var(--accent)}
+  .conv.hot code{color:var(--accent)}
+  .draft{display:flex; flex-wrap:wrap; gap:9px; align-items:center; font-size:12.5px; color:var(--dim)}
+  .draft input[type=number]{width:92px}
+  .dres{margin-top:11px; display:grid; gap:7px; grid-template-columns:1fr 1fr}
+  @media (max-width:560px){ .dres{grid-template-columns:1fr} }
+  .dres div{background:var(--soft); border-radius:9px; padding:9px 12px; font-size:12.5px; color:var(--dim); display:flex; justify-content:space-between; gap:10px; align-items:baseline}
+  .dres b{font:600 15px/1.3 ui-monospace,Menlo,monospace; color:var(--fg)}
+  .ladder{display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:7px}
+  .ladder button{font:inherit; text-align:left; padding:8px 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer}
+  .ladder button:hover{border-color:var(--accent)}
+  .ladder span{display:block; font-size:11.5px; color:var(--dim)}
+  .ladder b{font:600 13.5px/1.4 ui-monospace,Menlo,monospace}
+  .tip{margin:0; font-size:12.5px; color:var(--dim); line-height:1.85}
+  .tip b{color:var(--fg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>尺寸换算</h1>
+      <p class="lede">填一个数选个单位，px、rem、em、%、vw、vh、pt 一起算出来，点一行就复制。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="box">
+    <div class="hd"><span>换算</span><span id="hint">根字号 16px · 视口 1440×900</span></div>
+    <div class="bd">
+      <div class="mainrow">
+        <input type="number" id="val" value="16" step="0.1" min="0" inputmode="decimal">
+        <select id="unit">
+          <option value="px" selected>px</option>
+          <option value="rem">rem</option>
+          <option value="em">em</option>
+          <option value="pct">%</option>
+          <option value="vw">vw</option>
+          <option value="vh">vh</option>
+          <option value="pt">pt</option>
+        </select>
+        <span class="lbl" id="eq">= 1rem</span>
+      </div>
+
+      <div id="out"></div>
+
+      <div class="params">
+        <label>根字号 <input type="number" id="root" value="16" step="1" min="1"> px</label>
+        <label>父字号（em / %）<input type="number" id="parent" value="16" step="1" min="1"> px</label>
+        <label>视口宽 <input type="number" id="vwW" value="1440" step="10" min="1"> px</label>
+        <label>视口高 <input type="number" id="vwH" value="900" step="10" min="1"> px</label>
+      </div>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="hd"><span>按设计稿换算（自适应常用）</span><span>设计稿 px → vw</span></div>
+    <div class="bd">
+      <div class="draft">
+        <span>设计稿宽</span>
+        <select id="dw">
+          <option value="375">375（手机）</option>
+          <option value="750" selected>750（二倍图）</option>
+          <option value="1440">1440（桌面）</option>
+          <option value="1920">1920（大屏）</option>
+        </select>
+        <span>元素宽</span>
+        <input type="number" id="dv" value="690" step="1" min="0">
+        <span>px</span>
+      </div>
+      <div class="dres">
+        <div><span>写成 vw</span><b id="dvw">—</b></div>
+        <div><span>占设计稿宽</span><b id="dpct">—</b></div>
+        <div><span>1440 宽下实际</span><b id="dpx">—</b></div>
+        <div><span>按根字号换 rem</span><b id="drem">—</b></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="hd"><span>常用字号直接抄</span><span id="ladderHint">根字号 16px</span></div>
+    <div class="bd"><div class="ladder" id="ladder"></div></div>
+  </div>
+
+  <p class="tip">
+    <b>为什么 16px 是 1rem</b>：浏览器默认根字号就是 16px，rem 永远跟着根字号走，所以按 16 算最保险。<br>
+    <b>em 和 %</b>跟着「父元素字号」走，父字号一变结果全变 —— 所以这两个别用来写固定间距。<br>
+    <b>vw</b>跟着视口宽走，1vw 永远是屏幕宽度的 1%，做等比缩放的卡片、大标题最省事；移动端要配 <code>clamp()</code> 封顶。
+  </p>
+
+  <footer>全在浏览器里算，没有请求。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var UNITS = [
+    ['px', '像素', 'px'],
+    ['rem', '根字号倍数', 'rem'],
+    ['em', '父字号倍数', 'em'],
+    ['pct', '父字号百分比', '%'],
+    ['vw', '视口宽 1%', 'vw'],
+    ['vh', '视口高 1%', 'vh'],
+    ['pt', '磅（印刷）', 'pt']
+  ];
+
+  function num(id, dflt){
+    var v = parseFloat($(id).value);
+    return isFinite(v) && v > 0 ? v : dflt;
+  }
+  function fmt(v){
+    if (!isFinite(v)) return '—';
+    if (v === 0) return '0';
+    var a = Math.abs(v);
+    var n = a >= 1000 ? 0 : (a >= 100 ? 1 : (a >= 10 ? 2 : (a >= 1 ? 3 : 4)));
+    var s = v.toFixed(n).replace(/0+$/, '').replace(/\.$/, '');
+    return s === '-0' ? '0' : s;
+  }
+
+  function toPx(v, unit, p){
+    switch (unit){
+      case 'px': return v;
+      case 'rem': return v * p.root;
+      case 'em': return v * p.parent;
+      case 'pct': return v / 100 * p.parent;
+      case 'vw': return v / 100 * p.vwW;
+      case 'vh': return v / 100 * p.vwH;
+      case 'pt': return v * 96 / 72;
+    }
+    return v;
+  }
+  function fromPx(px, unit, p){
+    switch (unit){
+      case 'px': return px;
+      case 'rem': return px / p.root;
+      case 'em': return px / p.parent;
+      case 'pct': return px / p.parent * 100;
+      case 'vw': return px / p.vwW * 100;
+      case 'vh': return px / p.vwH * 100;
+      case 'pt': return px * 72 / 96;
+    }
+    return px;
+  }
+
+  function params(){
+    return { root: num('root', 16), parent: num('parent', 16), vwW: num('vwW', 1440), vwH: num('vwH', 900) };
+  }
+
+  function render(){
+    var p = params();
+    var v = parseFloat($('val').value);
+    if (!isFinite(v)) v = 0;
+    var unit = $('unit').value;
+    var px = toPx(v, unit, p);
+
+    var html = '';
+    for (var i = 0; i < UNITS.length; i++){
+      var key = UNITS[i][0], label = UNITS[i][1], suffix = UNITS[i][2];
+      var out = fromPx(px, key, p);
+      html += '<div class="conv' + (key === unit ? ' hot' : '') + '">'
+            + '<span class="u">' + suffix + '</span>'
+            + '<code>' + fmt(out) + '<i>' + label + '</i></code>'
+            + '<button type="button" data-copy="' + fmt(out) + suffix + '">复制</button>'
+            + '</div>';
+    }
+    $('out').innerHTML = html;
+    $('eq').textContent = '= ' + fmt(fromPx(px, 'rem', p)) + 'rem';
+    $('hint').textContent = '根字号 ' + fmt(p.root) + 'px · 视口 ' + fmt(p.vwW) + '×' + fmt(p.vwH);
+    $('ladderHint').textContent = '根字号 ' + fmt(p.root) + 'px';
+
+    // 设计稿
+    var dw = parseFloat($('dw').value) || 750;
+    var dv = parseFloat($('dv').value);
+    if (isFinite(dv) && dv >= 0){
+      $('dvw').textContent = fmt(dv / dw * 100) + 'vw';
+      $('dpct').textContent = fmt(dv / dw * 100) + '%';
+      $('dpx').textContent = fmt(dv / dw * 1440) + 'px';
+      $('drem').textContent = fmt(dv / p.root) + 'rem';
+    } else {
+      $('dvw').textContent = $('dpct').textContent = $('dpx').textContent = $('drem').textContent = '—';
+    }
+
+    // 字号阶梯
+    var sizes = [12, 13, 14, 15, 16, 18, 20, 24, 28, 32, 40, 48];
+    var lad = '';
+    for (var j = 0; j < sizes.length; j++){
+      var r = sizes[j] / p.root;
+      lad += '<button type="button" data-copy="' + fmt(r) + 'rem">'
+           + '<b>' + fmt(r) + 'rem</b><span>' + sizes[j] + 'px</span></button>';
+    }
+    $('ladder').innerHTML = lad;
+  }
+
+  document.addEventListener('input', function(e){
+    if (e.target.closest && e.target.closest('#out, #ladder')) return;
+    render();
+  });
+  $('unit').addEventListener('change', render);
+  $('dw').addEventListener('change', render);
+
+  document.addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('[data-copy]') : null;
+    if (!b) return;
+    var txt = b.getAttribute('data-copy');
+    if (b.hasAttribute('data-copy') && b.tagName === 'BUTTON' && b.parentNode.className.indexOf('conv') > -1){
+      copyText(txt, b, '复制');
+    } else {
+      // 阶梯按钮不换文案，只闪一下
+      var old = b.innerHTML;
+      b.innerHTML = '<b>已复制</b><span>' + txt + '</span>';
+      setTimeout(function(){ b.innerHTML = old; }, 1200);
+      copyText(txt, null);
+    }
+  });
+
+  render();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

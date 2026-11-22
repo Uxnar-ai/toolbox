@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>容量与带宽 · 硬盘为什么少了、100M 宽带能多快</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; margin-bottom:14px}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:13px 13px 16px}
+  .inrow{display:flex; gap:9px; align-items:center; flex-wrap:wrap; font-size:12.5px; color:var(--dim); margin-bottom:13px}
+  .inrow input[type=number]{font:600 17px/1.2 MiSans,system-ui,sans-serif; width:130px; padding:8px 10px; border:1px solid var(--line); border-radius:9px; background:var(--card); color:var(--fg)}
+  select{font:inherit; font-size:13.5px; padding:8px 9px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg)}
+  .two{display:grid; gap:10px; grid-template-columns:1fr 1fr}
+  @media (max-width:640px){ .two{grid-template-columns:1fr} }
+  .col{background:var(--soft); border-radius:10px; padding:11px 13px}
+  .col h3{margin:0 0 8px; font-size:12px; font-weight:600; color:var(--dim); letter-spacing:.2px}
+  .col .line{display:flex; justify-content:space-between; gap:10px; font-size:13px; padding:4px 0; border-bottom:1px dashed rgba(128,128,128,.22)}
+  .col .line:last-child{border-bottom:0}
+  .col .line span{color:var(--dim)}
+  .col .line b{font:600 13.5px/1.4 ui-monospace,Menlo,Consolas,monospace; color:var(--fg); overflow-wrap:anywhere}
+  .col .line.main b{color:var(--accent); font-size:15px}
+  .verdict{margin-top:12px; font-size:13px; color:var(--fg); background:var(--soft); border-left:3px solid var(--accent); border-radius:0 8px 8px 0; padding:9px 12px; line-height:1.7}
+  .verdict b{font-weight:600}
+  table{width:100%; border-collapse:collapse; font-size:13px}
+  th,td{text-align:left; padding:7px 6px; border-bottom:1px solid var(--line)}
+  th{font-size:11.5px; font-weight:600; color:var(--dim); white-space:nowrap}
+  td:last-child,th:last-child{text-align:right; white-space:nowrap}
+  td b{font-family:ui-monospace,Menlo,Consolas,monospace; font-weight:600}
+  .tip{margin:0; font-size:12.5px; color:var(--dim); line-height:1.85}
+  .tip b{color:var(--fg)}
+  .big{font:600 22px/1.3 MiSans,system-ui,sans-serif; color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>容量与带宽</h1>
+      <p class="lede">1TB 硬盘为什么只显示 931G、100M 宽带到底几 MB 每秒、这个文件要下多久，一页算完。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="box">
+    <div class="hd"><span>容量：买的时候和看到的不一样</span><span id="capHint">十进制 ↔ 二进制</span></div>
+    <div class="bd">
+      <div class="inrow">
+        <span>我买的是</span>
+        <input type="number" id="cv" value="500" step="any" min="0">
+        <select id="cu">
+          <option value="1e3">KB</option>
+          <option value="1e6">MB</option>
+          <option value="1e9" selected>GB</option>
+          <option value="1e12">TB</option>
+        </select>
+        <span>（厂商按千进制标）</span>
+      </div>
+      <div class="two">
+        <div class="col">
+          <h3>厂商算法 · 1KB = 1000B</h3>
+          <div id="dec"></div>
+        </div>
+        <div class="col">
+          <h3>系统显示 · 1KiB = 1024B</h3>
+          <div id="bin"></div>
+        </div>
+      </div>
+      <div class="verdict" id="verdict">—</div>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="hd"><span>带宽：Mbps 和 MB/s 不是一回事</span><span>除以 8</span></div>
+    <div class="bd">
+      <div class="inrow">
+        <span>宽带</span>
+        <input type="number" id="bw" value="300" step="any" min="0">
+        <span>Mbps</span>
+        <span class="big" id="bwOut">37.5 MB/s</span>
+      </div>
+      <table>
+        <thead><tr><th>宽带</th><th>理论峰值</th><th>实际大约</th></tr></thead>
+        <tbody id="bwTable"></tbody>
+      </table>
+      <p class="tip" style="margin-top:10px">
+        <b>算不明白的那 8 倍</b>：运营商说的「兆」是 <b>Mbps</b>（每秒多少兆位），电脑显示的 <b>MB/s</b>（每秒多少兆字节）是它的八分之一。
+        所以 100M 宽带满速也就 12.5 MB/s —— 再乘个 85% 左右的线路开销，实际 11 上下。
+      </p>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="hd"><span>下载要多久</span><span>按 85% 有效速率估</span></div>
+    <div class="bd">
+      <div class="inrow">
+        <span>文件</span>
+        <input type="number" id="fv" value="4" step="any" min="0">
+        <select id="fu">
+          <option value="1e6">MB</option>
+          <option value="1e9" selected>GB</option>
+          <option value="1e12">TB</option>
+        </select>
+        <span>走</span>
+        <input type="number" id="f2bw" value="300" step="any" min="0">
+        <span>Mbps</span>
+      </div>
+      <div class="verdict" id="timeRes">—</div>
+    </div>
+  </div>
+
+  <p class="tip">
+    <b>为什么厂商不改</b>：硬盘按千进制标是行业惯例（也显得数字大），系统和文件按 1024 算是历史遗留，两边都没错，只是单位不同。<br>
+    <b>换算记住一句</b>：GB 换成 GiB 大约乘 0.93（500GB → 465GiB），TB 换成 TiB 也差不多乘 0.909。
+  </p>
+
+  <footer>纯计算，无请求。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+
+  function fmtNum(v, digits){
+    if (!isFinite(v)) return '—';
+    var a = Math.abs(v);
+    var d = digits === undefined ? (a >= 100 ? 1 : (a >= 10 ? 2 : (a >= 1 ? 3 : 4))) : digits;
+    return v.toFixed(d).replace(/0+$/, '').replace(/\.$/, '');
+  }
+
+  function lines(target, pairs){
+    var h = '';
+    for (var i = 0; i < pairs.length; i++){
+      h += '<div class="line' + (pairs[i][2] ? ' main' : '') + '"><span>' + pairs[i][0] + '</span><b>' + pairs[i][1] + '</b></div>';
+    }
+    $(target).innerHTML = h;
+  }
+
+  function calcCap(){
+    var v = parseFloat($('cv').value);
+    var mult = parseFloat($('cu').value);
+    if (!isFinite(v) || v < 0) v = 0;
+    var bytes = v * mult;
+
+    var dU = ['B', 'KB', 'MB', 'GB', 'TB'], dM = [1, 1e3, 1e6, 1e9, 1e12];
+    var bU = ['B', 'KiB', 'MiB', 'GiB', 'TiB'], bM = [1, 1024, 1048576, 1073741824, 1099511627776];
+
+    var dPairs = [], bPairs = [];
+    for (var i = 4; i >= 0; i--){
+      dPairs.push([dU[i], fmtNum(bytes / dM[i]) + ' ' + dU[i], i === 3]);
+      bPairs.push([bU[i], fmtNum(bytes / bM[i]) + ' ' + bU[i], i === 3]);
+    }
+    lines('dec', dPairs); lines('bin', bPairs);
+
+    var gib = bytes / bM[3];
+    $('capHint').textContent = fmtNum(v) + ' ' + dU[dM.indexOf(mult)] + ' = ' + fmtNum(gib) + ' GiB';
+    $('verdict').innerHTML = '标称 <b>' + fmtNum(v) + ' ' + dU[dM.indexOf(mult)] + '</b> 的盘，接上电脑大约显示 <b>'
+      + fmtNum(gib, 1) + ' GiB</b>，少了 <b>' + fmtNum((1 - gib / (bytes / dM[3])) * 100, 1) + '%</b> —— 少的这部分是被单位吃掉的，不是坏了。';
+  }
+
+  function calcBw(){
+    var mbps = parseFloat($('bw').value);
+    if (!isFinite(mbps) || mbps < 0) mbps = 0;
+    $('bwOut').textContent = fmtNum(mbps / 8, 2) + ' MB/s';
+    var list = [100, 300, 500, 1000, 2000];
+    var h = '';
+    for (var i = 0; i < list.length; i++){
+      var m = list[i];
+      h += '<tr><td>' + (m >= 1000 ? fmtNum(m / 1000, 1) + ' G' : m + ' M') + ' 宽带</td>'
+         + '<td><b>' + fmtNum(m / 8, 2) + ' MB/s</b></td>'
+         + '<td><b>' + fmtNum(m / 8 * 0.85, 1) + ' MB/s</b></td></tr>';
+    }
+    $('bwTable').innerHTML = h;
+  }
+
+  function calcTime(){
+    var v = parseFloat($('fv').value);
+    var mult = parseFloat($('fu').value);
+    var mbps = parseFloat($('f2bw').value);
+    if (!isFinite(v) || v < 0) v = 0;
+    if (!isFinite(mbps) || mbps <= 0){
+      $('timeRes').textContent = '带宽填个正数';
+      return;
+    }
+    var bytes = v * mult;
+    var secs = bytes * 8 / (mbps * 1e6) / 0.85;
+    var txt;
+    if (secs < 60) txt = fmtNum(secs, 1) + ' 秒';
+    else if (secs < 3600) txt = fmtNum(secs / 60, 1) + ' 分钟（' + fmtNum(secs, 0) + ' 秒）';
+    else txt = fmtNum(secs / 3600, 2) + ' 小时（约 ' + fmtNum(secs / 60, 0) + ' 分钟）';
+    $('timeRes').innerHTML = '大约需要 <b>' + txt + '</b> · 满速 ' + fmtNum(mbps / 8, 2) + ' MB/s，按 85% 算实际 '
+      + fmtNum(mbps / 8 * 0.85, 2) + ' MB/s';
+  }
+
+  function all(){ calcCap(); calcBw(); calcTime(); }
+  document.addEventListener('input', function(e){
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') all();
+  });
+  document.addEventListener('change', function(e){
+    if (e.target.tagName === 'SELECT') all();
+  });
+
+  all();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

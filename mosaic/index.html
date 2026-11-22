@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>截图打码 · 拖一个框把敏感信息糊掉</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:14px; grid-template-columns:1fr}
+  @media (min-width:900px){ .panes{grid-template-columns:330px 1fr; align-items:start} }
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; min-width:0}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:13px}
+  .slot{display:block; border:1.5px dashed var(--line); border-radius:10px; padding:16px 10px; cursor:pointer; transition:border-color .15s, background .15s; text-align:center}
+  .slot:hover,.slot.over{border-color:var(--accent); background:var(--soft)}
+  .slot input{display:none}
+  .slot .big{font-size:13px; color:var(--fg); font-weight:600}
+  .slot .sm{font-size:12px; color:var(--dim); margin-top:3px}
+  .seg{display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px; margin:12px 0 6px}
+  .seg button{padding:8px 4px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); font:inherit; font-size:12.5px; cursor:pointer}
+  .seg button.on{border-color:var(--accent); background:var(--soft); font-weight:600}
+  .fl{display:flex; align-items:center; gap:9px; font-size:12px; color:var(--dim); margin:10px 0}
+  .fl input[type=range]{flex:1 1 auto; accent-color:var(--accent); min-width:0}
+  .fl input[type=color]{width:34px; height:26px; padding:0; border:1px solid var(--line); border-radius:6px; background:var(--card)}
+  .acts{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px}
+  .acts button{font:inherit; font-size:12.5px; padding:9px 6px; border-radius:9px; cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--fg)}
+  .acts button.pri{grid-column:1/-1; background:var(--accent); border-color:transparent; color:var(--accent-fg); font-weight:600}
+  .acts button:disabled{opacity:.45; cursor:default}
+  .stage{padding:12px; background:repeating-conic-gradient(var(--soft) 0% 25%, transparent 0% 50%) 50%/18px 18px; display:flex; justify-content:center}
+  canvas{max-width:100%; height:auto; display:block; border-radius:8px; cursor:crosshair; touch-action:none; box-shadow:0 1px 10px rgba(0,0,0,.08)}
+  .stat{padding:10px 13px; border-top:1px solid var(--line); font-size:12.5px; color:var(--dim); display:flex; gap:14px; flex-wrap:wrap}
+  .stat b{color:var(--fg); font-weight:600}
+  .tip{margin:14px 0 0; font-size:12.5px; color:var(--dim); line-height:1.85}
+  .tip b{color:var(--fg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>截图打码</h1>
+      <p class="lede">拖一张截图进来，在要遮的地方按住拖个框，马赛克立刻就糊上去了，下载走。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div class="box">
+      <div class="hd"><span>图片与设置</span><span id="dimTxt">示例图</span></div>
+      <div class="bd">
+        <label class="slot" id="slot">
+          <div class="big">选图 / 拖进来 / 直接粘贴</div>
+          <div class="sm">PNG、JPG、截图都行</div>
+          <input type="file" id="file" accept="image/*">
+        </label>
+
+        <div class="seg" id="modes">
+          <button type="button" data-mode="mosaic" class="on">马赛克</button>
+          <button type="button" data-mode="blur">高斯模糊</button>
+          <button type="button" data-mode="solid">纯色块</button>
+        </div>
+
+        <div class="fl" id="stRow">
+          <span>强度</span>
+          <input type="range" id="st" min="4" max="48" value="14" step="2">
+          <span id="stv">14</span>
+        </div>
+        <div class="fl" id="colRow" style="display:none">
+          <span>颜色</span>
+          <input type="color" id="col" value="#1b1d21">
+          <span>整块盖住</span>
+        </div>
+
+        <div class="acts">
+          <button type="button" id="undo" disabled>↶ 撤销</button>
+          <button type="button" id="reset">↺ 还原原图</button>
+          <button type="button" class="pri" id="dl">下载 PNG</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="hd"><span>在图上拖框</span><span id="hint">按住左键拖一个框</span></div>
+      <div class="stage"><canvas id="cv" width="880" height="560"></canvas></div>
+      <div class="stat">
+        <span>尺寸 <b id="sDim">—</b></span>
+        <span>已遮 <b id="sCnt">0</b> 处</span>
+        <span id="sNote">示例图里那行手机号可以拿来试手</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="tip">
+    <b>怎么用</b>：拖图进来 → 在手机号、姓名、地址、单号上按住拖一个框，松开就糊好 → 下载。<br>
+    <b>马赛克</b>按块打乱，最常用；<b>高斯模糊</b>柔一点，适合大面积；<b>纯色块</b>最保险，糊成一块只剩颜色。<br>
+    <b>框选错了</b>点「撤销」退一步；画错了想重来点「还原原图」。图片全程留在浏览器里，不上传。
+  </p>
+
+  <footer>图片只在内存里处理，不上传、不落盘。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var cv = $('cv'), ctx = cv.getContext('2d');
+  var work = document.createElement('canvas'), wctx = work.getContext('2d');
+  var img = null;                 // 原图 Image
+  var baseURL = '';               // 原图 dataURL（还原用）
+  var mode = 'mosaic';
+  var history = [];               // 每次打码前的画布快照（dataURL）
+  var count = 0;
+  var drag = null;                // {x0,y0,x1,y1}
+  var MAXW = 2600;                // 超大图先缩到这个宽，省内存
+
+  function paint(){
+    cv.width = work.width; cv.height = work.height;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.drawImage(work, 0, 0);
+    if (drag){
+      var x = Math.min(drag.x0, drag.x1), y = Math.min(drag.y0, drag.y1);
+      var w = Math.abs(drag.x1 - drag.x0), h = Math.abs(drag.y1 - drag.y0);
+      var acc = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#2f6df6';
+      ctx.save();
+      ctx.fillStyle = acc; ctx.globalAlpha = .16;
+      ctx.fillRect(x, y, w, h);
+      ctx.globalAlpha = 1;
+      ctx.setLineDash([6, 4]); ctx.lineWidth = Math.max(1.5, cv.width / 700);
+      ctx.strokeStyle = acc; ctx.strokeRect(x + .5, y + .5, w, h);
+      ctx.restore();
+    }
+  }
+
+  function setImage(url, name){
+    var im = new Image();
+    im.onload = function(){
+      var w = im.naturalWidth, h = im.naturalHeight;
+      if (w > MAXW){ h = Math.round(h * MAXW / w); w = MAXW; }
+      img = im; baseURL = url;
+      work.width = w; work.height = h;
+      wctx.clearRect(0, 0, w, h);
+      wctx.drawImage(im, 0, 0, w, h);
+      history = []; count = 0; drag = null;
+      $('sDim').textContent = w + '×' + h;
+      $('sCnt').textContent = '0';
+      $('dimTxt').textContent = name || (w + '×' + h);
+      $('sNote').textContent = '在要遮的地方拖一个框';
+      syncBtn();
+      paint();
+    };
+    im.src = url;
+  }
+
+  function syncBtn(){
+    $('undo').disabled = history.length === 0;
+    $('undo').textContent = history.length ? '↶ 撤销（' + history.length + '）' : '↶ 撤销';
+  }
+
+  function toCanvas(e){
+    var r = cv.getBoundingClientRect();
+    var x = (e.clientX - r.left) * (cv.width / r.width);
+    var y = (e.clientY - r.top) * (cv.height / r.height);
+    return { x: Math.max(0, Math.min(cv.width, x)), y: Math.max(0, Math.min(cv.height, y)) };
+  }
+
+  function apply(x, y, w, h){
+    var st = parseInt($('st').value, 10);
+    var snap = document.createElement('canvas');
+    snap.width = work.width; snap.height = work.height;
+    snap.getContext('2d').drawImage(work, 0, 0);
+    history.push(snap);
+    if (history.length > 12) history.shift();
+
+    wctx.save();
+    wctx.beginPath(); wctx.rect(x, y, w, h); wctx.clip();
+
+    if (mode === 'mosaic'){
+      var blk = Math.max(2, Math.min(st, Math.floor(Math.min(w, h) / 2) || st));
+      var sw = Math.max(1, Math.round(w / blk)), sh = Math.max(1, Math.round(h / blk));
+      var t = document.createElement('canvas');
+      t.width = sw; t.height = sh;
+      var tg = t.getContext('2d');
+      tg.imageSmoothingEnabled = true;
+      tg.drawImage(work, x, y, w, h, 0, 0, sw, sh);
+      wctx.imageSmoothingEnabled = false;
+      wctx.drawImage(t, 0, 0, sw, sh, x, y, w, h);
+      wctx.imageSmoothingEnabled = true;
+    } else if (mode === 'blur'){
+      var t2 = document.createElement('canvas');
+      t2.width = Math.round(w); t2.height = Math.round(h);
+      var g2 = t2.getContext('2d');
+      g2.filter = 'blur(' + (st / 2) + 'px)';
+      // 外扩一圈，避免边缘露出原图
+      var pad = st;
+      g2.drawImage(work, x - pad, y - pad, w + pad * 2, h + pad * 2, -pad, -pad, w + pad * 2, h + pad * 2);
+      wctx.drawImage(t2, x, y);
+    } else {
+      wctx.fillStyle = $('col').value || '#1b1d21';
+      wctx.fillRect(x, y, w, h);
+    }
+    wctx.restore();
+
+    count++;
+    $('sCnt').textContent = String(count);
+    $('sNote').textContent = '这一处已经遮好了，继续框下一处';
+    syncBtn();
+    paint();
+  }
+
+  // ---- 拖框 ----
+  cv.addEventListener('pointerdown', function(e){
+    if (!img) return;
+    var p = toCanvas(e);
+    drag = { x0: p.x, y0: p.y, x1: p.x, y1: p.y };
+    try { cv.setPointerCapture(e.pointerId); } catch(err) {}
+    paint();
+    e.preventDefault();
+  });
+  cv.addEventListener('pointermove', function(e){
+    if (!drag) return;
+    var p = toCanvas(e);
+    drag.x1 = p.x; drag.y1 = p.y;
+    $('hint').textContent = Math.round(Math.abs(drag.x1 - drag.x0)) + ' × ' + Math.round(Math.abs(drag.y1 - drag.y0));
+    paint();
+  });
+  cv.addEventListener('pointerup', function(e){
+    if (!drag) return;
+    var x = Math.min(drag.x0, drag.x1), y = Math.min(drag.y0, drag.y1);
+    var w = Math.abs(drag.x1 - drag.x0), h = Math.abs(drag.y1 - drag.y0);
+    drag = null;
+    if (w >= 6 && h >= 6) apply(x, y, w, h);
+    else { paint(); $('hint').textContent = '框太小了，再拖大一点'; }
+    $('hint').textContent = '按住左键拖一个框';
+  });
+  cv.addEventListener('pointercancel', function(){ drag = null; paint(); });
+
+  // ---- 控件 ----
+  $('modes').addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('button[data-mode]') : null;
+    if (!b) return;
+    mode = b.getAttribute('data-mode');
+    var all = this.querySelectorAll('button');
+    for (var i = 0; i < all.length; i++) all[i].classList.toggle('on', all[i] === b);
+    $('stRow').style.display = mode === 'solid' ? 'none' : 'flex';
+    $('colRow').style.display = mode === 'solid' ? 'flex' : 'none';
+    $('hint').textContent = mode === 'solid' ? '框住的地方会被整块盖掉' : '按住左键拖一个框';
+  });
+  $('st').addEventListener('input', function(){ $('stv').textContent = this.value; });
+
+  $('undo').addEventListener('click', function(){
+    var prev = history.pop();
+    if (!prev) return;
+    wctx.clearRect(0, 0, work.width, work.height);
+    wctx.drawImage(prev, 0, 0);
+    count = Math.max(0, count - 1);
+    $('sCnt').textContent = String(count);
+    $('sNote').textContent = '退回到上一步';
+    syncBtn(); paint();
+  });
+
+  $('reset').addEventListener('click', function(){
+    if (!img) return;
+    var nw = Math.min(img.naturalWidth, MAXW);
+    var nh = Math.round(img.naturalHeight * nw / img.naturalWidth);
+    work.width = nw; work.height = nh;
+    wctx.clearRect(0, 0, nw, nh);
+    wctx.drawImage(img, 0, 0, nw, nh);
+    history = []; count = 0;
+    $('sCnt').textContent = '0'; $('sNote').textContent = '已还原成原图';
+    syncBtn(); paint();
+  });
+
+  $('dl').addEventListener('click', function(){
+    if (!work.width) return;
+    work.toBlob(function(blob){
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'masked-' + Date.now() + '.png';
+      a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 4000);
+    }, 'image/png');
+  });
+
+  // ---- 选图 / 拖放 / 粘贴 ----
+  function fromFile(f){
+    if (!f || !/^image\//.test(f.type)) return;
+    setImage(URL.createObjectURL(f), f.name.replace(/\.[^.]+$/, ''));
+  }
+  $('file').addEventListener('change', function(){ fromFile(this.files && this.files[0]); this.value = ''; });
+  var slot = $('slot');
+  ['dragenter', 'dragover'].forEach(function(ev){ slot.addEventListener(ev, function(e){ e.preventDefault(); slot.classList.add('over'); }); });
+  ['dragleave', 'drop'].forEach(function(ev){ slot.addEventListener(ev, function(e){ e.preventDefault(); slot.classList.remove('over'); }); });
+  slot.addEventListener('drop', function(e){ fromFile(e.dataTransfer && e.dataTransfer.files[0]); });
+  document.addEventListener('paste', function(e){
+    var items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (var i = 0; i < items.length; i++){
+      if (items[i].type.indexOf('image') === 0){ fromFile(items[i].getAsFile()); e.preventDefault(); return; }
+    }
+  });
+
+  // ---- 示例图：一张带假信息的「订单截图」 ----
+  function demo(){
+    var W = 880, H = 560;
+    var c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    var g = c.getContext('2d');
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#2f6df6'; g.fillRect(0, 0, W, 64);
+    g.fillStyle = '#ffffff'; g.font = '600 20px "PingFang SC","Microsoft YaHei",sans-serif';
+    g.fillText('订单详情', 32, 40);
+    g.fillStyle = '#ffffff'; g.font = '13px "PingFang SC",sans-serif';
+    g.fillText('示例 · 可以随便涂', W - 160, 40);
+
+    var rows = [
+      ['订单号', '2026112300123'],
+      ['收件人', '张示例'],
+      ['手机号', '138 0013 8000'],
+      ['收货地址', '示例省示例市示例区示例路 88 号 3 单元 501'],
+      ['下单时间', '2026-11-23 03:42'],
+      ['支付方式', '银行卡 6222 0000 1111 2222']
+    ];
+    var y = 108;
+    for (var i = 0; i < rows.length; i++){
+      g.fillStyle = '#8a9099'; g.font = '13px "PingFang SC",sans-serif';
+      g.fillText(rows[i][0], 32, y);
+      g.fillStyle = '#1b1d21'; g.font = '15px "PingFang SC",sans-serif';
+      g.fillText(rows[i][1], 140, y);
+      g.fillStyle = '#eef1f8'; g.fillRect(32, y + 18, W - 64, 1);
+      y += 52;
+    }
+    g.fillStyle = '#f6f7fa'; g.fillRect(32, y + 6, W - 64, 74);
+    g.fillStyle = '#1b1d21'; g.font = '600 16px "PingFang SC",sans-serif';
+    g.fillText('实付金额  ¥ 328.00', 52, y + 38);
+    g.fillStyle = '#8a9099'; g.font = '13px "PingFang SC",sans-serif';
+    g.fillText('共 2 件商品 · 已发货', 52, y + 62);
+    g.fillStyle = '#8a9099'; g.font = '12.5px "PingFang SC",sans-serif';
+    g.fillText('示例截图，里面都是假数据 —— 拿这行手机号试着拖个框', 32, H - 24);
+
+    setImage(c.toDataURL('image/png'), '示例图');
+  }
+
+  demo();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
