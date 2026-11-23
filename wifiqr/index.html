@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WiFi 二维码 · 贴一张，客人扫码直连</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; margin-bottom:14px}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:14px}
+  .layout{display:grid; gap:18px; grid-template-columns:1fr 300px}
+  @media (max-width:720px){ .layout{grid-template-columns:1fr} }
+  .field{display:flex; flex-direction:column; gap:5px; margin-bottom:12px}
+  .field label{font-size:12.5px; color:var(--dim)}
+  .field input[type=text],.field select{font:14px/1.4 MiSans,system-ui,sans-serif; padding:9px 11px; border:1px solid var(--line); border-radius:9px; background:var(--card); color:var(--fg); width:100%}
+  .field input:focus,.field select:focus{outline:2px solid var(--accent); outline-offset:-1px}
+  .two{display:grid; gap:10px; grid-template-columns:1fr 1fr}
+  .check{display:flex; align-items:center; gap:7px; font-size:13px; color:var(--fg); margin:2px 0 12px; cursor:pointer}
+  .check input{width:16px; height:16px; accent-color:var(--accent)}
+  .qrbox{background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px; display:flex; align-items:center; justify-content:center; min-height:276px}
+  .qrbox canvas{width:100%; max-width:252px; height:auto; display:block; image-rendering:pixelated}
+  .actions{display:flex; gap:8px; margin-top:11px; flex-wrap:wrap}
+  .btn{font:600 13px/1 inherit; padding:9px 14px; border-radius:9px; border:1px solid transparent; background:var(--accent); color:var(--accent-fg); cursor:pointer}
+  .btn.ghost{background:var(--card); color:var(--fg); border-color:var(--line)}
+  .btn.ghost:hover{border-color:var(--accent); color:var(--accent)}
+  .payload{margin-top:12px; font:12px/1.75 ui-monospace,Menlo,Consolas,monospace; color:var(--dim); background:var(--soft); border-radius:9px; padding:9px 11px; overflow-wrap:anywhere}
+  .payload b{color:var(--fg); font-weight:600}
+  .warn{font-size:12.5px; color:var(--warn); margin:8px 0 0; line-height:1.7}
+  .tip{margin:0; font-size:12.5px; color:var(--dim); line-height:1.85}
+  .tip b{color:var(--fg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>WiFi 二维码</h1>
+      <p class="lede">填上 WiFi 名字和密码，出一张码；客人用相机扫一下就直接连上，不用再念密码。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="box">
+    <div class="hd"><span>填 WiFi 信息</span><span>只在本机算，不上传</span></div>
+    <div class="bd">
+      <div class="layout">
+        <div>
+          <div class="field">
+            <label for="ssid">WiFi 名字（SSID，区分大小写）</label>
+            <input type="text" id="ssid" value="Home-5G" placeholder="比如 Home-5G" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="pass">密码</label>
+            <input type="text" id="pass" value="welcome2026" placeholder="没密码就留空" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="two">
+            <div class="field">
+              <label for="enc">加密方式</label>
+              <select id="enc">
+                <option value="WPA" selected>WPA / WPA2 / WPA3</option>
+                <option value="WEP">WEP（老路由器）</option>
+                <option value="nopass">不加密</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="ss">尺寸</label>
+              <select id="ss">
+                <option value="720">720 像素（发群里）</option>
+                <option value="1000" selected>1000 像素（打印）</option>
+                <option value="1600">1600 像素（贴墙）</option>
+              </select>
+            </div>
+          </div>
+          <label class="check"><input type="checkbox" id="hidden"> 这是隐藏网络（不广播名字）</label>
+          <p class="warn" id="warn"></p>
+        </div>
+        <div>
+          <div class="qrbox"><canvas id="cv" width="1000" height="1000"></canvas></div>
+          <div class="actions">
+            <button class="btn" id="dl">下载 PNG</button>
+            <button class="btn ghost" id="copyimg">复制成图片</button>
+          </div>
+          <div class="payload" id="payload"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="hd"><span>怎么用</span><span>iPhone / 安卓都认</span></div>
+    <div class="bd">
+      <p class="tip">
+        <b>客人侧</b>：iPhone 直接用相机对着码，屏幕上方弹出「加入网络」点一下就行；安卓用相机或系统扫一扫。<br>
+        <b>贴出去之前</b>：先自己扫一次确认能连，再把图打印或发群里 —— 密码输错、大小写不对，扫码只会提示连不上。<br>
+        <b>安全提醒</b>：这张图等于把密码公开了。给客人用的建议开一个「访客网络」，别用家里的主密码；路由器后台能随时改。
+      </p>
+    </div>
+  </div>
+
+  <footer>二维码在本地生成，页面不发任何请求。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script src="../assets/wifiqr/qrcode.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+
+  function esc(s){
+    return String(s).replace(/([\\;,:"])/g, '\\$1');
+  }
+
+  function payload(){
+    var ssid = $('ssid').value.trim();
+    var pass = $('pass').value;
+    var enc = $('enc').value;
+    if (enc === 'nopass') pass = '';
+    var p = 'WIFI:T:' + enc + ';S:' + esc(ssid) + ';';
+    if (pass) p += 'P:' + esc(pass) + ';';
+    if ($('hidden').checked) p += 'H:true;';
+    return p + ';';
+  }
+
+  var lastPayload = '';
+
+  function render(){
+    var text = payload();
+    lastPayload = text;
+    var ssid = $('ssid').value.trim();
+    var pass = $('pass').value;
+    var enc = $('enc').value;
+
+    var warns = [];
+    if (!ssid) warns.push('WiFi 名字不能为空。');
+    if (enc !== 'nopass' && pass && pass.length < 8) warns.push('WPA 密码一般至少 8 位，太短路由器会拒绝。');
+    if (enc === 'nopass' && pass) warns.push('选了不加密，密码会被忽略。');
+    $('warn').textContent = warns.join(' ');
+
+    var size = parseInt($('ss'), 10) || 1000;
+    var cv = $('cv');
+    cv.width = size; cv.height = size;
+    var ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, size, size);
+
+    if (!ssid){
+      ctx.fillStyle = '#bbb';
+      ctx.font = '600 ' + Math.round(size / 18) + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('先填 WiFi 名字', size / 2, size / 2);
+      $('payload').innerHTML = '<b>待生成</b>';
+      return;
+    }
+
+    var qr;
+    try {
+      qr = qrcode(0, 'M');
+      qr.addData(text, 'Byte');
+      qr.make();
+    } catch (e){
+      $('payload').innerHTML = '<b>生成失败</b>：' + (e && e.message ? e.message : '内容太长');
+      return;
+    }
+
+    var n = qr.getModuleCount();
+    var quiet = 4;
+    var cell = size / (n + quiet * 2);
+    ctx.fillStyle = '#000';
+    for (var r = 0; r < n; r++){
+      for (var c = 0; c < n; c++){
+        if (qr.isDark(r, c)){
+          ctx.fillRect(Math.floor((c + quiet) * cell), Math.floor((r + quiet) * cell),
+                       Math.ceil(cell), Math.ceil(cell));
+        }
+      }
+    }
+
+    $('payload').innerHTML = '<b>码里写的是</b><br>' + text.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      + '<br><span style="opacity:.7">扫不出来时，把它贴给客服也能看出问题在哪</span>';
+  }
+
+  function download(){
+    var cv = $('cv');
+    var name = ($('ssid').value.trim() || 'wifi').replace(/[\\/:*?"<>|]/g, '_');
+    var a = document.createElement('a');
+    a.href = cv.toDataURL('image/png');
+    a.download = 'wifi-' + name + '.png';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  $('dl').addEventListener('click', download);
+
+  $('copyimg').addEventListener('click', function(){
+    var btn = this;
+    var cv = $('cv');
+    if (!navigator.clipboard || !window.ClipboardItem){
+      copyText(lastPayload, btn, '复制成图片');
+      return;
+    }
+    cv.toBlob(function(b){
+      navigator.clipboard.write([new ClipboardItem({ 'image/png': b })]).then(function(){
+        var o = btn.textContent; btn.textContent = '已复制';
+        setTimeout(function(){ btn.textContent = o; }, 1200);
+      }).catch(function(){ copyText(lastPayload, btn, '复制成图片'); });
+    }, 'image/png');
+  });
+
+  document.addEventListener('input', render);
+  document.addEventListener('change', render);
+  render();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

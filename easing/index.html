@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>动画缓动曲线 · 拖两下，拿到 cubic-bezier</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; margin-bottom:14px}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:14px}
+  .layout{display:grid; gap:16px; grid-template-columns:340px 1fr}
+  @media (max-width:760px){ .layout{grid-template-columns:1fr} }
+  canvas{width:340px; max-width:100%; height:auto; display:block; border-radius:10px; background:var(--soft); touch-action:none; cursor:crosshair}
+  .nums{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:11px}
+  .num{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--dim)}
+  .num input{width:100%; font:600 13px/1.2 ui-monospace,Menlo,Consolas,monospace; padding:6px 8px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); text-align:center}
+  .chips{display:flex; gap:7px; flex-wrap:wrap; margin-bottom:14px}
+  .chips button{font:13px/1 inherit; padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer}
+  .chips button:hover{border-color:var(--accent); color:var(--accent)}
+  .chips button.on{background:var(--accent); color:var(--accent-fg); border-color:transparent; font-weight:600}
+  .code{background:var(--soft); border:1px solid var(--line); border-radius:10px; padding:11px 12px; font:12.5px/1.8 ui-monospace,Menlo,Consolas,monospace; color:var(--fg); overflow-wrap:anywhere; margin-bottom:10px}
+  .code em{color:var(--dim); font-style:normal}
+  .btn{font:600 13px/1 inherit; padding:8px 14px; border-radius:9px; border:1px solid transparent; background:var(--accent); color:var(--accent-fg); cursor:pointer}
+  .btn.ghost{background:var(--card); color:var(--fg); border-color:var(--line)}
+  .btn.ghost:hover{border-color:var(--accent); color:var(--accent)}
+  .track{position:relative; height:52px; background:var(--soft); border-radius:10px; margin:14px 0 6px; overflow:hidden}
+  .track i{position:absolute; left:8px; top:50%; width:26px; height:26px; margin-top:-13px; border-radius:50%; background:var(--accent); box-shadow:0 2px 8px rgba(0,0,0,.18)}
+  .rowbtns{display:flex; gap:8px; flex-wrap:wrap}
+  .tip{margin:0; font-size:12.5px; color:var(--dim); line-height:1.85}
+  .tip b{color:var(--fg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>动画缓动曲线</h1>
+      <p class="lede">拖曲线上的两个点，调出你想要的动感，下面那行直接粘进 CSS。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="box">
+    <div class="hd"><span>拖动两个控制点</span><span id="hintName">ease</span></div>
+    <div class="bd">
+      <div class="layout">
+        <div>
+          <canvas id="cv" width="340" height="340"></canvas>
+          <div class="nums">
+            <label class="num">x1<input type="number" id="x1" value="0.25" step="0.01" min="0" max="1"></label>
+            <label class="num">y1<input type="number" id="y1" value="0.1" step="0.01" min="0" max="1"></label>
+            <label class="num">x2<input type="number" id="x2" value="0.25" step="0.01" min="0" max="1"></label>
+            <label class="num">y2<input type="number" id="y2" value="1" step="0.01" min="0" max="1"></label>
+          </div>
+        </div>
+        <div>
+          <div class="chips" id="presets">
+            <button data-v="0.25,0.1,0.25,1" class="on">ease</button>
+            <button data-v="0,0,1,1">匀速</button>
+            <button data-v="0.42,0,1,1">慢起</button>
+            <button data-v="0,0,0.58,1">快起慢停</button>
+            <button data-v="0.42,0,0.58,1">两头缓</button>
+            <button data-v="0.2,0,0,1">猛起步</button>
+            <button data-v="1,0,1,1">急刹</button>
+          </div>
+          <div class="code" id="out"></div>
+          <div class="rowbtns">
+            <button class="btn" id="copy">复制这一行</button>
+            <button class="btn ghost" id="play">跑一遍看看</button>
+            <button class="btn ghost" id="reset">还原 ease</button>
+          </div>
+          <div class="track"><i id="dot"></i></div>
+          <p class="tip" id="feel">—</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="hd"><span>四个数是什么意思</span><span>只看这一条就够用</span></div>
+    <div class="bd">
+      <p class="tip">
+        <b>cubic-bezier(x1, y1, x2, y2)</b>：起点固定在左下 (0,0)，终点固定在右上 (1,1)，中间两个点决定快慢。
+        两个 x 只管「什么时候发生」，两个 y 管「已经走了多远」—— y 越靠上，前半段冲得越快。<br>
+        <b>记住三种手感</b>：<b>慢起</b>（0.42, 0, 1, 1）像推重物起步；<b>快起慢停</b>（0, 0, 0.58, 1）像手指甩出去；
+        <b>两头缓</b>（0.42, 0, 0.58, 1）最稳，适合弹窗和页面切换。
+      </p>
+    </div>
+  </div>
+
+  <footer>纯前端，无请求。数值范围 0–1，超出会显示成边界。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var cv = $('cv'), ctx = cv.getContext('2d');
+  var dpr = window.devicePixelRatio || 1;
+  var W = 340, PAD = 26;
+
+  cv.width = W * dpr; cv.height = W * dpr;
+  cv.style.width = W + 'px'; cv.style.height = W + 'px';
+  ctx.scale(dpr, dpr);
+
+  var P = [0.25, 0.1, 0.25, 1];
+  var drag = -1, moved = false;
+
+  function css(){
+    var a = P.map(function(v){ return Math.round(v * 100) / 100; });
+    return 'cubic-bezier(' + a.join(', ') + ')';
+  }
+  function cl(v){ return Math.max(0, Math.min(1, v)); }
+  function X(x){ return PAD + x * (W - PAD * 2); }
+  function Y(y){ return W - PAD - y * (W - PAD * 2); }
+  function invX(px){ return cl((px - PAD) / (W - PAD * 2)); }
+  function invY(py){ return cl((W - PAD - py) / (W - PAD * 2)); }
+
+  function bx(t){ return 3 * (1 - t) * (1 - t) * t * P[0] + 3 * (1 - t) * t * t * P[2] + t * t * t; }
+  function by(t){ return 3 * (1 - t) * (1 - t) * t * P[1] + 3 * (1 - t) * t * t * P[3] + t * t * t; }
+
+  function draw(){
+    var col = getComputedStyle(document.documentElement);
+    var line = col.getPropertyValue('--line').trim() || '#ddd';
+    var dim = col.getPropertyValue('--dim').trim() || '#888';
+    var acc = col.getPropertyValue('--accent').trim() || '#2f6df6';
+    var soft = col.getPropertyValue('--soft').trim() || '#eee';
+
+    ctx.clearRect(0, 0, W, W);
+    ctx.fillStyle = soft; ctx.fillRect(0, 0, W, W);
+
+    // 网格
+    ctx.strokeStyle = line; ctx.lineWidth = 1;
+    for (var i = 0; i <= 4; i++){
+      var g = i / 4;
+      ctx.beginPath(); ctx.moveTo(X(g), Y(0)); ctx.lineTo(X(g), Y(1)); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(X(0), Y(g)); ctx.lineTo(X(1), Y(g)); ctx.stroke();
+    }
+    // 匀速参考线
+    ctx.save(); ctx.setLineDash([4, 4]); ctx.strokeStyle = dim; ctx.globalAlpha = .55;
+    ctx.beginPath(); ctx.moveTo(X(0), Y(0)); ctx.lineTo(X(1), Y(1)); ctx.stroke(); ctx.restore();
+
+    // 控制手柄
+    ctx.strokeStyle = dim; ctx.lineWidth = 1.4; ctx.globalAlpha = .6;
+    ctx.beginPath(); ctx.moveTo(X(0), Y(0)); ctx.lineTo(X(P[0]), Y(P[1])); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(X(1), Y(1)); ctx.lineTo(X(P[2]), Y(P[3])); ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // 曲线
+    ctx.strokeStyle = acc; ctx.lineWidth = 2.6; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (var s = 0; s <= 200; s++){
+      var t = s / 200, px = X(bx(t)), py = Y(by(t));
+      if (s === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    // 点
+    [[P[0], P[1]], [P[2], P[3]]].forEach(function(p, k){
+      ctx.beginPath(); ctx.arc(X(p[0]), Y(p[1]), 6.5, 0, Math.PI * 2);
+      ctx.fillStyle = acc; ctx.fill();
+      ctx.strokeStyle = soft; ctx.lineWidth = 2; ctx.stroke();
+    });
+  }
+
+  function feel(){
+    var a = P[0], b = P[1], c = P[2], d = P[3];
+    var out = [];
+    if (b > a + 0.15) out.push('起步冲得快');
+    else if (b < a - 0.15) out.push('起步偏慢');
+    if (d < c - 0.15) out.push('收尾拖得久');
+    else if (d > c + 0.15) out.push('收尾干脆');
+    if (!out.length) out.push('接近匀速，稳');
+    return out.join('、') + '。';
+  }
+
+  function paint(){
+    $('x1').value = P[0].toFixed(2); $('y1').value = P[1].toFixed(2);
+    $('x2').value = P[2].toFixed(2); $('y2').value = P[3].toFixed(2);
+    var c = css();
+    $('out').innerHTML = '<em>/* 动画速度曲线 */</em><br>transition-timing-function: ' + c + ';<br>'
+      + '<em>/* 悬停、展开、弹窗都能用 */</em>';
+    $('hintName').textContent = c;
+    $('feel').textContent = '当前手感：' + feel();
+    var dot = $('dot');
+    dot.style.transition = 'transform 900ms ' + c;
+    draw();
+  }
+
+  function setP(v){
+    P = v.map(function(x){ return Math.round(x * 100) / 100; });
+    [].forEach.call($('presets').children, function(b){
+      b.classList.toggle('on', b.getAttribute('data-v') === P.join(','));
+    });
+    paint();
+  }
+
+  cv.addEventListener('pointerdown', function(e){
+    var r = cv.getBoundingClientRect();
+    var px = (e.clientX - r.left) * W / r.width, py = (e.clientY - r.top) * W / r.height;
+    var d1 = Math.hypot(px - X(P[0]), py - Y(P[1]));
+    var d2 = Math.hypot(px - X(P[2]), py - Y(P[3]));
+    drag = d1 <= d2 ? 0 : 1;
+    if (Math.min(d1, d2) > 30) drag = -1;
+    if (drag > -1){
+      try { cv.setPointerCapture(e.pointerId); } catch (err) {}
+      move(e);
+    }
+  });
+  cv.addEventListener('pointermove', function(e){
+    if (drag > -1) move(e);
+  });
+  cv.addEventListener('pointerup', function(){ drag = -1; });
+  cv.addEventListener('pointercancel', function(){ drag = -1; });
+
+  function move(e){
+    var r = cv.getBoundingClientRect();
+    var x = invX((e.clientX - r.left) * W / r.width);
+    var y = invY((e.clientY - r.top) * W / r.height);
+    if (drag === 0){ P[0] = x; P[1] = y; } else { P[2] = x; P[3] = y; }
+    [].forEach.call($('presets').children, function(b){ b.classList.remove('on'); });
+    paint();
+  }
+
+  $('presets').addEventListener('click', function(e){
+    var b = e.target.closest('button');
+    if (!b) return;
+    setP(b.getAttribute('data-v').split(',').map(Number));
+  });
+
+  ['x1', 'y1', 'x2', 'y2'].forEach(function(id, i){
+    $(id).addEventListener('input', function(){
+      var v = parseFloat(this.value);
+      if (isFinite(v)) P[i] = cl(v);
+      [].forEach.call($('presets').children, function(b){ b.classList.remove('on'); });
+      paint();
+    });
+  });
+
+  $('play').addEventListener('click', function(){
+    var dot = $('dot');
+    var track = document.querySelector('.track');
+    var to = track.clientWidth - 42;
+    moved = !moved;
+    dot.style.transition = 'none';
+    dot.style.transform = 'translateX(' + (moved ? 0 : to) + 'px)';
+    void dot.offsetWidth;
+    dot.style.transition = 'transform 900ms ' + css();
+    dot.style.transform = 'translateX(' + (moved ? to : 0) + 'px)';
+    this.textContent = moved ? '再来一次' : '跑一遍看看';
+  });
+
+  $('reset').addEventListener('click', function(){ setP([0.25, 0.1, 0.25, 1]); });
+
+  $('copy').addEventListener('click', function(){
+    var t = 'transition-timing-function: ' + css() + ';';
+    copyText(t, this, '复制这一行');
+  });
+
+  window.addEventListener('resize', draw);
+  new MutationObserver(function(){ draw(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+  paint();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

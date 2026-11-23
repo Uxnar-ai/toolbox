@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>复利与定投 · 每月存一点，多少年能变成多少</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; margin-bottom:14px}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:13px 13px 16px}
+  .inrow{display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:12.5px; color:var(--dim); margin-bottom:12px}
+  .inrow input{font:600 16px/1.2 MiSans,system-ui,sans-serif; width:104px; padding:7px 9px; border:1px solid var(--line); border-radius:9px; background:var(--card); color:var(--fg); text-align:right}
+  .inrow input.sm{width:64px}
+  .two{display:grid; gap:10px; grid-template-columns:1fr 1fr}
+  @media (max-width:680px){ .two{grid-template-columns:1fr} }
+  .col{background:var(--soft); border-radius:10px; padding:11px 13px}
+  .col h3{margin:0 0 8px; font-size:12px; font-weight:600; color:var(--dim)}
+  .col .line{display:flex; justify-content:space-between; gap:10px; font-size:13px; padding:5px 0; border-bottom:1px dashed rgba(128,128,128,.22)}
+  .col .line:last-child{border-bottom:0}
+  .col .line span{color:var(--dim)}
+  .col .line b{font:600 13.5px/1.4 ui-monospace,Menlo,Consolas,monospace}
+  .col .line.main b{color:var(--accent); font-size:17px}
+  .col .line.gain b{color:var(--ok)}
+  .chips{display:flex; gap:7px; flex-wrap:wrap; margin:0 0 12px}
+  .chips button{font:13px/1 inherit; padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer}
+  .chips button:hover{border-color:var(--accent); color:var(--accent)}
+  .chips button.on{background:var(--accent); color:var(--accent-fg); border-color:transparent; font-weight:600}
+  .scroll{max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:10px}
+  table{width:100%; border-collapse:collapse; font-size:13px}
+  th,td{text-align:right; padding:6px 11px; border-bottom:1px solid var(--line); white-space:nowrap}
+  th{font-size:11.5px; font-weight:600; color:var(--dim); position:sticky; top:0; background:var(--card)}
+  th:first-child,td:first-child{text-align:left}
+  td b{font-family:ui-monospace,Menlo,Consolas,monospace; font-weight:600}
+  tbody tr:last-child td{border-bottom:0}
+  tr.mark td{background:var(--soft)}
+  .verdict{margin-top:12px; font-size:13px; color:var(--fg); background:var(--soft); border-left:3px solid var(--accent); border-radius:0 8px 8px 0; padding:9px 12px; line-height:1.75}
+  .tip{margin:0; font-size:12.5px; color:var(--dim); line-height:1.85}
+  .tip b{color:var(--fg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>复利与定投</h1>
+      <p class="lede">手里一笔钱、每月再存一点，按年化收益滚下去，十年二十年是多少；顺便看通胀吃掉多少。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="box">
+    <div class="hd"><span>填四个数就够了</span><span id="hint">每月存入按月末算</span></div>
+    <div class="bd">
+      <div class="chips" id="years">
+        <button data-y="5">5 年</button>
+        <button data-y="10" class="on">10 年</button>
+        <button data-y="20">20 年</button>
+        <button data-y="30">30 年</button>
+      </div>
+      <div class="inrow">
+        <span>现在有</span>
+        <input type="number" id="p0" value="100000" step="1000" min="0"> <span>元</span>
+        <span>每月再存</span>
+        <input type="number" id="pm" value="2000" step="100" min="0"> <span>元</span>
+      </div>
+      <div class="inrow">
+        <span>年化收益</span>
+        <input type="number" id="rate" class="sm" value="6" step="0.1" min="0" max="50"> <span>%</span>
+        <span>持有</span>
+        <input type="number" id="yrs" class="sm" value="10" step="1" min="1" max="60"> <span>年</span>
+        <span>通胀</span>
+        <input type="number" id="infl" class="sm" value="2" step="0.1" min="0" max="20"> <span>%</span>
+      </div>
+      <div class="two">
+        <div class="col">
+          <h3>到期能拿到</h3>
+          <div id="main"></div>
+        </div>
+        <div class="col">
+          <h3>钱是怎么涨起来的</h3>
+          <div id="side"></div>
+        </div>
+      </div>
+      <div class="verdict" id="verdict">—</div>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="hd"><span>逐年明细</span><span>本金投入 vs 账户余额</span></div>
+    <div class="bd">
+      <div class="scroll">
+        <table>
+          <thead><tr><th>第几年</th><th>累计投入</th><th>账户余额</th><th>收益</th></tr></thead>
+          <tbody id="table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <p class="tip">
+    <b>算的是名义收益</b>：每月末投入、按月复利，没有算申购费、管理费和税。真实产品每年还有 1%–2% 的摩擦成本，年化填净值增长率更准。<br>
+    <b>72 法则</b>：年化 6% 大约 12 年翻倍（72 ÷ 6），年化 10% 大约 7 年 —— 这条只用来心算，不精确。
+  </p>
+
+  <footer>纯计算，无请求。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+
+  function money(v){
+    if (!isFinite(v)) return '—';
+    var neg = v < 0; v = Math.abs(v);
+    var s = v.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return (neg ? '-' : '') + '¥' + s;
+  }
+  function wan(v){
+    if (!isFinite(v)) return '—';
+    if (Math.abs(v) >= 1e8) return (v / 1e8).toFixed(2) + ' 亿';
+    if (Math.abs(v) >= 1e4) return (v / 1e4).toFixed(1) + ' 万';
+    return v.toFixed(0);
+  }
+  function pct(v){ return (v * 100).toFixed(1) + '%'; }
+
+  function lines(el, pairs){
+    var h = '';
+    for (var i = 0; i < pairs.length; i++){
+      h += '<div class="line' + (pairs[i][2] ? ' ' + pairs[i][2] : '') + '"><span>' + pairs[i][0] + '</span><b>' + pairs[i][1] + '</b></div>';
+    }
+    el.innerHTML = h;
+  }
+
+  function calc(){
+    var p0 = parseFloat($('p0').value) || 0;
+    var pm = parseFloat($('pm').value) || 0;
+    var rate = (parseFloat($('rate').value) || 0) / 100;
+    var yrs = Math.max(1, Math.min(60, parseInt($('yrs').value, 10) || 1));
+    var infl = (parseFloat($('infl').value) || 0) / 100;
+
+    var bal = p0, put = p0, rows = '', mr = rate / 12;
+    var totalIn = p0 + pm * 12 * yrs;
+
+    for (var y = 1; y <= yrs; y++){
+      for (var m = 0; m < 12; m++){
+        bal = bal * (1 + mr) + pm;
+        put += pm;
+      }
+      rows += '<tr' + (y === yrs ? ' class="mark"' : '') + '><td>第 ' + y + ' 年</td><td>' + money(put)
+            + '</td><td><b>' + money(bal) + '</b></td><td>' + money(bal - put) + '</td></tr>';
+    }
+    $('table').innerHTML = rows;
+
+    var gain = bal - totalIn;
+    var real = bal / Math.pow(1 + infl, yrs);
+    var multiple = totalIn > 0 ? bal / totalIn : 0;
+
+    lines($('main'), [
+      ['到期余额', money(bal) + '　(' + wan(bal) + ')', 'main'],
+      ['累计投入', money(totalIn)],
+      ['其中赚到', money(gain), 'gain'],
+      ['实际能买到', money(real) + ' 的东西']
+    ]);
+
+    lines($('side'), [
+      ['投入翻了几倍', multiple.toFixed(2) + ' 倍'],
+      ['平均每年涨', money(gain / yrs)],
+      ['收益占比', totalIn > 0 ? pct(gain / bal) : '—'],
+      ['翻倍要多久', rate > 0 ? (72 / (rate * 100)).toFixed(1) + ' 年' : '不涨'],
+      ['通胀后缩水', money(bal - real)]
+    ]);
+
+    $('hint').textContent = yrs + ' 年 · 每年 ' + (rate * 100).toFixed(1) + '%';
+    $('verdict').innerHTML = '每月存 <b>' + money(pm) + '</b>、年化 <b>' + (rate * 100).toFixed(1) + '%</b>，'
+      + yrs + ' 年后账户里大约 <b>' + money(bal) + '</b>，其中投入 ' + money(totalIn) + '、赚了 ' + money(gain) + '。'
+      + (infl > 0 ? ' 按每年 ' + (infl * 100).toFixed(1) + '% 的通胀算，那时候这笔钱只值现在的 <b>' + money(real) + '</b>。' : '');
+  }
+
+  $('years').addEventListener('click', function(e){
+    var b = e.target.closest('button');
+    if (!b) return;
+    [].forEach.call(this.children, function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    $('yrs').value = b.getAttribute('data-y');
+    calc();
+  });
+
+  document.addEventListener('input', function(e){
+    if (e.target.tagName === 'INPUT'){
+      var v = e.target.value;
+      if (e.target.id === 'yrs'){
+        [].forEach.call($('years').children, function(x){
+          x.classList.toggle('on', x.getAttribute('data-y') === v);
+        });
+      }
+      calc();
+    }
+  });
+
+  calc();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

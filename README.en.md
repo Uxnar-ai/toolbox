@@ -1,6 +1,6 @@
-# toolbox — ninety-five small tools that open and work
+# toolbox — one hundred small tools that open and work
 
-> Ninety-five tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table, whitespace detective, table aligner, shadow generator, JSON tree, income tax and take-home, JSON to table, BMI and calories, pomodoro timer. CSS gradient, image cropper, JSON diff, SVG minifier, subtitle timeline, image watermark, photo metadata, barcode generator, text splitter, character inspector, print size calculator, git rescue manual, regex cookbook, IPv6 address toolkit, recipe scaler, TOTP codes, code beautifier, punctuation converter, nginx reverse-proxy generator, age calculator, image stitcher, Chinese numerals, image comparison, images to PDF, nine-grid splitter, JSON to schema, GPA converter, unit price comparison, SVG to PNG, ZIP inspector, holiday countdown, XML tidy, TOML to JSON, anniversary to ICS, screenshot masking, CSS unit converter, name grouper, storage and bandwidth converter. No backend, no ports.
+> One hundred tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table, whitespace detective, table aligner, shadow generator, JSON tree, income tax and take-home, JSON to table, BMI and calories, pomodoro timer. CSS gradient, image cropper, JSON diff, SVG minifier, subtitle timeline, image watermark, photo metadata, barcode generator, text splitter, character inspector, print size calculator, git rescue manual, regex cookbook, IPv6 address toolkit, recipe scaler, TOTP codes, code beautifier, punctuation converter, nginx reverse-proxy generator, age calculator, image stitcher, Chinese numerals, image comparison, images to PDF, nine-grid splitter, JSON to schema, GPA converter, unit price comparison, SVG to PNG, ZIP inspector, holiday countdown, XML tidy, TOML to JSON, anniversary to ICS, screenshot masking, CSS unit converter, name grouper, storage and bandwidth converter, running pace, compound interest, easing curves, WiFi QR, screenshot beautifier. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -8,20 +8,22 @@ English | [中文](README.md)
 
 Every tool computes in the browser; no server is involved. `scripts/build_toolbox.py` reads each tool template, rewrites asset paths, injects the back-to-index capsule, and assembles a grouped home page; theme.css and base.js exist once. The output is a plain static directory.
 
-This round (2026-11-23) brings it to ninety-five, with four new tools:
+This round (2026-11-24) reaches one hundred, with five new tools:
 
-- **Screenshot masking**: drop a screenshot, drag a box over a phone number, name or address, and it is pixelated on release. Mosaic, gaussian blur or a solid block; adjustable strength, step-by-step undo, restore the original, export PNG. Nothing leaves the browser.
-- **CSS unit converter**: type a value and pick a unit, get px / rem / em / % / vw / vh / pt at once, click a row to copy. Root font size, parent font size and viewport are adjustable. Also converts design-draft pixels to vw (375 / 750 / 1440 / 1920 presets) and lists a 12-step type scale.
-- **Name grouper**: paste one name per line (commas, semicolons and spaces also split; duplicates are dropped), then split into N groups or N per group as evenly as possible, or draw names without repeats. Randomness comes from the system CSPRNG with rejection sampling instead of `Math.random` modulo; results copy out as plain text.
-- **Storage and bandwidth**: why a 500 GB drive shows 465.7 GiB — decimal and binary columns side by side with a one-line conclusion; 300 Mbps becomes 37.5 MB/s with a 100M to 2G reference table; and a file size plus bandwidth gives the download time at 85% efficiency.
+- **Running pace**: enter distance and time (5K / 10K / half / full presets), get pace, speed, per-400m and per-mile splits, plus a kilometre-by-kilometre table. A Riegel estimate shows what other distances would take — doubling the distance costs about 2.06x the time, not 2x.
+- **Compound interest**: principal, monthly contribution, annual return and years give the final balance, total paid in, profit and multiple; an inflation-adjusted figure shows what it would actually buy. A year-by-year table makes the crossover obvious.
+- **Easing curve editor**: drag the two control points, read off `cubic-bezier(...)` and copy it. Seven presets plus a dot that really animates with the current curve.
+- **WiFi QR code**: SSID, password and encryption type produce a scannable join-the-network code, downloadable as 720 / 1000 / 1600 px PNG. The exact payload string is shown so a code that will not scan can be debugged.
+- **Screenshot beautifier**: drop a screenshot, add a gradient or solid backdrop, padding, rounded corners and a shadow, choose 1:1 / 4:3 / 16:9 and export 1200–2400 px PNG.
 
 ## Features
 
-- Screenshot masking: drag a box, pick mosaic / blur / solid, undo, export PNG
-- CSS units: px, rem, em, %, vw, vh, pt at once, plus design-draft px to vw
-- Name grouper: even random groups or non-repeating draws, copy as text
-- Storage and bandwidth: GB vs GiB, Mbps to MB/s, download time estimate
-- Everything runs in the browser: no uploads, no backend endpoints at all
+- Running pace: pace, speed, splits, plus 5K / half / full finish estimates
+- Compound interest: final balance, profit, inflation-adjusted value, yearly table
+- Easing editor: drag a cubic-bezier, seven presets, live demo
+- WiFi QR: scan to join, download PNG, payload shown in plain text
+- Screenshot beautifier: gradient backdrop, rounded corners, shadow, HD PNG export
+- Everything runs in the browser: images, archives, text and JSON never leave the page
 
 ## Stack
 
