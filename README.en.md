@@ -1,6 +1,6 @@
-# toolbox — one hundred small tools that open and work
+# toolbox — one hundred and one small tools that open and work
 
-> One hundred tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table, whitespace detective, table aligner, shadow generator, JSON tree, income tax and take-home, JSON to table, BMI and calories, pomodoro timer. CSS gradient, image cropper, JSON diff, SVG minifier, subtitle timeline, image watermark, photo metadata, barcode generator, text splitter, character inspector, print size calculator, git rescue manual, regex cookbook, IPv6 address toolkit, recipe scaler, TOTP codes, code beautifier, punctuation converter, nginx reverse-proxy generator, age calculator, image stitcher, Chinese numerals, image comparison, images to PDF, nine-grid splitter, JSON to schema, GPA converter, unit price comparison, SVG to PNG, ZIP inspector, holiday countdown, XML tidy, TOML to JSON, anniversary to ICS, screenshot masking, CSS unit converter, name grouper, storage and bandwidth converter, running pace, compound interest, easing curves, WiFi QR, screenshot beautifier. No backend, no ports.
+> One hundred and one tiny tools in one static site: JSON formatter, text tidier, SQL formatter, JSON to types, number checker, symbol palette, timestamp converter, regex lab, text diff, encoders, hash checker, cron explainer, date calculator, naming converter, random generator, RMB uppercase, unit converter, percentage calculator, colour toolbox, QR generator, QR reader, image compressor, WebP converter, Data URI converter, CSV table, CJK spacing, word count, URL splitter, CIDR calculator, mojibake fixer, Markdown preview, text redaction, regex replace, YAML/JSON, base converter, SQL formatting, type generation, curl to code, HTTP status codes, .gitignore generator, loan calculator, favicon maker, HTML to Markdown, mock data, timezone table, whitespace detective, table aligner, shadow generator, JSON tree, income tax and take-home, JSON to table, BMI and calories, pomodoro timer. CSS gradient, image cropper, JSON diff, SVG minifier, subtitle timeline, image watermark, photo metadata, barcode generator, text splitter, character inspector, print size calculator, git rescue manual, regex cookbook, IPv6 address toolkit, recipe scaler, TOTP codes, code beautifier, punctuation converter, nginx reverse-proxy generator, age calculator, image stitcher, Chinese numerals, image comparison, images to PDF, nine-grid splitter, JSON to schema, GPA converter, unit price comparison, SVG to PNG, ZIP inspector, holiday countdown, XML tidy, TOML to JSON, anniversary to ICS, screenshot masking, CSS unit converter, name grouper, storage and bandwidth converter, running pace, compound interest, easing curves, WiFi QR, screenshot beautifier, city weather. No backend, no ports.
 
 English | [中文](README.md)
 
@@ -8,21 +8,21 @@ English | [中文](README.md)
 
 Every tool computes in the browser; no server is involved. `scripts/build_toolbox.py` reads each tool template, rewrites asset paths, injects the back-to-index capsule, and assembles a grouped home page; theme.css and base.js exist once. The output is a plain static directory.
 
-This round (2026-11-24) reaches one hundred, with five new tools:
+This round (2026-11-25) reaches one hundred and one, adding a city weather tool and a new "life" group:
 
-- **Running pace**: enter distance and time (5K / 10K / half / full presets), get pace, speed, per-400m and per-mile splits, plus a kilometre-by-kilometre table. A Riegel estimate shows what other distances would take — doubling the distance costs about 2.06x the time, not 2x.
-- **Compound interest**: principal, monthly contribution, annual return and years give the final balance, total paid in, profit and multiple; an inflation-adjusted figure shows what it would actually buy. A year-by-year table makes the crossover obvious.
-- **Easing curve editor**: drag the two control points, read off `cubic-bezier(...)` and copy it. Seven presets plus a dot that really animates with the current curve.
-- **WiFi QR code**: SSID, password and encryption type produce a scannable join-the-network code, downloadable as 720 / 1000 / 1600 px PNG. The exact payload string is shown so a code that will not scan can be debugged.
-- **Screenshot beautifier**: drop a screenshot, add a gradient or solid backdrop, padding, rounded corners and a shadow, choose 1:1 / 4:3 / 16:9 and export 1200–2400 px PNG.
+- **City weather**: type a city name or its 9-digit weather code to get the current temperature, feels-like, humidity, wind, pressure, sunrise/sunset and PM2.5 / PM10, plus a seven-day forecast with temperature-range bars.
+- **City codes bundled**: a 2,500-entry table mapping Chinese city names to China Weather's 9-digit codes ships with the page, so lookup works offline and doubles as autocomplete.
+- **Recent cities remembered**: up to eight visited cities are kept in localStorage as one-tap chips, with cached coordinates so a repeat lookup skips geocoding entirely.
+- **No middleman**: weather and air quality are fetched directly from Open-Meteo's public endpoints.
+
 
 ## Features
 
-- Running pace: pace, speed, splits, plus 5K / half / full finish estimates
-- Compound interest: final balance, profit, inflation-adjusted value, yearly table
-- Easing editor: drag a cubic-bezier, seven presets, live demo
-- WiFi QR: scan to join, download PNG, payload shown in plain text
-- Screenshot beautifier: gradient backdrop, rounded corners, shadow, HD PNG export
+- City weather: temperature, feels-like, humidity, wind, pressure, sunrise/sunset, seven-day forecast
+- Accepts a city name or 9-digit code; 2,500+ entry code table bundled for offline autocomplete
+- Recent cities kept locally (max 8) as one-tap chips; opens on the last one next time
+- PM2.5 / PM10 graded on one consistent scale; seven-day rows carry range bars
+- Weather data fetched straight from public endpoints, no relay server
 - Everything runs in the browser: images, archives, text and JSON never leave the page
 
 ## Stack
