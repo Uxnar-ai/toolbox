@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>systemd 服务生成 · 填几个空，拿到能用的 .service</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .panes{display:grid; gap:12px; grid-template-columns:minmax(0,1fr)}
+  @media (min-width:920px){ .panes{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)} }
+  .pane{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; display:flex; flex-direction:column; min-width:0; margin-bottom:12px}
+  .pane h2{margin:0; padding:8px 12px; font-size:12.5px; font-weight:600; color:var(--dim); border-bottom:1px solid var(--line); background:var(--soft); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .pane h2 button{font:inherit; font-size:12px; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--fg)}
+  .pane h2 button:hover{color:var(--accent); border-color:var(--accent)}
+  .body{padding:12px 13px 14px}
+  .f{margin-bottom:10px}
+  .f label{display:block; font-size:12px; color:var(--dim); margin-bottom:4px}
+  .f input[type=text], .f select{
+    width:100%; font:13.5px/1.5 MiSans,system-ui,sans-serif; padding:8px 10px;
+    border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg);
+  }
+  .f input[type=text]:focus, .f select:focus, .f textarea:focus{outline:2px solid var(--accent); outline-offset:-2px}
+  .f textarea{
+    width:100%; height:70px; resize:vertical; padding:8px 10px;
+    font:13px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg);
+  }
+  .f2{display:grid; gap:10px; grid-template-columns:1fr 1fr}
+  @media (max-width:520px){ .f2{grid-template-columns:1fr} }
+  .chk{display:flex; gap:8px; align-items:center; font-size:13px; color:var(--fg); margin:2px 0 10px}
+  .chk input{width:16px; height:16px; accent-color:var(--accent)}
+  pre.code{
+    margin:0; padding:13px; overflow:auto; max-height:430px;
+    font:12.5px/1.75 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    white-space:pre; tab-size:2; color:var(--fg); background:transparent;
+  }
+  pre.code .c{color:var(--dim)}
+  .note{font-size:12.5px; color:var(--dim); line-height:1.85; margin:0 0 10px}
+  .note b{color:var(--fg)}
+  ul.cmds{list-style:none; margin:0; padding:0}
+  ul.cmds li{display:flex; gap:8px; align-items:flex-start; padding:5px 0; border-bottom:1px dashed rgba(128,128,128,.22); font-size:12.5px}
+  ul.cmds li:last-child{border-bottom:0}
+  ul.cmds code{flex:1 1 auto; min-width:0; font-family:ui-monospace,Menlo,Consolas,monospace; overflow-wrap:anywhere; user-select:all}
+  ul.cmds span{flex:0 0 auto; color:var(--dim); text-align:right}
+  ul.cmds li button{flex:0 0 auto; font:500 11px/1 MiSans,system-ui,sans-serif; cursor:pointer; padding:4px 7px; border-radius:5px; border:1px solid var(--line); background:var(--card); color:var(--dim)}
+  ul.cmds li button:hover{color:var(--accent); border-color:var(--accent)}
+  .bad{color:var(--err); font-size:12px; margin-top:-4px; margin-bottom:8px; display:none}
+  .bad.on{display:block}
+  .tip{margin:14px 0 0; font-size:12.5px; color:var(--dim); line-height:1.9}
+  .tip b{color:var(--fg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>systemd 服务生成</h1>
+      <p class="lede">填启动命令、工作目录、运行用户，右边就是能直接用的 .service 文件，连部署命令一起给。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="panes">
+    <div>
+      <div class="pane">
+        <h2><span>填这几项</span><span>边填边生成</span></h2>
+        <div class="body">
+          <div class="f2">
+            <div class="f">
+              <label>服务名（英文小写）</label>
+              <input type="text" id="name" value="myapp" spellcheck="false">
+            </div>
+            <div class="f">
+              <label>一句话说明</label>
+              <input type="text" id="desc" value="我的后台服务">
+            </div>
+          </div>
+          <div class="bad" id="badName">服务名只能用小写字母、数字、连字符和下划线</div>
+
+          <div class="f">
+            <label>启动命令（写绝对路径）</label>
+            <input type="text" id="exec" value="/opt/myapp/run.sh" spellcheck="false">
+          </div>
+          <div class="f2">
+            <div class="f">
+              <label>工作目录</label>
+              <input type="text" id="work" value="/opt/myapp" spellcheck="false">
+            </div>
+            <div class="f">
+              <label>运行用户</label>
+              <input type="text" id="user" value="app" spellcheck="false">
+            </div>
+          </div>
+          <div class="f">
+            <label>环境变量（一行一个 KEY=VALUE，可留空）</label>
+            <textarea id="env" spellcheck="false">LANG=C.UTF-8
+PORT=8080</textarea>
+          </div>
+          <div class="f">
+            <label>挂掉之后</label>
+            <select id="restart">
+              <option value="always" selected>总是拉起来（推荐，做服务的常态）</option>
+              <option value="on-failure">只在异常退出时拉（跑完就结束的任务用这个）</option>
+              <option value="no">不自动重启</option>
+            </select>
+          </div>
+          <label class="chk"><input type="checkbox" id="useTimer"> 改成定时任务（每天几点跑一次）</label>
+          <div class="f" id="calWrap" style="display:none">
+            <label>什么时候跑</label>
+            <input type="text" id="cal" value="*-*-* 04:00:00" spellcheck="false">
+          </div>
+        </div>
+      </div>
+
+      <div class="pane">
+        <h2><span>先确认这三件事</span><span>省得装完起不来</span></h2>
+        <div class="body">
+          <ul class="cmds">
+            <li><code>ls -l /opt/myapp/run.sh</code><span>可执行吗</span></li>
+            <li><code>id app</code><span>用户存在吗</span></li>
+            <li><code>systemctl cat myapp</code><span>改的是哪份</span></li>
+          </ul>
+          <p class="note" style="margin:10px 0 0">启动命令要有执行权限（<b>chmod +x</b>），运行用户必须已存在，否则报 203/EXEC 和 217/USER —— 这两个错误码指的就是上面两件事。同名文件如果存在，<b>systemctl cat</b> 会告诉你 systemd 实际读的是哪个路径。</p>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="pane">
+        <h2><span id="fileLabel">/etc/systemd/system/myapp.service</span><button id="cp">复制</button></h2>
+        <pre class="code" id="out">—</pre>
+      </div>
+      <div class="pane">
+        <h2><span>装上去（三条命令）</span><button id="cp2">复制</button></h2>
+        <pre class="code" id="steps">—</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="pane">
+    <h2><span>日常怎么操作</span><span>点命令可复制</span></h2>
+    <div class="body">
+      <ul class="cmds" id="cmds"></ul>
+    </div>
+  </div>
+
+  <p class="tip">
+    <b>为什么不用 nohup</b>：nohup 起的进程跟终端走，重启服务器就没了，也不会自己拉起来；systemd 管着它，机器起来自动跑、挂了自动重启、日志统一进 journal。<br>
+    <b>命令写绝对路径</b>：systemd 不读你的 PATH，<code>python app.py</code> 多半报 203/EXEC，写成 <code>/usr/bin/python3 /opt/myapp/app.py</code>。<br>
+    <b>改完必须 daemon-reload</b>：直接改文件 systemctl 还拿旧的配置，reload 之后 restart 才生效。用 <code>systemctl edit myapp --full</code> 改会顺手帮你 reload。<br>
+    <b>报 200/CHDIR 是工作目录不存在</b>，报 217/USER 是运行用户不存在 —— 这两个错误码比日志有用。
+  </p>
+
+  <footer>纯前端生成，不上传任何内容。示例路径请换成你自己的。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+
+  function nameOk(v){ return /^[a-z0-9][a-z0-9_-]*$/.test(v) && v.length <= 60; }
+
+  function build(){
+    var name = $('name').value.trim();
+    var ok = nameOk(name);
+    $('badName').classList.toggle('on', !ok && name.length > 0);
+    if (!ok) name = 'myapp';
+
+    var desc = $('desc').value.trim() || '我的后台服务';
+    var exec = $('exec').value.trim() || '/opt/myapp/run.sh';
+    var work = $('work').value.trim();
+    var user = $('user').value.trim();
+    var envs = $('env').value.split('\n').map(function(s){ return s.trim(); }).filter(function(s){ return s && s.indexOf('=') > 0; });
+    var restart = $('restart').value;
+    var timer = $('useTimer').checked;
+    var cal = $('cal').value.trim() || '*-*-* 04:00:00';
+
+    $('calWrap').style.display = timer ? '' : 'none';
+
+    var L = [];
+    L.push('[Unit]');
+    L.push('Description=' + desc);
+    if (!timer){
+      L.push('After=network-online.target');
+      L.push('Wants=network-online.target');
+    }
+    L.push('');
+    L.push('[Service]');
+    L.push('Type=' + (timer ? 'oneshot' : 'simple'));
+    if (work) L.push('WorkingDirectory=' + work);
+    if (user) L.push('User=' + user);
+    L.push('ExecStart=' + exec);
+    envs.forEach(function(e){ L.push('Environment=' + e); });
+    if (timer){
+      L.push('# 定时任务只跑一次就结束，不用常驻');
+    } else {
+      L.push('Restart=' + restart);
+      if (restart !== 'no') L.push('RestartSec=5');
+    }
+    L.push('StandardOutput=journal');
+    L.push('StandardError=journal');
+    if (!timer){
+      L.push('');
+      L.push('[Install]');
+      L.push('WantedBy=multi-user.target');
+    }
+    var svc = L.join('\n');
+
+    var out = svc;
+    if (timer){
+      out += '\n\n# ---------- ' + name + '.timer ----------\n'
+           + '[Unit]\n'
+           + 'Description=' + desc + '（定时触发）\n\n'
+           + '[Timer]\n'
+           + 'OnCalendar=' + cal + '\n'
+           + 'Persistent=true\n'
+           + 'RandomizedDelaySec=60\n\n'
+           + '[Install]\n'
+           + 'WantedBy=timers.target\n';
+    }
+    $('out').innerHTML = colorize(out);
+    $('fileLabel').textContent = '/etc/systemd/system/' + name + (timer ? '.service + .timer' : '.service');
+
+    // 部署命令
+    var S = [];
+    S.push('# 1. 写文件（在服务器上执行，整段粘）');
+    S.push("sudo tee /etc/systemd/system/" + name + ".service > /dev/null <<'EOF'");
+    S.push(svc);
+    S.push('EOF');
+    if (timer){
+      S.push('');
+      S.push("sudo tee /etc/systemd/system/" + name + ".timer > /dev/null <<'EOF'");
+      S.push(out.split('# ---------- ' + name + '.timer ----------\n')[1]);
+      S.push('EOF');
+    }
+    S.push('');
+    S.push('# 2. 让 systemd 读到新文件');
+    S.push('sudo systemctl daemon-reload');
+    S.push('');
+    S.push('# 3. 开机自启 + 现在就起');
+    S.push(timer ? 'sudo systemctl enable --now ' + name + '.timer' : 'sudo systemctl enable --now ' + name);
+    $('steps').textContent = S.join('\n');
+
+    // 常用命令
+    var unit = timer ? name + '.timer' : name;
+    var C = [
+      ['systemctl status ' + unit + ' --no-pager', '看状态'],
+      [timer ? 'systemctl start ' + name + '.service' : 'systemctl restart ' + name, timer ? '手动跑一次' : '重启'],
+      [timer ? 'systemctl list-timers ' + name + ' --no-pager' : 'systemctl stop ' + name, timer ? '下次什么时候跑' : '停掉'],
+      ['journalctl -u ' + name + ' -n 100 --no-pager', '最近 100 行日志'],
+      ['journalctl -u ' + name + ' -f', '实时跟日志'],
+      ['journalctl -u ' + name + ' --since "1 hour ago" -p err', '只看这一小时的错误'],
+      ['systemctl disable ' + unit, '取消开机自启'],
+      ['systemctl edit ' + name + ' --full', '改配置（自动 reload）']
+    ];
+    $('cmds').innerHTML = C.map(function(r){
+      return '<li><code>' + r[0] + '</code><span>' + r[1] + '</span>'
+           + '<button data-c="' + r[0].replace(/"/g, '&quot;') + '">复制</button></li>';
+    }).join('');
+  }
+
+  function colorize(txt){
+    return txt.split('\n').map(function(line){
+      var t = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      if (/^\s*#/.test(line) || /^\[/.test(line)) return '<span class="c">' + t + '</span>';
+      return t;
+    }).join('\n');
+  }
+
+  document.addEventListener('input', build);
+  document.addEventListener('change', build);
+  $('cp').addEventListener('click', function(e){ copyText($('out').textContent, e.target, '复制'); });
+  $('cp2').addEventListener('click', function(e){ copyText($('steps').textContent, e.target, '复制'); });
+  $('cmds').addEventListener('click', function(e){
+    var b = e.target.closest('button');
+    if (!b) return;
+    copyText(b.getAttribute('data-c'), b, '复制');
+  });
+
+  build();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

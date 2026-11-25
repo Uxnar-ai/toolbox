@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docker 命令速查 · 按场景找，点一下复制</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .searchbar{display:flex; gap:10px; align-items:center; margin-bottom:12px}
+  .searchbar input{
+    flex:1 1 auto; width:auto; font:15px/1.5 MiSans,system-ui,sans-serif;
+    padding:10px 13px; border:1px solid var(--line); border-radius:10px;
+    background:var(--card); color:var(--fg);
+  }
+  .searchbar input:focus{outline:2px solid var(--accent); outline-offset:-2px}
+  .count{font-size:12.5px; color:var(--dim); white-space:nowrap}
+  .group{margin:18px 0 7px; font:600 12px/1 MiSans,system-ui,sans-serif; color:var(--dim); letter-spacing:.6px}
+  .group:first-of-type{margin-top:4px}
+  .it{
+    background:var(--card); border:1px solid var(--line); border-radius:10px;
+    padding:11px 13px; margin-bottom:8px;
+  }
+  .it .sc{font-size:13.5px; font-weight:600; margin-bottom:6px}
+  .it .sc .tag{
+    font:500 11px/1 MiSans,system-ui,sans-serif; color:var(--dim);
+    border:1px solid var(--line); border-radius:5px; padding:2px 5px; margin-left:6px; vertical-align:1px;
+  }
+  .cmd{
+    display:flex; gap:8px; align-items:flex-start;
+    background:var(--soft); border-radius:8px; padding:8px 9px;
+  }
+  .cmd code{
+    flex:1 1 auto; min-width:0; font:13px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    overflow-wrap:anywhere; color:var(--fg); user-select:all;
+  }
+  .cmd .cp{
+    flex:0 0 auto; font:500 11.5px/1 MiSans,system-ui,sans-serif; cursor:pointer;
+    padding:5px 8px; border-radius:6px; border:1px solid var(--line);
+    background:var(--card); color:var(--dim);
+  }
+  .cmd .cp:hover{color:var(--accent); border-color:var(--accent)}
+  .why{font-size:12.5px; color:var(--dim); line-height:1.75; margin-top:6px}
+  .why b{color:var(--fg); font-weight:500}
+  .warnbox{
+    font-size:12.5px; line-height:1.85; color:var(--warn);
+    background:rgba(180,83,9,.08); border:1px solid rgba(180,83,9,.25);
+    border-radius:9px; padding:9px 12px; margin-top:12px;
+  }
+  mark{background:var(--accent); color:var(--accent-fg); border-radius:3px; padding:0 1px}
+  .empty{padding:26px 12px; text-align:center; color:var(--dim); font-size:13.5px}
+  .tip{margin:18px 0 0; font-size:12.5px; color:var(--dim); line-height:1.9}
+  .tip b{color:var(--fg)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Docker 命令速查</h1>
+      <p class="lede">想干的事写一句，找到对应命令，点一下就复制走 —— 不用再翻文档。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="searchbar">
+    <input type="text" id="q" placeholder="搜：日志 / 清理 / 进容器 / compose / 端口">
+    <span class="count" id="count">—</span>
+  </div>
+
+  <div id="list"></div>
+
+  <div class="warnbox">
+    <b>小心这两条</b>：<code style="font-family:ui-monospace,monospace">docker system prune -a</code> 会删掉所有没在用的镜像，
+    下次用到要重新拉；<code style="font-family:ui-monospace,monospace">docker compose down -v</code> 连数据卷一起删，库里的数据就没了。
+    不确定的时候先跑对应的 <code style="font-family:ui-monospace,monospace">df</code> / <code style="font-family:ui-monospace,monospace">ls</code> 看一眼。
+  </div>
+
+  <p class="tip">
+    <b>起名省事</b>：给容器起个名字（<code>--name web</code>），后面所有命令都能用名字代替一长串 ID。<br>
+    <b>看文档不用开浏览器</b>：<code>docker run --help</code>、<code>docker compose up --help</code> 里的参数表比网页快也比网页准。<br>
+    <b>退出码很关键</b>：容器反复重启，先看 <code>ExitCode</code> —— 137 是被强杀（多半内存不够或 OOM），1 是程序自己报错退出，0 是正常跑完了。
+  </p>
+
+  <footer>命令都是常用写法，示例里的容器名统一叫 <code style="font-family:ui-monospace,monospace">web</code>，换成自己的即可。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+
+  var DATA = [
+    ["日常", "看有谁在跑", "docker ps", "只看正在运行的容器；表里的 PORTS 就是映射到宿主机的端口。", ["列表", "ps"]],
+    ["日常", "连已经退出的也看", "docker ps -a", "容器挂了会从 ps 里消失，加 -a 才看得见它的退出状态。", ["列表", "退出", "ps -a"]],
+    ["日常", "起停重启", "docker restart web", "把 start / stop / restart 换成你要的动作即可。", ["start", "stop", "restart"]],
+    ["日常", "进容器里看看", "docker exec -it web sh", "有 bash 就换成 bash；-it 是「可交互 + 分配终端」，少了就进去就退出。", ["exec", "交互", "进容器"]],
+    ["日常", "拷文件进出", "docker cp ./conf.yml web:/etc/app/conf.yml", "反过来把容器里的东西拷出来：docker cp web:/var/log/app.log .", ["cp", "文件"]],
+    ["日常", "看资源占用", "docker stats --no-stream", "实时 CPU / 内存 / 网络；去掉 --no-stream 就是持续刷新，Ctrl+C 退出。", ["cpu", "内存", "stats"]],
+    ["日常", "看容器里的进程", "docker top web", "容器里到底跑的是哪个进程、PID 多少，排查「为什么一起就退」很有用。", ["进程", "top"]],
+    ["日常", "改重启策略", "docker update --restart=always web", "不用重建容器就能改成开机自启；设成 no 就取消。", ["自启", "restart"]],
+    ["日常", "容器改名", "docker rename web web-old", "改完所有命令都用新名字。", ["rename"]],
+
+    ["日志", "跟日志", "docker logs -f --tail 100 web", "--tail 先给最后 100 行，-f 持续跟着看；Ctrl+C 退出不影响容器。", ["logs", "日志", "排查"]],
+    ["日志", "只看最近一段", "docker logs --since 30m web", "也支持 --since 2026-01-01T00:00:00 这种绝对时间。", ["logs", "时间"]],
+    ["日志", "从日志里捞错误", "docker logs web 2>&1 | grep -i error", "日志走的是 stderr，不重定向就 grep 不到，这是最容易漏的一步。", ["grep", "错误"]],
+    ["日志", "看它为什么退出", "docker inspect -f '{{.State.ExitCode}} {{.State.Error}}' web", "137 = 被强杀（内存/超时），1 = 程序自己报错，0 = 正常结束。", ["退出码", "inspect", "排查"]],
+    ["日志", "看端口映射到哪", "docker port web", "忘了 -p 映射了啥，一条命令看清楚。", ["端口", "port"]],
+    ["日志", "容器改过哪些文件", "docker diff web", "A 新增 / D 删除 / C 修改，只在容器层，不含挂载的目录。", ["diff", "文件"]],
+    ["日志", "实时看 docker 事件", "docker events --filter container=web", "容器起停、OOM、健康检查失败都会打在这里，比翻日志直观。", ["events", "监控"]],
+
+    ["镜像", "本地有哪些镜像", "docker images", "看 TAG 和大小；同一镜像多个 TAG 会各占一行但共用一层。", ["images", "镜像"]],
+    ["镜像", "拉一个指定版本", "docker pull nginx:1.27", "生产上别用 latest，升级会变得不可控。", ["pull", "拉取"]],
+    ["镜像", "构建", "docker build -t app:1.0 .", "最后的点别忘了 —— 那是构建上下文目录。", ["build", "构建"]],
+    ["镜像", "不缓存重建", "docker build --no-cache -t app:1.0 .", "依赖装错了、缓存脏了才用，平时别加，慢很多。", ["build", "缓存"]],
+    ["镜像", "镜像怎么变这么大", "docker history app:1.0", "按层看每步占多少，通常是一层装了一堆编译工具。", ["history", "体积"]],
+    ["镜像", "导出成文件带走", "docker save -o app.tar app:1.0", "内网机器拉不到镜像时用；导回来是 docker load -i app.tar。", ["save", "load", "离线"]],
+    ["镜像", "临时跑一个玩具容器", "docker run --rm -it alpine sh", "--rm 退出就删，不留垃圾；试命令、试网络都靠它。", ["run", "临时"]],
+    ["镜像", "跑一个带端口和目录的", "docker run -d --name web -p 8080:80 -v $PWD/html:/usr/share/nginx/html:ro nginx", "冒号左边是宿主机，右边是容器；结尾 :ro 是只读挂载。", ["run", "端口", "挂载"]],
+
+    ["清理", "先看占了多少", "docker system df", "镜像 / 容器 / 卷 / 构建缓存四块分开列，先看再删。", ["df", "空间", "清理"]],
+    ["清理", "删所有没在用的", "docker system prune", "只删停止的容器、悬空镜像、没用的网络；加 -a 连没被引用的镜像一起删。", ["prune", "清理"]],
+    ["清理", "只清构建缓存", "docker builder prune -f", "构建几次就能攒出几个 G，这条最安全。", ["builder", "缓存"]],
+    ["清理", "删一周前的镜像", "docker image prune -a --filter 'until=168h'", "168 小时 = 7 天；加 -a 才会删有 TAG 但没容器用的镜像。", ["image", "prune"]],
+    ["清理", "删停止的容器", "docker container prune -f", "只删 exit 状态的，跑着的不动。", ["container", "prune"]],
+    ["清理", "删没挂载的数据卷", "docker volume prune -f", "卷里可能是数据库文件，删前先 docker volume ls 看一眼。", ["volume", "数据"]],
+
+    ["Compose", "起整套服务", "docker compose up -d", "-d 是后台；第一次会自动构建，改代码后要加 --build。", ["compose", "up", "启动"]],
+    ["Compose", "改完代码重建", "docker compose up -d --build", "只重启不重建，新代码不会进去，这是最常见的「改了没生效」。", ["compose", "build", "重建"]],
+    ["Compose", "看状态", "docker compose ps", "只有 compose 管的容器，比 docker ps 干净。", ["compose", "ps"]],
+    ["Compose", "跟某个服务的日志", "docker compose logs -f --tail 100 api", "服务名写 docker-compose.yml 里那个 key，不是容器名。", ["compose", "logs"]],
+    ["Compose", "进某个服务", "docker compose exec api sh", "和 docker exec 一样，但不用记容器名。", ["compose", "exec"]],
+    ["Compose", "只重启一个服务", "docker compose restart api", "改环境变量这种要 up -d 才生效，restart 只重启进程。", ["compose", "restart"]],
+    ["Compose", "停掉并清理", "docker compose down", "加 -v 会连数据卷一起删，数据库就清空了。", ["compose", "down", "停止"]],
+    ["Compose", "检查配置有没有错", "docker compose config", "把变量替换后的最终配置打出来，排「为什么环境变量没生效」最快。", ["compose", "config", "校验"]],
+    ["Compose", "更新镜像再起", "docker compose pull && docker compose up -d", "拉新镜像后 up 会自动重建用了新镜像的容器。", ["compose", "pull", "升级"]],
+
+    ["网络与卷", "看有哪些网络", "docker network ls", "默认的 bridge 之外，compose 会自己建一个，同网络的容器能用服务名互相访问。", ["network", "网络"]],
+    ["网络与卷", "两个容器互相访问", "docker network connect appnet web", "连上同一个自定义网络后，直接 ping 容器名就能通，不用记 IP。", ["network", "connect"]],
+    ["网络与卷", "看网络里都有谁", "docker network inspect appnet", "Containers 段列着加入的容器和它们的内部 IP。", ["inspect", "网络"]],
+    ["网络与卷", "看有哪些数据卷", "docker volume ls", "匿名卷一串 hash，具名卷看得出用途，优先用具名卷。", ["volume", "数据"]],
+    ["网络与卷", "卷存在哪", "docker volume inspect appdata", "Mountpoint 就是宿主机上的真实路径，可以直接备份这个目录。", ["volume", "路径", "备份"]],
+    ["网络与卷", "让容器用宿主机网络", "docker run --rm --network host nginx", "容器直接用宿主机的网卡和端口，注意端口别撞。", ["host", "网络"]]
+  ];
+
+  var GROUPS = ["日常", "日志", "镜像", "清理", "Compose", "网络与卷"];
+
+  function esc(s){
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function hl(s, q){
+    var t = esc(s);
+    if (!q) return t;
+    var i = t.toLowerCase().indexOf(q.toLowerCase());
+    if (i < 0) return t;
+    return t.slice(0, i) + '<mark>' + t.slice(i, i + q.length) + '</mark>' + t.slice(i + q.length);
+  }
+
+  function render(){
+    var q = $('q').value.trim();
+    var ql = q.toLowerCase();
+    var hits = DATA.filter(function(r){
+      if (!q) return true;
+      return (r[1] + ' ' + r[2] + ' ' + r[3] + ' ' + r[4].join(' ')).toLowerCase().indexOf(ql) >= 0;
+    });
+
+    $('count').textContent = q ? ('找到 ' + hits.length + ' / ' + DATA.length + ' 条') : ('共 ' + DATA.length + ' 条');
+
+    if (!hits.length){
+      $('list').innerHTML = '<div class="empty">没找到，换个说法试试：日志 / 端口 / 清理 / compose / 数据卷</div>';
+      return;
+    }
+
+    var html = '';
+    for (var g = 0; g < GROUPS.length; g++){
+      var rows = hits.filter(function(r){ return r[0] === GROUPS[g]; });
+      if (!rows.length) continue;
+      html += '<div class="group">' + GROUPS[g] + '</div>';
+      for (var i = 0; i < rows.length; i++){
+        var r = rows[i];
+        var tags = r[4].slice(0, 2).map(function(t){ return '<span class="tag">' + esc(t) + '</span>'; }).join('');
+        html += '<div class="it">'
+             + '<div class="sc">' + hl(r[1], q) + tags + '</div>'
+             + '<div class="cmd"><code>' + hl(r[2], q) + '</code>'
+             + '<button class="cp" data-cmd="' + esc(r[2]) + '">复制</button></div>'
+             + '<div class="why">' + hl(r[3], q) + '</div>'
+             + '</div>';
+      }
+    }
+    $('list').innerHTML = html;
+  }
+
+  $('list').addEventListener('click', function(e){
+    var b = e.target.closest('.cp');
+    if (!b) return;
+    copyText(b.getAttribute('data-cmd'), b, '复制');
+  });
+  $('q').addEventListener('input', render);
+  render();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>

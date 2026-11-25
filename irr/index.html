@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>分期真实利率 · 月费率 0.6% 到底是多少年化</title>
+<link rel="icon" type="image/svg+xml" href="../assets/icon.svg">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14161a" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="../assets/theme.css">
+<style>
+  .box{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; margin-bottom:14px}
+  .hd{padding:9px 13px; font-size:12.5px; font-weight:600; color:var(--dim); background:var(--soft); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px; align-items:center}
+  .bd{padding:14px 13px 16px}
+  .inrow{display:flex; gap:9px; align-items:center; flex-wrap:wrap; font-size:12.5px; color:var(--dim)}
+  .inrow input[type=number]{font:600 16px/1.2 MiSans,system-ui,sans-serif; width:118px; padding:8px 10px; border:1px solid var(--line); border-radius:9px; background:var(--card); color:var(--fg)}
+  .inrow input[type=number]:focus{outline:2px solid var(--accent); outline-offset:-2px}
+  .hero{display:grid; gap:10px; grid-template-columns:1fr 1fr}
+  @media (max-width:620px){ .hero{grid-template-columns:1fr} }
+  .kpi{background:var(--soft); border-radius:11px; padding:13px 14px}
+  .kpi .t{font-size:12px; color:var(--dim); margin-bottom:5px}
+  .kpi .v{font:600 30px/1.15 MiSans,system-ui,sans-serif; letter-spacing:-.5px}
+  .kpi .s{font-size:12px; color:var(--dim); margin-top:5px; line-height:1.6}
+  .kpi.hot .v{color:var(--err)}
+  .kpi.cool .v{color:var(--ok)}
+  .ratio{margin-top:11px; font-size:13.5px; line-height:1.8; background:var(--soft); border-left:3px solid var(--err); border-radius:0 8px 8px 0; padding:9px 12px}
+  .ratio b{font-weight:600; color:var(--err)}
+  .grid4{display:grid; gap:9px; grid-template-columns:repeat(4,1fr); margin-top:11px}
+  @media (max-width:640px){ .grid4{grid-template-columns:1fr 1fr} }
+  .mini{background:var(--soft); border-radius:9px; padding:9px 11px}
+  .mini .t{font-size:11.5px; color:var(--dim)}
+  .mini .v{font:600 15px/1.4 ui-monospace,Menlo,Consolas,monospace}
+  table{width:100%; border-collapse:collapse; font-size:13px}
+  th,td{text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); white-space:nowrap}
+  th{font-size:11.5px; font-weight:600; color:var(--dim)}
+  td.n,th.n{text-align:right; font-family:ui-monospace,Menlo,Consolas,monospace}
+  tbody tr:hover td{background:var(--soft)}
+  tbody tr.now td{background:var(--soft); font-weight:600}
+  .scroll{max-height:300px; overflow:auto; padding:0 13px 12px}
+  .scroll table{font-size:12.5px}
+  .scroll th{position:sticky; top:0; background:var(--card); z-index:1; box-shadow:0 1px 0 var(--line)}
+  .tip{margin:0; font-size:12.5px; color:var(--dim); line-height:1.9}
+  .tip b{color:var(--fg)}
+  .tip code{font-family:ui-monospace,Menlo,Consolas,monospace; background:var(--soft); padding:1px 5px; border-radius:4px; font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>分期真实利率</h1>
+      <p class="lede">银行说「月费率 0.6%」，看着像年化 7.2%，实际借一年你要付的是 13.8% —— 填两个数看清楚。</p>
+    </div>
+    <button class="toggle" id="theme">☀︎ / ☾</button>
+  </header>
+
+  <div class="box">
+    <div class="hd"><span>这笔分期长什么样</span><span>账单分期 / 消费贷 / 车贷</span></div>
+    <div class="bd">
+      <div class="inrow">
+        <span>借</span>
+        <input type="number" id="P" value="12000" step="any" min="0">
+        <span>元，分</span>
+        <input type="number" id="N" value="12" step="1" min="1" max="60">
+        <span>期，每期费率</span>
+        <input type="number" id="R" value="0.6" step="any" min="0">
+        <span>%</span>
+        <span class="sep">·</span>
+        <span>放款先扣</span>
+        <input type="number" id="F" value="0" step="any" min="0">
+        <span>% 手续费</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="hd"><span>算出来的两个数，差得比你想的多</span><span id="hint">—</span></div>
+    <div class="bd">
+      <div class="hero">
+        <div class="kpi cool">
+          <div class="t">它嘴上说的（费率 × 12）</div>
+          <div class="v" id="nominal">—</div>
+          <div class="s">只把手续费简单相加，没算钱在手上逐月变少</div>
+        </div>
+        <div class="kpi hot">
+          <div class="t">实际年化（按 IRR 折算）</div>
+          <div class="v" id="real">—</div>
+          <div class="s">和「等额本息、这个利率的贷款」等价</div>
+        </div>
+      </div>
+      <div class="ratio" id="ratio">—</div>
+      <div class="grid4">
+        <div class="mini"><div class="t">每期还</div><div class="v" id="pay">—</div></div>
+        <div class="mini"><div class="t">总手续费</div><div class="v" id="fee">—</div></div>
+        <div class="mini"><div class="t">实际到手</div><div class="v" id="net">—</div></div>
+        <div class="mini"><div class="t">比本金多付</div><div class="v" id="extra">—</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="hd"><span>常见费率对照（按上面选的期数算）</span><span>点一行套用</span></div>
+    <div class="bd">
+      <table>
+        <thead><tr><th>月费率</th><th class="n">每期还</th><th class="n">嘴上说年化</th><th class="n">真实年化</th><th class="n">差几倍</th></tr></thead>
+        <tbody id="tbl"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="hd"><span>每期还款拆开看</span><span>本金逐月还，手续费按最初的借款额算</span></div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>期</th><th class="n">还款</th><th class="n">本金</th><th class="n">手续费</th><th class="n">剩余本金</th></tr></thead>
+        <tbody id="plan"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <p class="tip">
+    <b>为什么差这么多</b>：分期的手续费是按<b>最初借的钱</b>算的，但你的本金每个月都在还，第二个月实际只欠 11000，手续费照 12000 收。钱的平均占用时间只有一半左右，所以真实利率差不多是「月费率 × 12 × 1.85」。<br>
+    <b>怎么算的</b>：把每期还款看成现金流，解出让它折现到今天正好等于实际到手的那个月利率 <code>i</code>，再按 <code>(1+i)¹²−1</code> 折成年化。这就是银行内部算贷款用的同一个口径，所以两个数可以直接比。<br>
+    <b>什么时候真的划算</b>：真实年化低于你手上闲钱的收益率，或者低于同一笔钱的理财/存款利率时，提前还才不划算。免息分期（费率 0）另说，那是真免息。
+  </p>
+
+  <footer>纯计算，无请求；不保存任何输入。</footer>
+</div>
+<script src="../assets/base.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+
+  function money(v){
+    if (!isFinite(v)) return '—';
+    return v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+  function pct(v, d){
+    if (!isFinite(v)) return '—';
+    return v.toFixed(d === undefined ? 2 : d) + '%';
+  }
+
+  // 等额本金式分期：每期还固定本金 + 固定手续费，求月利率 i 使现金流折现 = 实际到手
+  function solve(P, n, r, feePct){
+    var pay = P / n + P * r / 100;
+    var net = P * (1 - feePct / 100);
+    function pv(i){
+      if (i < 1e-12) return pay * n;
+      return pay * (1 - Math.pow(1 + i, -n)) / i;
+    }
+    if (pv(0) <= net) return { i: 0, pay: pay, net: net };
+    var lo = 0, hi = 1;
+    for (var k = 0; k < 120; k++){
+      var mid = (lo + hi) / 2;
+      if (pv(mid) > net) lo = mid; else hi = mid;
+    }
+    return { i: (lo + hi) / 2, pay: pay, net: net };
+  }
+
+  function read(){
+    var P = parseFloat($('P').value);
+    var n = Math.round(parseFloat($('N').value));
+    var r = parseFloat($('R').value);
+    var f = parseFloat($('F').value);
+    if (!isFinite(P) || P <= 0) P = 0;
+    if (!isFinite(n) || n < 1) n = 1;
+    if (n > 60) n = 60;
+    if (!isFinite(r) || r < 0) r = 0;
+    if (!isFinite(f) || f < 0) f = 0;
+    if (f > 30) f = 30;
+    return { P: P, n: n, r: r, f: f };
+  }
+
+  function render(){
+    var d = read();
+    var s = solve(d.P, d.n, d.r, d.f);
+    var monthly = s.i;
+    var annual = Math.pow(1 + monthly, 12) - 1;
+    var nominal = d.r * 12;
+    var totalPay = s.pay * d.n;
+    var totalFee = totalPay - s.net;
+
+    $('nominal').textContent = d.r > 0 ? pct(nominal, 2) : '0%';
+    $('real').textContent = d.P > 0 ? pct(annual * 100, 2) : '—';
+    $('hint').textContent = '借 ' + money(d.P) + ' 元 · ' + d.n + ' 期';
+
+    if (d.P > 0 && nominal > 0){
+      var times = (annual * 100) / nominal;
+      $('ratio').innerHTML = '嘴上说的 <b>' + pct(nominal, 2) + '</b>，真实是 <b>' + pct(annual * 100, 2)
+        + '</b>，<b>' + times.toFixed(2) + ' 倍</b>。'
+        + (d.f > 0 ? ' 再加上放款先扣的 ' + d.f + '%，实际到手只有 ' + money(s.net) + ' 元，利率又高了一截。' : '');
+    } else if (d.r === 0 && d.f === 0){
+      $('ratio').innerHTML = '费率为 0 且不扣手续费 —— 这是<b>真免息</b>，分期不亏，只耽误一点额度。';
+    } else {
+      $('ratio').innerHTML = '填一个本金和费率就能算。';
+    }
+
+    $('pay').textContent = money(s.pay);
+    $('fee').textContent = money(totalFee);
+    $('net').textContent = money(s.net);
+    $('extra').textContent = d.P > 0 ? pct(totalFee / d.P * 100, 2) : '—';
+
+    // 对照表
+    var rates = [0.3, 0.5, 0.6, 0.75, 0.9, 1.0];
+    var h = '';
+    for (var k = 0; k < rates.length; k++){
+      var rr = rates[k];
+      var ss = solve(d.P || 10000, d.n, rr, 0);
+      var an = (Math.pow(1 + ss.i, 12) - 1) * 100;
+      var nm = rr * 12;
+      var mul = nm > 0 ? an / nm : 1;
+      var on = Math.abs(rr - d.r) < 1e-9;
+      h += '<tr' + (on ? ' class="now"' : '') + ' data-r="' + rr + '" style="cursor:pointer">'
+         + '<td>' + rr.toFixed(2) + '%</td>'
+         + '<td class="n">' + money(ss.pay) + '</td>'
+         + '<td class="n">' + pct(nm, 2) + '</td>'
+         + '<td class="n">' + pct(an, 2) + '</td>'
+         + '<td class="n">' + mul.toFixed(2) + '×</td></tr>';
+    }
+    $('tbl').innerHTML = h;
+
+    // 还款明细
+    var body = '', left = d.P, perP = d.P / d.n, feeEach = d.P * d.r / 100;
+    var showAll = d.n <= 36;
+    for (var t = 1; t <= d.n; t++){
+      var isLast = t === d.n;
+      var principal = isLast ? left : perP;
+      left -= principal;
+      if (left < 1e-9) left = 0;
+      body += '<tr' + (isLast ? ' class="now"' : '') + '><td>' + t + '</td>'
+            + '<td class="n">' + money(s.pay) + '</td>'
+            + '<td class="n">' + money(principal) + '</td>'
+            + '<td class="n">' + money(feeEach) + '</td>'
+            + '<td class="n">' + money(left) + '</td></tr>';
+    }
+    $('plan').innerHTML = body;
+
+    if (!showAll) $('plan').parentNode.parentNode.style.maxHeight = '290px';
+  }
+
+  document.addEventListener('input', function(e){
+    if (e.target.tagName === 'INPUT') render();
+  });
+  document.getElementById('tbl').addEventListener('click', function(e){
+    var tr = e.target.closest('tr');
+    if (!tr || !tr.getAttribute('data-r')) return;
+    $('R').value = tr.getAttribute('data-r');
+    $('F').value = '0';
+    render();
+  });
+
+  render();
+})();
+</script>
+
+<a class="tb-nav" href="../" title="回到工具台">⌂ 工具台</a>
+<style>
+.tb-nav{
+  position:fixed; left:14px; bottom:14px; z-index:999;
+  display:inline-flex; align-items:center; gap:6px;
+  padding:8px 13px; border-radius:999px;
+  border:1px solid var(--line, #2c3138);
+  background:var(--card, var(--panel, #1c1f24));
+  color:var(--dim, var(--muted, #9aa1a9));
+  font:500 13px/1 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  text-decoration:none; box-shadow:0 2px 12px rgba(0,0,0,.12);
+  transition:color .15s, border-color .15s;
+}
+.tb-nav:hover{ color:var(--accent, #5b8cff); border-color:var(--accent, #5b8cff) }
+</style>
+</body>
+</html>
